@@ -1,0 +1,2002 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#060810">
+<title>CEO室</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+
+/* ── TOKENS ── */
+:root {
+  --ink:       #060810;
+  --ink-1:     #0b0f1c;
+  --ink-2:     #111626;
+  --ink-3:     #181f34;
+  --ink-4:     #202944;
+
+  /* コントラスト強化：暗背景上の文字色 */
+  --on:        #f4f6fc;   /* 主要テキスト：ほぼ白 */
+  --on-2:      #b0bcd8;   /* サブテキスト：明るいグレー */
+  --on-3:      #6b7a9e;   /* 補助テキスト */
+  --on-4:      #2e3a58;   /* ボーダー・区切り線 */
+
+  --fire:      #f97316;
+  --fire-dim:  rgba(249,115,22,.15);
+  --fire-glow: rgba(249,115,22,.28);
+
+  --go:        #22d3a0;
+  --go-dim:    rgba(34,211,160,.15);
+  --flag:      #f05c5c;
+  --flag-dim:  rgba(240,92,92,.15);
+  --link:      #4f8ef7;
+
+  --r: 16px;
+  --r-lg: 22px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+
+  color-scheme: dark; /* ライトモード強制排除 */
+}
+
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html {
+  color-scheme: dark;
+  background: #060810; /* html自体に背景を指定（Safariの白フラッシュ対策）*/
+}
+html, body { height: 100%; background: var(--ink); color: var(--on); overscroll-behavior: none; }
+body { font-family: 'Noto Sans JP', 'Inter', sans-serif; min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+
+/* ── ライトモード完全無効化 ── */
+@media (prefers-color-scheme: light) {
+  :root {
+    --ink:   #060810;
+    --ink-1: #0b0f1c;
+    --ink-2: #111626;
+    --ink-3: #181f34;
+    --ink-4: #202944;
+    --on:    #f4f6fc;
+    --on-2:  #b0bcd8;
+    --on-3:  #6b7a9e;
+    --on-4:  #2e3a58;
+  }
+  html, body { background: #060810 !important; color: #f4f6fc !important; }
+}
+button, input, select, textarea { font-family: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ── SCREENS ── */
+.scr { display: none; min-height: 100vh; flex-direction: column; padding-bottom: calc(68px + var(--safe-b)); animation: fade-in .32s ease; }
+.scr.on { display: flex; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── SCROLLABLE ── */
+.pg { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* ── TOP HEADER ── */
+.top-header { flex-shrink: 0; padding: calc(var(--safe-t) + 0px) 0 0; }
+.cmd-line { height: 2px; background: linear-gradient(90deg, var(--fire) 0%, rgba(249,115,22,.3) 60%, transparent 100%); }
+.top-strip { padding: 16px 24px 0; display: flex; align-items: center; justify-content: space-between; }
+.strip-brand { display: flex; flex-direction: column; gap: 3px; }
+.strip-logo { font-family: 'Noto Sans JP',sans-serif; font-size: 22px; font-weight: 700; letter-spacing: .04em; color: var(--on); line-height: 1; }
+.strip-sub { font-family: 'Inter',sans-serif; font-size: 9px; font-weight: 600; letter-spacing: .22em; color: var(--on-2); text-transform: uppercase; }
+.strip-status { display: flex; align-items: center; gap: 6px; }
+.strip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fire); box-shadow: 0 0 8px var(--fire-glow); animation: breathe 3s ease-in-out infinite; }
+.strip-status-txt { font-family: 'Inter',sans-serif; font-size: 9px; font-weight: 600; letter-spacing: .12em; color: var(--on-2); text-transform: uppercase; }
+@keyframes breathe { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.4;transform:scale(.75);} }
+
+/* ── CEO判断ブロック ── */
+.ceo-judgment { margin: 20px 24px 0; padding: 16px 18px; border: 1px solid var(--on-4); border-left: 2px solid var(--fire); border-radius: 0 10px 10px 0; position: relative; cursor: pointer; transition: border-color .2s; }
+.ceo-judgment:hover { border-color: var(--on-3); border-left-color: var(--fire); }
+.ceo-j-label { font-family: 'Inter',sans-serif; font-size: 9px; font-weight: 700; letter-spacing: .18em; color: var(--fire); text-transform: uppercase; margin-bottom: 8px; }
+.ceo-j-text { font-size: 14px; font-weight: 500; line-height: 1.7; color: var(--on); }
+.ceo-j-edit { position: absolute; top: 12px; right: 14px; background: transparent; border: none; color: var(--on-2); font-size: 12px; cursor: pointer; opacity: 0; transition: opacity .2s; letter-spacing: .04em; }
+.ceo-judgment:hover .ceo-j-edit { opacity: 1; }
+
+/* ── MISSION BLOCK (home hero) ── */
+.mission-wrap { padding: 28px 24px 24px; }
+
+.mission-date {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px; font-weight: 400; color: var(--on-2);
+  letter-spacing: .08em; margin-bottom: 22px;
+}
+
+.mission-head {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px; font-weight: 600;
+  letter-spacing: .14em; color: var(--on);
+  text-transform: uppercase; margin-bottom: 28px;
+  display: flex; align-items: center; gap: 10px;
+}
+.mission-head::before {
+  content: ''; display: block;
+  width: 18px; height: 1px; background: var(--fire);
+}
+
+/* ── TASK LIST ── */
+.task-list { display: flex; flex-direction: column; gap: 0; }
+
+.t-row {
+  display: flex; align-items: flex-start; gap: 0;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--on-4);
+  cursor: pointer;
+  transition: opacity .2s;
+  position: relative;
+}
+.t-row:last-child { border-bottom: none; }
+.t-row.done { opacity: .32; }
+
+.t-num {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px; font-weight: 600;
+  color: var(--fire); width: 28px; flex-shrink: 0;
+  padding-top: 2px; letter-spacing: .04em;
+}
+.t-row.done .t-num { color: var(--on-3); }
+
+.t-body { flex: 1; min-width: 0; }
+.t-title {
+  font-size: 16px; font-weight: 500;
+  line-height: 1.35; letter-spacing: -.01em;
+  color: var(--on);
+}
+.t-row.done .t-title { text-decoration: line-through; color: var(--on-3); }
+.t-sub {
+  font-size: 11px; color: var(--on-2);
+  margin-top: 4px; letter-spacing: .03em;
+}
+
+.t-check {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 1.5px solid var(--on-3); background: transparent;
+  cursor: pointer; flex-shrink: 0; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .25s cubic-bezier(.34,1.56,.64,1);
+}
+.t-check svg { opacity: 0; transition: opacity .2s; }
+.t-row.done .t-check { background: var(--go); border-color: var(--go); }
+.t-row.done .t-check svg { opacity: 1; }
+
+.add-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 18px 0 4px; cursor: pointer; opacity: .4;
+  transition: opacity .2s; color: var(--on-2);
+}
+.add-row:hover { opacity: .8; }
+.add-row-line { width: 18px; height: 1px; background: currentColor; }
+.add-row-txt { font-size: 12px; font-weight: 500; letter-spacing: .06em; color: var(--on-2); }
+
+/* ── DIVIDER ── */
+.section-div {
+  height: 1px; background: var(--on-4); margin: 0 24px;
+}
+
+/* ── SUMMARY STRIP ── */
+.summary-strip {
+  display: flex; padding: 24px 24px 0;
+  gap: 0;
+}
+.sum-item {
+  flex: 1; padding: 0 0 24px;
+  border-right: 1px solid var(--on-4);
+  padding-right: 20px; margin-right: 20px;
+  cursor: pointer;
+}
+.sum-item:last-child { border-right: none; padding-right: 0; margin-right: 0; }
+.sum-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .16em; color: var(--on-2);
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.sum-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 28px; font-weight: 300;
+  letter-spacing: -.02em; line-height: 1;
+  color: var(--on);
+}
+.sum-value.warn { color: var(--flag); }
+.sum-value.caution { color: var(--fire); }
+.sum-value.ok { color: var(--go); }
+.sum-sub {
+  font-size: 10px; color: var(--on-2); margin-top: 6px;
+}
+
+/* ── KPI ROW ── */
+.kpi-wrap { padding: 24px 24px 0; }
+.kpi-section-lbl {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .18em; color: var(--on-2);
+  text-transform: uppercase; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 12px;
+}
+.kpi-section-lbl::after { content:''; flex:1; height:1px; background:var(--on-4); }
+
+.kpi-list { display: flex; flex-direction: column; gap: 0; }
+.kpi-row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--on-4);
+  cursor: pointer;
+}
+.kpi-row:last-child { border-bottom: none; }
+.kpi-platform {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .1em; color: var(--on-2);
+  width: 60px; flex-shrink: 0;
+}
+.kpi-bar-wrap { flex: 1; }
+.kpi-bar-track { height: 2px; background: var(--on-4); border-radius: 1px; }
+.kpi-bar-fill { height: 100%; border-radius: 1px; transition: width .8s cubic-bezier(.23,1,.32,1); }
+.kpi-num {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px; font-weight: 600;
+  letter-spacing: -.02em; width: 52px; text-align: right; flex-shrink: 0;
+  color: var(--on);
+}
+.kpi-goal { font-size: 10px; color: var(--on-2); text-align: right; margin-top: 2px; }
+
+/* ── PAGE HEADER (sub pages) ── */
+.pg-hdr { padding: calc(var(--safe-t) + 14px) 24px 20px; flex-shrink: 0; }
+.pg-hdr-eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .18em; color: var(--fire);
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.pg-hdr-title {
+  font-size: 28px; font-weight: 700;
+  letter-spacing: -.03em; line-height: 1.1;
+  color: var(--on);
+}
+
+/* ── PLATFORM TABS ── */
+.ptabs-wrap { padding: 0 24px 18px; flex-shrink: 0; }
+.ptabs {
+  display: flex;
+  border-bottom: 1px solid var(--on-4);
+  gap: 0;
+}
+.ptab {
+  flex: 1; background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 6px; margin-bottom: -1px;
+  font-size: 12px; font-weight: 600;
+  color: var(--on-3); cursor: pointer;
+  transition: all .2s; letter-spacing: .04em;
+}
+.ptab.on { color: var(--on); border-bottom-color: var(--fire); }
+
+/* ── KANBAN ── */
+.kanban-outer { display: flex; gap: 16px; overflow-x: auto; padding: 0 24px 24px; scrollbar-width: none; }
+.kanban-outer::-webkit-scrollbar { display: none; }
+.k-col { min-width: 160px; flex-shrink: 0; }
+.k-col-hdr {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--on-4);
+}
+.k-col-name {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .1em; color: var(--on-2); text-transform: uppercase;
+}
+.k-cnt {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px; color: var(--on-3);
+  background: var(--ink-3); border-radius: 6px;
+  padding: 1px 7px;
+}
+.k-item {
+  padding: 14px 0; border-bottom: 1px solid var(--on-4);
+  cursor: pointer; transition: opacity .15s;
+}
+.k-item:hover { opacity: .7; }
+.k-item:last-child { border-bottom: none; }
+.k-item-title { font-size: 13px; font-weight: 500; line-height: 1.4; color: var(--on); }
+.k-item-memo { font-size: 11px; color: var(--on-2); margin-top: 4px; }
+.k-add {
+  width: 100%; padding: 12px 0;
+  background: transparent; border: none;
+  color: var(--on-3); font-size: 12px;
+  cursor: pointer; text-align: left;
+  letter-spacing: .04em; transition: color .15s;
+  border-top: 1px dashed var(--on-4); margin-top: 4px;
+}
+.k-add:hover { color: var(--fire); }
+
+/* ── NETA ── */
+.neta-pg { padding: 0 24px; }
+.filter-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 18px; }
+.filter-row::-webkit-scrollbar { display: none; }
+.chip {
+  flex-shrink: 0; padding: 7px 16px; border-radius: 100px;
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  border: 1px solid var(--on-4); background: transparent;
+  color: var(--on-3); cursor: pointer; transition: all .2s;
+}
+.chip.on { background: var(--fire); border-color: var(--fire); color: #000; }
+
+.search-wrap {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: var(--r);
+  background: var(--ink-2); margin-bottom: 18px;
+}
+.search-ico { color: var(--on-3); font-size: 14px; flex-shrink: 0; }
+.search-inp {
+  flex: 1; background: transparent; border: none;
+  color: var(--on); font-size: 14px; outline: none;
+}
+.search-inp::placeholder { color: var(--on-3); }
+
+.ni {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 0; border-bottom: 1px solid var(--on-4);
+  cursor: pointer;
+}
+.ni:last-child { border-bottom: none; }
+.ni.done-ni { opacity: .3; }
+.ni.done-ni .ni-title { text-decoration: line-through; }
+.ni-pip { width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.ni-body { flex: 1; }
+.ni-title { font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--on); }
+.ni-meta { font-size: 10px; color: var(--on-2); margin-top: 5px; letter-spacing: .04em; }
+.ni-del { background: transparent; border: none; color: var(--on-3); cursor: pointer; font-size: 16px; padding: 2px 4px; }
+
+/* ── CALENDAR ── */
+.cal-wrap { padding: 0 24px; }
+.cal-nav {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 24px;
+}
+.cal-month {
+  font-family: 'Inter', sans-serif;
+  font-size: 22px; font-weight: 600;
+  letter-spacing: -.02em;
+}
+.cal-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--ink-2); border: none;
+  color: var(--on-2); font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s;
+}
+.cal-btn:hover { background: var(--ink-3); }
+.cal-dow-row { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 8px; }
+.cal-dow { text-align: center; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--on-2); padding: 4px 0; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 24px; }
+.cal-day {
+  aspect-ratio: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  padding: 5px 2px 3px; border-radius: 10px; cursor: pointer;
+  font-size: 13px; font-weight: 500;
+  transition: background .15s; position: relative; border: 1px solid transparent;
+}
+.cal-day:hover { background: var(--ink-2); }
+.cal-day.today { color: var(--fire); font-weight: 700; }
+.cal-day.today::after { content:''; width:4px; height:4px; border-radius:50%; background:var(--fire); position:absolute; bottom:4px; left:50%; transform:translateX(-50%); }
+.cal-day.sel { background: var(--fire); color: #000; font-weight: 700; }
+.cal-day.sel::after { display: none; }
+.cal-day.other { color: var(--on-4); }
+.ev-dots { display: flex; gap: 2px; justify-content: center; margin-top: 2px; flex-wrap: wrap; }
+.ev-dot { width: 3px; height: 3px; border-radius: 50%; }
+
+.ev-section-lbl {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .16em; color: var(--on-3);
+  text-transform: uppercase; margin-bottom: 14px;
+}
+.ev-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 0; border-bottom: 1px solid var(--on-4);
+}
+.ev-item:last-child { border-bottom: none; }
+.ev-bar { width: 3px; height: 32px; border-radius: 2px; flex-shrink: 0; }
+.ev-body { flex: 1; }
+.ev-title { font-size: 14px; font-weight: 500; }
+.ev-kind { font-size: 11px; color: var(--on-2); margin-top: 3px; letter-spacing: .04em; }
+.ev-del { background: transparent; border: none; color: var(--on-3); cursor: pointer; font-size: 16px; padding: 4px; }
+
+/* ── REPORT ── */
+.rep-wrap { padding: 0 24px; }
+.rep-section { margin-bottom: 36px; }
+.rep-lbl {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .18em; color: var(--on-2);
+  text-transform: uppercase; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.rep-lbl::after { content:''; flex:1; height:1px; background:var(--on-4); }
+.rep-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--on-4); }
+.rep-row:last-child { border-bottom: none; }
+.rep-key { font-size: 13px; color: var(--on); }
+.rep-val { font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; color: var(--on); }
+.ratio-bar { height: 4px; border-radius: 2px; background: var(--on-4); overflow: hidden; display: flex; margin-top: 16px; }
+.ratio-seg { height: 100%; }
+.sns-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 0; border-bottom: 1px solid var(--on-4);
+}
+.sns-row:last-child { border-bottom: none; }
+.sns-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--ink-3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sns-body { flex: 1; }
+.sns-name { font-size: 13px; font-weight: 500; }
+.sns-url { font-size: 11px; color: var(--on-3); margin-top: 2px; }
+.sns-arr { color: var(--on-3); font-size: 14px; }
+
+/* ── BOTTOM NAV ── */
+.bnav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: calc(68px + var(--safe-b));
+  background: rgba(6,8,16,.92);
+  border-top: 1px solid var(--on-4);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  display: flex; z-index: 100; padding-bottom: var(--safe-b);
+}
+.bn {
+  flex: 1; background: transparent; border: none;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 5px;
+  color: var(--on-2); cursor: pointer;
+  transition: color .2s; padding: 0;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+}
+.bn svg { transition: color .2s; }
+.bn.on { color: var(--fire); }
+
+/* ── FAB ── */
+.fab {
+  position: fixed; bottom: calc(82px + var(--safe-b)); right: 20px;
+  width: 48px; height: 48px; border-radius: 14px; border: none;
+  background: var(--fire); color: #000;
+  font-size: 22px; cursor: pointer; z-index: 90;
+  box-shadow: 0 2px 20px var(--fire-glow);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.fab:active { transform: scale(.88); }
+
+/* ── MODAL ── */
+.modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.72); z-index: 200;
+  align-items: flex-end; justify-content: center;
+}
+.modal.on { display: flex; }
+.modal-sheet {
+  background: var(--ink-1); border-top: 1px solid var(--on-4);
+  border-radius: 24px 24px 0 0;
+  padding: 20px 24px calc(32px + var(--safe-b));
+  width: 100%; max-width: 520px; max-height: 86vh; overflow-y: auto;
+  animation: sheet-in .3s cubic-bezier(.32,.72,0,1);
+}
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--on-4); margin: 0 auto 22px; }
+.sheet-title { font-size: 18px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; color: var(--on); }
+.sheet-x { background: transparent; border: none; color: var(--on-3); font-size: 22px; cursor: pointer; }
+.field { margin-bottom: 18px; }
+.field-label { display: block; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--on-2); margin-bottom: 8px; }
+.field-inp, .field-sel, .field-ta {
+  width: 100%; padding: 14px 16px; border-radius: var(--r);
+  background: var(--ink-2); border: 1px solid var(--on-4);
+  color: var(--on); font-size: 15px; outline: none;
+  transition: border-color .2s;
+}
+.field-inp:focus, .field-sel:focus, .field-ta:focus { border-color: var(--fire); }
+.field-sel option { background: var(--ink-2); }
+.field-ta { height: 88px; resize: none; }
+.btn-fill {
+  width: 100%; padding: 16px; border-radius: var(--r); border: none;
+  background: var(--fire); color: #000;
+  font-size: 15px; font-weight: 700; cursor: pointer; letter-spacing: .02em;
+  transition: all .2s; margin-bottom: 10px;
+}
+.btn-fill:active { opacity: .85; }
+.btn-ghost {
+  width: 100%; padding: 14px; border-radius: var(--r);
+  background: transparent; border: 1px solid var(--on-4);
+  color: var(--on-2); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all .2s; margin-bottom: 10px;
+}
+.btn-danger { border-color: rgba(240,92,92,.3); color: var(--flag); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: calc(82px + var(--safe-b)); left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--ink-3); border: 1px solid var(--on-4);
+  border-radius: 12px; padding: 10px 20px; font-size: 13px; font-weight: 500;
+  z-index: 300; opacity: 0; pointer-events: none;
+  transition: all .28s cubic-bezier(.34,1.56,.64,1);
+  white-space: nowrap; max-width: 86vw;
+}
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── EMPTY ── */
+.empty { text-align: center; padding: 52px 24px; color: var(--on-3); }
+.empty-head { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+.empty-body { font-size: 12px; line-height: 1.7; }
+
+/* ── SVG ICONS ── */
+.ico { display: block; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════
+     HOME
+═══════════════════════════════ -->
+<div class="scr on" id="scrHome">
+  <div class="top-header">
+    <div class="cmd-line"></div>
+    <div class="top-strip">
+      <div class="strip-brand">
+        <div class="strip-logo">CEO室</div>
+        <div class="strip-sub">Command Center</div>
+      </div>
+      <div class="strip-status">
+        <div class="strip-dot"></div>
+        <div class="strip-status-txt">稼働中</div>
+      </div>
+    </div>
+  </div>
+  <div class="pg" id="homePg"></div>
+</div>
+
+<!-- ═══════════════════════════════
+     CONTENT
+═══════════════════════════════ -->
+<div class="scr" id="scrContent">
+  <div class="pg-hdr">
+    <div class="pg-hdr-eyebrow">コンテンツ管理</div>
+    <div class="pg-hdr-title">ストック一覧</div>
+  </div>
+  <div class="ptabs-wrap">
+    <div class="ptabs">
+      <button class="ptab on" onclick="setPlatform('note',this)">note</button>
+      <button class="ptab" onclick="setPlatform('tiktok',this)">TikTok</button>
+      <button class="ptab" onclick="setPlatform('x',this)">X</button>
+    </div>
+  </div>
+  <div class="pg" id="contentPg"></div>
+  <button class="fab" onclick="openStockModal()">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<!-- ═══════════════════════════════
+     NETA
+═══════════════════════════════ -->
+<div class="scr" id="scrNeta">
+  <div class="pg-hdr">
+    <div class="pg-hdr-eyebrow">ネタ管理</div>
+    <div class="pg-hdr-title">アイデア一覧</div>
+  </div>
+  <div class="pg">
+    <div class="neta-pg">
+      <div class="search-wrap">
+        <svg class="search-ico ico" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="m11 11 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input class="search-inp" id="netaQ" placeholder="ネタを検索…" oninput="renderNeta()">
+      </div>
+      <div class="filter-row" id="filterRow">
+        <button class="chip on" onclick="setFilter('all',this)">すべて</button>
+        <button class="chip" onclick="setFilter('製造業あるある',this)">製造業あるある</button>
+        <button class="chip" onclick="setFilter('Claude活用',this)">Claude活用</button>
+        <button class="chip" onclick="setFilter('実録',this)">実録</button>
+        <button class="chip" onclick="setFilter('done',this)">公開済み</button>
+      </div>
+      <div id="netaList"></div>
+    </div>
+  </div>
+  <button class="fab" onclick="openNetaModal()">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<!-- ═══════════════════════════════
+     CALENDAR
+═══════════════════════════════ -->
+<div class="scr" id="scrCal">
+  <div class="pg-hdr">
+    <div class="pg-hdr-eyebrow">投稿スケジュール</div>
+    <div class="pg-hdr-title">カレンダー</div>
+  </div>
+  <div class="pg">
+    <div class="cal-wrap">
+      <div class="cal-nav">
+        <button class="cal-btn" onclick="calShift(-1)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="cal-month" id="calLabel"></div>
+        <button class="cal-btn" onclick="calShift(1)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="cal-dow-row" id="dowRow"></div>
+      <div class="cal-grid" id="dayGrid"></div>
+      <div id="evSection"></div>
+    </div>
+  </div>
+  <button class="fab" onclick="openEvModal()">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<!-- ═══════════════════════════════
+     REGISTER（ChatGPT登録）
+═══════════════════════════════ -->
+<div class="scr" id="scrRegister">
+  <div class="pg-hdr">
+    <div class="pg-hdr-eyebrow">ChatGPT → CEO室OS</div>
+    <div class="pg-hdr-title">データ登録</div>
+  </div>
+  <div class="pg">
+    <div style="padding:0 24px">
+
+      <!-- 使い方 -->
+      <div style="background:var(--ink-2);border:1px solid var(--on-4);border-left:2px solid var(--fire);border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:20px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.16em;color:var(--fire);margin-bottom:8px">使い方</div>
+        <div style="font-size:12px;color:var(--on-2);line-height:1.8">
+          ① チャッピーに「今日こんなことあった」と話す<br>
+          ② チャッピーがJSONを生成する<br>
+          ③ そのJSONをコピーして下に貼り付ける<br>
+          ④「登録」をタップするだけ
+        </div>
+      </div>
+
+      <!-- JSON入力エリア -->
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--on-2);margin-bottom:8px;text-transform:uppercase">チャッピーのJSON出力を貼り付け</label>
+        <textarea id="registerJson" style="width:100%;height:200px;background:var(--ink-2);border:1px solid var(--on-4);border-radius:12px;padding:14px;color:var(--on);font-size:12px;font-family:monospace;outline:none;resize:none;line-height:1.6" placeholder='{"type":"neta","title":"タイトル","genre":"製造業あるある","pri":"h","tags":"現場","media":"note","status":"未着手","memo":"メモ"}'></textarea>
+      </div>
+
+      <!-- プレビュー -->
+      <div id="registerPreview" style="margin-bottom:14px"></div>
+
+      <!-- ボタン -->
+      <button id="checkBtn" onclick="parseAndPreview()" style="width:100%;padding:14px;background:var(--ink-2);border:1px solid var(--on-4);border-radius:12px;color:var(--on-2);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:10px">内容を確認する</button>
+      <button id="registerBtn" onclick="registerFromGPT()" style="display:none;width:100%;padding:15px;background:var(--fire);border:none;border-radius:12px;color:#000;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">登録する</button>
+      <button onclick="clearRegister()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--on-4);border-radius:12px;color:var(--on-3);font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px">クリア</button>
+
+      <!-- チャッピーへのプロンプトテンプレート -->
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--on-4)">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.16em;color:var(--on-2);margin-bottom:12px;text-transform:uppercase">チャッピーへのプロンプト（コピーして使う）</div>
+        <div id="promptTemplate" style="background:var(--ink-2);border:1px solid var(--on-4);border-radius:10px;padding:14px;font-size:11px;color:var(--on-2);font-family:monospace;line-height:1.8;white-space:pre-wrap">以下の内容をCEO室OS用JSONで出力してください。
+
+【フォーマット】
+{
+  "type": "neta または stock",
+  "title": "タイトル（20字以内）",
+  "genre": "製造業あるある / Claude活用 / 実録",
+  "pri": "h（高）/ m（中）/ l（低）",
+  "tags": "タグ1,タグ2",
+  "media": "note / tiktok / x / all",
+  "status": "未着手 / 作成中 / 完成 / 投稿済み",
+  "memo": "内容メモ（任意）"
+}
+
+JSONのみ出力してください。説明文は不要です。
+
+【今日の話】
+（ここに森下さんの話を入れる）</div>
+        <button onclick="copyPrompt()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--on-4);border-radius:10px;color:var(--on-2);font-size:12px;font-weight:600;cursor:pointer;margin-top:10px">プロンプトをコピー</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     REPORT
+═══════════════════════════════ -->
+<div class="scr" id="scrReport">
+  <div class="pg-hdr">
+    <div class="pg-hdr-eyebrow">運営状況</div>
+    <div class="pg-hdr-title">週報 / KPI</div>
+  </div>
+  <div class="pg"><div class="rep-wrap" id="repWrap"></div></div>
+</div>
+
+<!-- ═══════════════════════════════
+     IMPROVEMENTS
+═══════════════════════════════ -->
+<div class="scr" id="scrImprove">
+  <div class="pg-hdr">
+    <div class="pg-hdr-eyebrow">改善メモ</div>
+    <div class="pg-hdr-title">改善リスト</div>
+  </div>
+  <div class="pg">
+    <div style="padding:0 24px">
+      <div id="improveList"></div>
+    </div>
+  </div>
+  <button class="fab" onclick="openImproveModal()">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<!-- ═══════════════════════════════
+     BOTTOM NAV
+═══════════════════════════════ -->
+<div class="bnav">
+  <button class="bn on" onclick="go('Home',this)">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 9.5L11 3l8 6.5V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 20v-8h6v8" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    Home
+  </button>
+  <button class="bn" onclick="go('Content',this)">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M7 8h8M7 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    Content
+  </button>
+  <button class="bn" onclick="go('Register',this)">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/><path d="M11 7v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 11h8M11 7v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    登録
+  </button>
+  <button class="bn" onclick="go('Neta',this)">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/><path d="M11 7v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    ネタ
+  </button>
+  <button class="bn" onclick="go('Improve',this)">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3v4M11 15v4M3 11h4M15 11h4M5.6 5.6l2.8 2.8M13.6 13.6l2.8 2.8M5.6 16.4l2.8-2.8M13.6 8.4l2.8-2.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    改善
+  </button>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ─── MODALS ─── -->
+<!-- Task -->
+<div class="modal" id="mTask">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">タスク追加 <button class="sheet-x" onclick="closeM('mTask')">×</button></div>
+    <div class="field"><label class="field-label">タスク名</label><input class="field-inp" id="tTitle" placeholder="例：note⑤ 公開"></div>
+    <div class="field"><label class="field-label">カテゴリ</label>
+      <select class="field-sel" id="tCat">
+        <option value="note">note</option><option value="tiktok">TikTok</option>
+        <option value="x">X</option><option value="other">その他</option>
+      </select>
+    </div>
+    <div class="field"><label class="field-label">優先度</label>
+      <select class="field-sel" id="tPri">
+        <option value="5">最優先</option><option value="4" selected>高</option>
+        <option value="3">中</option><option value="2">低</option>
+      </select>
+    </div>
+    <button class="btn-fill" onclick="saveTask()">追加する</button>
+    <button class="btn-ghost" onclick="closeM('mTask')">キャンセル</button>
+  </div>
+</div>
+
+<!-- Stock -->
+<div class="modal" id="mStock">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="mStockTtl">追加 <button class="sheet-x" onclick="closeM('mStock')">×</button></div>
+    <div class="field"><label class="field-label">タイトル</label><input class="field-inp" id="sTitle" placeholder="例：製造業あるある① 報連相問題"></div>
+    <div class="field"><label class="field-label">ステータス</label><select class="field-sel" id="sStatus"></select></div>
+    <div class="field"><label class="field-label">メモ</label><textarea class="field-ta" id="sMemo" placeholder="企画メモ、構成など…"></textarea></div>
+    <button class="btn-fill" onclick="saveStock()">保存する</button>
+    <div id="sDelBtn"></div>
+    <button class="btn-ghost" onclick="closeM('mStock')">キャンセル</button>
+  </div>
+</div>
+
+<!-- Neta Edit -->
+<div class="modal" id="mNetaEdit">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">ネタ編集 <button class="sheet-x" onclick="closeM('mNetaEdit')">×</button></div>
+    <div class="field"><label class="field-label">タイトル</label><input class="field-inp" id="neTitle"></div>
+    <div class="field"><label class="field-label">ジャンル</label>
+      <select class="field-sel" id="neGenre">
+        <option value="製造業あるある">製造業あるある</option>
+        <option value="Claude活用">Claude活用</option>
+        <option value="実録">実録</option>
+      </select>
+    </div>
+    <div class="field"><label class="field-label">優先度</label>
+      <select class="field-sel" id="nePri">
+        <option value="h">高（すぐ使いたい）</option>
+        <option value="m">中（いつか使う）</option>
+        <option value="l">低（ストック）</option>
+      </select>
+    </div>
+    <div class="field"><label class="field-label">タグ（カンマ区切り）</label><input class="field-inp" id="neTags"></div>
+    <button class="btn-fill" onclick="saveNetaEdit()">保存する</button>
+    <button class="btn-ghost" onclick="closeM('mNetaEdit')">キャンセル</button>
+  </div>
+</div>
+
+<!-- Neta -->
+<div class="modal" id="mNeta">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">ネタ追加 <button class="sheet-x" onclick="closeM('mNeta')">×</button></div>
+    <div class="field"><label class="field-label">タイトル</label><input class="field-inp" id="nTitle" placeholder="例：製造業の伝言ゲーム問題"></div>
+    <div class="field"><label class="field-label">ジャンル</label>
+      <select class="field-sel" id="nGenre">
+        <option value="製造業あるある">製造業あるある</option>
+        <option value="Claude活用">Claude活用</option>
+        <option value="実録">実録</option>
+      </select>
+    </div>
+    <div class="field"><label class="field-label">優先度</label>
+      <select class="field-sel" id="nPri">
+        <option value="h">高（すぐ使いたい）</option>
+        <option value="m" selected>中（いつか使う）</option>
+        <option value="l">低（ストック）</option>
+      </select>
+    </div>
+    <div class="field"><label class="field-label">タグ（カンマ区切り）</label><input class="field-inp" id="nTags" placeholder="例：現場,コミュニケーション"></div>
+    <button class="btn-fill" onclick="saveNeta()">追加する</button>
+    <button class="btn-ghost" onclick="closeM('mNeta')">キャンセル</button>
+  </div>
+</div>
+
+<!-- Event -->
+<div class="modal" id="mEv">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">予定追加 <button class="sheet-x" onclick="closeM('mEv')">×</button></div>
+    <div class="field"><label class="field-label">タイトル</label><input class="field-inp" id="evTtl" placeholder="例：note⑤ 公開"></div>
+    <div class="field"><label class="field-label">日付</label><input class="field-inp" id="evDate" type="date"></div>
+    <div class="field"><label class="field-label">種別</label>
+      <select class="field-sel" id="evType">
+        <option value="note">note</option><option value="tiktok">TikTok</option>
+        <option value="x">X</option><option value="other">その他</option>
+      </select>
+    </div>
+    <button class="btn-fill" onclick="saveEv()">追加する</button>
+    <button class="btn-ghost" onclick="closeM('mEv')">キャンセル</button>
+  </div>
+</div>
+
+<!-- Improve -->
+<div class="modal" id="mImprove">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">改善メモ追加 <button class="sheet-x" onclick="closeM('mImprove')">×</button></div>
+    <div class="field"><label class="field-label">改善内容</label><textarea class="field-ta" id="impContent" placeholder="例：ホームの文字が見えにくい&#10;TikTokを先頭にしたい"></textarea></div>
+    <div class="field"><label class="field-label">対応状況</label>
+      <select class="field-sel" id="impStatus">
+        <option value="未対応">未対応</option>
+        <option value="対応中">対応中</option>
+        <option value="完了">完了</option>
+      </select>
+    </div>
+    <button class="btn-fill" onclick="saveImprove()">記録する</button>
+    <button class="btn-ghost" onclick="closeM('mImprove')">キャンセル</button>
+  </div>
+</div>
+
+<!-- Judgment -->
+<div class="modal" id="mJudgment">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">今日のCEO判断 <button class="sheet-x" onclick="closeM('mJudgment')">×</button></div>
+    <div class="field">
+      <label class="field-label">今日の方針・判断</label>
+      <textarea class="field-ta" id="jText" placeholder="例：TikTokストック0本。まず1本だけ補充。その後X投稿を行う。"></textarea>
+    </div>
+    <button class="btn-ghost" style="margin-bottom:10px;font-size:12px;color:var(--on-3)" onclick="clearJudgment()">自動判断に戻す</button>
+    <button class="btn-fill" onclick="saveJudgment()">保存する</button>
+    <button class="btn-ghost" onclick="closeM('mJudgment')">キャンセル</button>
+  </div>
+</div>
+
+<!-- KPI -->
+<div class="modal" id="mKpi">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">KPI更新 <button class="sheet-x" onclick="closeM('mKpi')">×</button></div>
+    <div class="field"><label class="field-label">note フォロワー</label><input class="field-inp" id="kNote" type="number" placeholder="0"></div>
+    <div class="field"><label class="field-label">X フォロワー</label><input class="field-inp" id="kX" type="number" placeholder="0"></div>
+    <div class="field"><label class="field-label">TikTok フォロワー</label><input class="field-inp" id="kTik" type="number" placeholder="0"></div>
+    <div class="field"><label class="field-label">TikTok 再生数（累計）</label><input class="field-inp" id="kPlay" type="number" placeholder="0"></div>
+    <button class="btn-fill" onclick="saveKpi()">更新する</button>
+    <button class="btn-ghost" onclick="closeM('mKpi')">キャンセル</button>
+  </div>
+</div>
+
+<script>
+// ═══════════ STATE ═══════════
+let S = {
+  tasks: [], stocks: { note:[], tiktok:[], x:[] },
+  neta: [], events: [], kpi: { note:0, x:0, tik:0, play:0 },
+  improvements: [], judgmentLog: []
+};
+const NOTE_ST  = ['企画','執筆中','完成','公開待ち','公開済み'];
+const TIK_ST   = ['企画','画像制作','動画編集','投稿待ち','投稿済み'];
+const X_ST     = ['ストック','投稿済み'];
+const TYPE_COLOR = { note:'#22d3a0', tiktok:'#f05c5c', x:'#4f8ef7', other:'#3d4d70' };
+const TYPE_LABEL = { note:'note', tiktok:'TikTok', x:'X', other:'その他' };
+const PRI_COLOR  = { h:'#f05c5c', m:'#f97316', l:'#3d4d70' };
+
+let curPlatform='note', netaFilter='all', calY, calM, calSel, editStockIdx=null, dragFrom=null;
+
+// ═══════════ GAS連携 v5 ═══════════
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyUwkcITOQMSgdJabKrBbvR643MxzygkDHFKF2BztkbKqk30zW772ISNyb3gXDnKBNh/exec';
+let _syncing = false;
+
+// JSONP（scriptタグ経由でCORSを回避）
+function jsonp(url){
+  return new Promise((resolve, reject) => {
+    const cb = 'jsonp_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+    const script = document.createElement('script');
+    window[cb] = function(data){
+      delete window[cb];
+      script.remove();
+      resolve(data);
+    };
+    script.onerror = function(){
+      delete window[cb];
+      script.remove();
+      reject(new Error('JSONP load failed'));
+    };
+    script.src = url + (url.includes('?')?'&':'?') + 'callback=' + cb + '&t=' + Date.now();
+    document.body.appendChild(script);
+  });
+}
+
+// 【修正①】全シートを1ループで取得（通信回数を最小化）
+async function loadFromGAS(){
+  showSyncing(true);
+  try {
+    // 6シートを並列取得（重複なし）
+    const [tasksRaw, stocksRaw, netaRaw, eventsRaw, kpiRaw, judgmentRaw] = await Promise.all([
+      _gasGet('tasks'),
+      _gasGet('stocks'),
+      _gasGet('neta'),
+      _gasGet('events'),
+      _gasGet('kpi'),
+      _gasGet('judgment'),
+    ]);
+
+    // ── parseBool ──
+    const parseBool = v => v === true || v === 'true' || v === 1 || v === '1';
+
+    // tasks
+    S.tasks = tasksRaw.map(r => ({
+      id: r.id||'', title: r.title||'', cat: r.cat||'other', pri: +r.pri||4,
+      done: parseBool(r.done), doneDate: r.doneDate||null
+    }));
+
+    // stocks（platform列で振り分け）
+    // statusをCEO室OSの表示ステータスに正規化
+    const normalizeStatus = (platform, status) => {
+      const st = status || '';
+      if(platform === 'note'){
+        if(['執筆中','作成中'].includes(st)) return '執筆中';
+        if(['完成','完了'].includes(st)) return '完成';
+        if(['公開待ち','投稿待ち'].includes(st)) return '公開待ち';
+        if(['公開済み','投稿済み'].includes(st)) return '公開済み';
+        return '企画'; // 未着手・その他はデフォルト「企画」
+      } else if(platform === 'tiktok'){
+        if(['画像制作'].includes(st)) return '画像制作';
+        if(['動画編集'].includes(st)) return '動画編集';
+        if(['投稿待ち'].includes(st)) return '投稿待ち';
+        if(['投稿済み','公開済み'].includes(st)) return '投稿済み';
+        return '企画';
+      } else { // x
+        if(['投稿済み','公開済み'].includes(st)) return '投稿済み';
+        return 'ストック';
+      }
+    };
+    S.stocks = { note:[], tiktok:[], x:[] };
+    stocksRaw.forEach(r => {
+      const p = r.platform;
+      if(S.stocks[p]) S.stocks[p].push({
+        id:r.id||'', title:r.title||'',
+        status: normalizeStatus(p, r.status),
+        memo:r.memo||'', platform:p
+      });
+    });
+
+    // neta（チャッピー修正案）
+    S.neta = netaRaw.map(r => ({
+      id: r.id||'',
+      title: r.title||'',
+      genre: r.genre||'製造業あるある',
+      pri: r.pri||'m',
+      tags: r.tags ? String(r.tags).split(',').filter(Boolean) : [],
+      done: parseBool(r.done),
+      createdAt: r.createdAt||''
+    }));
+    console.log('neta読み込み完了:', S.neta.length, '件 / 未完了:', S.neta.filter(n=>!n.done).length, '件');
+
+    // events
+    S.events = eventsRaw.map(r => ({
+      id: r.id, title: r.title, date: r.date, type: r.type||'other'
+    }));
+
+    // kpi（最新行を使用）
+    if(kpiRaw.length){
+      const latest = kpiRaw[kpiRaw.length-1];
+      S.kpi = {
+        note: +latest.note_followers||0,
+        x:    +latest.x_followers||0,
+        tik:  +latest.tik_followers||0,
+        play: +latest.tik_plays||0
+      };
+    }
+
+    // 【修正④】judgment を {date, author, text} 構造で保持
+    const today = new Date().toISOString().slice(0,10);
+    S.judgmentLog = judgmentRaw.map(r => ({
+      date: r.date||'', author: r.author||'', text: r.text||''
+    }));
+    // 今日の最新判断（発行者付き）
+    const todayJs = judgmentRaw.filter(r => r.date === today);
+    if(todayJs.length){
+      const latest = todayJs[todayJs.length-1];
+      S.judgment = { date: latest.date, author: latest.author||'', text: latest.text||'' };
+    } else {
+      S.judgment = null;
+    }
+
+    // improvements
+    const impRaw = await _gasGet('improvements');
+    S.improvements = impRaw.map(r => ({
+      id: r.id, date: r.date, content: r.content, status: r.status||'未対応'
+    }));
+
+    localStorage.setItem('ceo_v5_cache', JSON.stringify(S));
+    showSyncing(false);
+    toast('同期完了');
+
+  } catch(e) {
+    console.warn('GAS読み込み失敗', e);
+    const cache = localStorage.getItem('ceo_v5_cache');
+    if(cache){ try{ S=JSON.parse(cache); }catch(_){} }
+    showSyncing(false);
+    toast('同期失敗: ' + e.message.slice(0,30));
+  }
+}
+
+// 内部GET（JSONP経由でCORSを回避）
+async function _gasGet(sheet){
+  const json = await jsonp(GAS_URL + '?sheet=' + encodeURIComponent(sheet));
+  console.log('JSONP GET', sheet, '→', (json.data||[]).length, '件');
+  if(json.status !== 'ok') throw new Error(sheet + ' GAS error: ' + (json.message||'unknown'));
+  return json.data || [];
+}
+
+// POST（URLエンコード形式 + no-cors でGASのリダイレクト問題を回避）
+async function gasPost(payload){
+  try {
+    // JSONをURLエンコードしてフォームデータとして送信
+    const encoded = encodeURIComponent(JSON.stringify(payload));
+    await fetch(GAS_URL + '?payload=' + encoded, {
+      method: 'GET',
+      mode: 'no-cors',
+    });
+    return { status: 'ok' };
+  } catch(e) {
+    console.warn('POST失敗:', e.message);
+    throw e;
+  }
+}
+
+// 【修正③】手動同期
+async function manualSync(){
+  await loadFromGAS();
+  renderHome();
+}
+
+// ── DAILYタスク定義 ──
+const DAILY_TASKS = [
+  { title:'X投稿',              cat:'daily', pri:'h' },
+  { title:'AIアカウント3件交流', cat:'daily', pri:'h' },
+  { title:'noteストック確認',    cat:'daily', pri:'m' },
+  { title:'TikTokストック確認',  cat:'daily', pri:'m' },
+  { title:'CEO室OS同期',         cat:'daily', pri:'l' },
+];
+
+// DAILYタスクを今日分として生成（日付変更後に自動リセット）
+function ensureDailyTasks(){
+  const today = new Date().toISOString().slice(0,10);
+  const lastDate = localStorage.getItem('daily_task_date');
+  if(lastDate === today) return; // 今日はすでに生成済み
+
+  // 古いDAILYタスクを削除して今日分を追加
+  S.tasks = S.tasks.filter(t => t.cat !== 'daily');
+  DAILY_TASKS.forEach((t, i) => {
+    S.tasks.push({
+      id: 'daily_'+today+'_'+i,
+      title: t.title, cat: t.cat, pri: t.pri, done: false
+    });
+  });
+  localStorage.setItem('daily_task_date', today);
+  save();
+}
+
+// キャッシュ保存
+function save(){
+  localStorage.setItem('ceo_v5_cache', JSON.stringify(S));
+}
+
+// 初期ロード（キャッシュ即時表示 → バックグラウンド同期）
+const APP_VERSION = 'v5.1-' + '20260628';
+function load(){
+  ['ceo_v3','ceo_v4','ceo_v4_cache'].forEach(k => localStorage.removeItem(k));
+  const cache = localStorage.getItem('ceo_v5_cache');
+  if(cache){ try{ S=JSON.parse(cache); }catch(e){} }
+  if(!S.kpi) S.kpi={note:0,x:0,tik:0,play:0};
+  if(!S.judgmentLog) S.judgmentLog=[];
+  if(!S.improvements) S.improvements=[];
+  ['note','tiktok','x'].forEach(p=>{ if(!S.stocks[p]) S.stocks[p]=[]; });
+  // DAILYタスクを今日分で補完
+  ensureDailyTasks();
+  renderHome();
+  loadFromGAS().then(()=>{ ensureDailyTasks(); renderHome(); });
+}
+
+// 同期インジケーター
+function showSyncing(on){
+  _syncing = on;
+  const dot = document.querySelector('.strip-dot');
+  if(dot) dot.style.background = on ? '#4f8ef7' : 'var(--fire)';
+}
+
+// ═══════════ NAV ═══════════
+function go(name,btn){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('scr'+name).classList.add('on');
+  document.querySelectorAll('.bn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  ({Home:renderHome,Content:renderContent,Neta:renderNeta,Cal:renderCal,Report:renderReport,Improve:renderImprove,Register:()=>{}})[name]?.();
+}
+
+// ═══════════ TOAST ═══════════
+let _tTimer;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('on');
+  clearTimeout(_tTimer); _tTimer=setTimeout(()=>t.classList.remove('on'),2200);
+}
+
+// ═══════════ MODAL ═══════════
+function openM(id){ document.getElementById(id).classList.add('on'); }
+function closeM(id){ document.getElementById(id).classList.remove('on'); }
+document.querySelectorAll('.modal').forEach(m=>{
+  m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('on'); });
+});
+
+// ═══════════ HOME ═══════════
+function renderHome(){
+  const now=new Date();
+  const DAYS=['日','月','火','水','木','金','土'];
+  const h=now.getHours();
+  const grStr=h<11?'Good morning, 森下':h<17?'Good afternoon, 森下':'Good evening, 森下';
+
+  const today=now.toISOString().slice(0,10);
+  const tasks=[...S.tasks].filter(t=>!t.done||t.doneDate===today).sort((a,b)=>b.pri-a.pri);
+
+  const noteLeft=S.stocks.note.filter(s=>s.status!=='公開済み').length;
+  const tikLeft=S.stocks.tiktok.filter(s=>s.status!=='投稿済み').length;
+  const netaLeft=S.neta.filter(n=>!n.done).length;
+  const noteCls=noteLeft<=2?'caution':'ok';
+  const tikCls=tikLeft===0?'warn':tikLeft<=1?'caution':'ok';
+
+  const todayEvs=S.events.filter(e=>e.date===today);
+
+  // tasks html
+  let tasksHtml='';
+  if(!tasks.length){
+    tasksHtml=`<div style="padding:24px 0;color:var(--on-3);font-size:13px;letter-spacing:.04em">タスクなし — 追加してください</div>`;
+  } else {
+    tasks.forEach((t,i)=>{
+      const ri=S.tasks.indexOf(t);
+      tasksHtml+=`<div class="t-row ${t.done?'done':''}" onclick="chkTask(${ri})">
+        <div class="t-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="t-body">
+          <div class="t-title">${t.title}</div>
+          <div class="t-sub">${t.cat.toUpperCase()} · ${'★'.repeat(t.pri)}${'☆'.repeat(5-t.pri)}</div>
+        </div>
+        <div class="t-check">
+          <svg width="12" height="10" viewBox="0 0 12 10" fill="none"><path d="M1 5l3.5 4L11 1" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>`;
+    });
+  }
+
+  // kpi
+  const k=S.kpi;
+  const kRows=[
+    {lbl:'NOTE',val:k.note,goal:200,color:'#22d3a0'},
+    {lbl:'X',val:k.x,goal:100,color:'#4f8ef7'},
+    {lbl:'TIKTOK',val:k.tik,goal:100,color:'#f05c5c'},
+  ].map(r=>`<div class="kpi-row" onclick="openKpiModal()">
+    <div class="kpi-platform">${r.lbl}</div>
+    <div class="kpi-bar-wrap">
+      <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:${Math.min(r.val/r.goal*100,100)}%;background:${r.color}"></div></div>
+    </div>
+    <div>
+      <div class="kpi-num">${r.val}</div>
+      <div class="kpi-goal">/ ${r.goal}</div>
+    </div>
+  </div>`).join('');
+
+  // alerts (text only, no emoji)
+  let alerts='';
+  if(tikLeft===0) alerts+=`<div style="padding:12px 0;border-bottom:1px solid var(--on-4);font-size:12px;color:var(--flag);letter-spacing:.04em">TikTok ストック 0本 — 制作が最優先です</div>`;
+  else if(tikLeft<=1) alerts+=`<div style="padding:12px 0;border-bottom:1px solid var(--on-4);font-size:12px;color:var(--fire);letter-spacing:.04em">TikTok ストック残り ${tikLeft}本 — 補充を検討してください</div>`;
+  if(noteLeft<=2) alerts+=`<div style="padding:12px 0;border-bottom:1px solid var(--on-4);font-size:12px;color:var(--fire);letter-spacing:.04em">note ストック残り ${noteLeft}本 — 補充してください</div>`;
+
+  // today events
+  let evHtml='';
+  if(todayEvs.length){
+    evHtml=`<div style="padding:0 24px;margin-top:0">
+      <div style="font-family:'Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:.18em;color:var(--on-3);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+        TODAY<span style="flex:1;height:1px;background:var(--on-4);display:block"></span>
+      </div>
+      ${todayEvs.map(ev=>`
+      <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--on-4)">
+        <div style="width:3px;height:28px;border-radius:2px;background:${TYPE_COLOR[ev.type]};flex-shrink:0"></div>
+        <div>
+          <div style="font-size:13px;font-weight:500">${ev.title}</div>
+          <div style="font-size:11px;color:var(--on-3);margin-top:3px;letter-spacing:.04em">${TYPE_LABEL[ev.type]}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // 【修正④】judgment を {date, author, text} 構造で表示
+  const jObj = S.judgment;
+  let judgmentText = '', judgmentMeta = '';
+  if(jObj && jObj.text){
+    judgmentText = jObj.text;
+    judgmentMeta = `${jObj.date||''} · ${jObj.author||''}`;
+  } else {
+    // 自動生成
+    if(tikLeft===0) judgmentText='TikTokストック0本。まず1本だけ補充することを最優先にしてください。';
+    else if(tikLeft<=1) judgmentText='TikTokストックが残り少ない。今週中に補充を。note公開は予定通り進めてください。';
+    else if(noteLeft<=2) judgmentText='noteストックが残り少ない。次の執筆セッションを今週内に確保してください。';
+    else if(netaLeft<5) judgmentText='ネタストックが減ってきている。現場でのネタ収集を意識してください。';
+    else judgmentText='ストック・KPIともに安定。今日は投稿・交流のルーティンを着実に回してください。';
+    judgmentMeta = '自動判断';
+  }
+
+  document.getElementById('homePg').innerHTML=`
+    <div class="mission-wrap">
+      <div class="mission-date">${now.getFullYear()} / ${String(now.getMonth()+1).padStart(2,'0')} / ${String(now.getDate()).padStart(2,'0')} ${DAYS[now.getDay()]}曜日</div>
+      ${alerts ? `<div style="margin-bottom:20px">${alerts}</div>` : ''}
+      <div class="mission-head">本日のミッション</div>
+      <div class="task-list">${tasksHtml}</div>
+      <div class="add-row" onclick="openTaskModal()">
+        <div class="add-row-line"></div>
+        <div class="add-row-txt">タスクを追加</div>
+      </div>
+    </div>
+
+    <div class="ceo-judgment" onclick="openJudgmentModal()">
+      <div class="ceo-j-label">今日のCEO判断</div>
+      <div class="ceo-j-text">${judgmentText}</div>
+      <div style="font-size:10px;color:var(--on-3);margin-top:8px;letter-spacing:.04em">${judgmentMeta}</div>
+      <button class="ceo-j-edit" onclick="event.stopPropagation();openJudgmentModal()">編集</button>
+    </div>
+
+    <div style="padding:0 24px;margin-top:16px;display:flex;gap:10px">
+      <button onclick="manualSync();renderHome();" style="flex:1;padding:10px;background:transparent;border:1px solid var(--on-4);border-radius:10px;color:var(--on-3);font-size:11px;font-weight:600;letter-spacing:.06em;cursor:pointer;">
+        同期
+      </button>
+      <button onclick="goReport()" style="flex:1;padding:10px;background:transparent;border:1px solid var(--on-4);border-radius:10px;color:var(--on-3);font-size:11px;font-weight:600;letter-spacing:.06em;cursor:pointer;">
+        週報
+      </button>
+    </div>
+
+    <div class="section-div" style="margin-top:24px"></div>
+
+    <div class="summary-strip">
+      <div class="sum-item" onclick="go('Content',document.querySelectorAll('.bn')[1])">
+        <div class="sum-label">note</div>
+        <div class="sum-value ${noteCls}">${noteLeft}</div>
+        <div class="sum-sub">ストック</div>
+      </div>
+      <div class="sum-item" onclick="go('Content',document.querySelectorAll('.bn')[1])">
+        <div class="sum-label">TikTok</div>
+        <div class="sum-value ${tikCls}">${tikLeft}</div>
+        <div class="sum-sub">ストック</div>
+      </div>
+      <div class="sum-item" onclick="go('Neta',document.querySelectorAll('.bn')[3])">
+        <div class="sum-label">ネタ</div>
+        <div class="sum-value ok">${netaLeft}</div>
+        <div class="sum-sub">残り</div>
+      </div>
+    </div>
+
+    <div class="section-div"></div>
+
+    <div class="kpi-wrap">
+      <div class="kpi-section-lbl">KPI</div>
+      <div class="kpi-list">${kRows}</div>
+    </div>
+
+    ${evHtml}
+    <div style="height:24px"></div>
+  `;
+}
+
+function chkTask(idx){
+  S.tasks[idx].done=!S.tasks[idx].done;
+  S.tasks[idx].doneDate=new Date().toISOString().slice(0,10);
+  if(!S.tasks[idx].done) S.tasks[idx].doneDate='';
+  save(); renderHome();
+  const t=S.tasks[idx];
+  if(t.id) gasPost({sheet:'tasks',action:'update',id:t.id,done:t.done,doneDate:t.doneDate}).catch(()=>{});
+}
+function openTaskModal(){ document.getElementById('tTitle').value=''; openM('mTask'); }
+function saveTask(){
+  const t=document.getElementById('tTitle').value.trim();
+  if(!t){toast('タスク名を入力してください');return;}
+  const item={title:t,cat:document.getElementById('tCat').value,pri:+document.getElementById('tPri').value,done:false,doneDate:''};
+  S.tasks.push({...item,id:'task_'+Date.now()});
+  save();closeM('mTask');renderHome();toast('タスク追加');
+  gasPost({sheet:'tasks',action:'add',...item,platform:''}).catch(()=>{});
+}
+function openJudgmentModal(){
+  document.getElementById('jText').value = S.judgment ? S.judgment.text||'' : '';
+  openM('mJudgment');
+}
+function saveJudgment(){
+  const text = document.getElementById('jText').value.trim();
+  const today = new Date().toISOString().slice(0,10);
+  S.judgment = { date:today, author:'森下', text };
+  if(!S.judgmentLog) S.judgmentLog=[];
+  S.judgmentLog.push({...S.judgment});
+  save();closeM('mJudgment');renderHome();toast('CEO判断を更新');
+  gasPost({sheet:'judgment',action:'add',date:today,text,author:'森下'}).catch(()=>{});
+}
+function clearJudgment(){ S.judgment=null; save();closeM('mJudgment');renderHome();toast('自動判断に戻しました'); }
+function openKpiModal(){
+  document.getElementById('kNote').value=S.kpi.note||'';
+  document.getElementById('kX').value=S.kpi.x||'';
+  document.getElementById('kTik').value=S.kpi.tik||'';
+  document.getElementById('kPlay').value=S.kpi.play||'';
+  openM('mKpi');
+}
+function saveKpi(){
+  S.kpi.note=+document.getElementById('kNote').value||0;
+  S.kpi.x=+document.getElementById('kX').value||0;
+  S.kpi.tik=+document.getElementById('kTik').value||0;
+  S.kpi.play=+document.getElementById('kPlay').value||0;
+  save();closeM('mKpi');renderHome();toast('KPI更新');
+  gasPost({sheet:'kpi',action:'add',
+    note_followers:S.kpi.note, x_followers:S.kpi.x,
+    tik_followers:S.kpi.tik, tik_plays:S.kpi.play
+  }).catch(()=>{});
+}
+
+// ═══════════ CONTENT ═══════════
+function getStatuses(p){return p==='note'?NOTE_ST:p==='tiktok'?TIK_ST:X_ST;}
+function setPlatform(p,btn){
+  curPlatform=p;
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderContent();
+}
+function renderContent(){
+  const sts=getStatuses(curPlatform);
+  const items=S.stocks[curPlatform]||[];
+  let html='<div class="kanban-outer">';
+  sts.forEach(st=>{
+    const col=items.map((it,i)=>({it,i})).filter(({it})=>it.status===st);
+    html+=`<div class="k-col" ondragover="event.preventDefault()" ondrop="dropTo('${curPlatform}','${st}')">
+      <div class="k-col-hdr">
+        <span class="k-col-name">${st}</span>
+        <span class="k-cnt">${col.length}</span>
+      </div>
+      ${col.map(({it,i})=>`
+        <div class="k-item" draggable="true"
+          ondragstart="dragFrom={p:'${curPlatform}',i:${i}}"
+          onclick="openStockEdit(${i})">
+          <div class="k-item-title">${it.title}</div>
+          ${it.memo?`<div class="k-item-memo">${it.memo.slice(0,30)}${it.memo.length>30?'…':''}</div>`:''}
+        </div>`).join('')}
+      <button class="k-add" onclick="quickAdd('${st}')">+ 追加</button>
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById('contentPg').innerHTML=html;
+}
+function dropTo(p,status){
+  if(!dragFrom)return;
+  S.stocks[dragFrom.p][dragFrom.i].status=status;
+  dragFrom=null;save();renderContent();toast(status+' に移動');
+}
+function openStockModal(){
+  editStockIdx=null;
+  document.getElementById('mStockTtl').innerHTML=`追加 <button class="sheet-x" onclick="closeM('mStock')">×</button>`;
+  document.getElementById('sTitle').value='';document.getElementById('sMemo').value='';
+  document.getElementById('sStatus').innerHTML=getStatuses(curPlatform).map(s=>`<option value="${s}">${s}</option>`).join('');
+  document.getElementById('sDelBtn').innerHTML='';
+  openM('mStock');
+}
+function quickAdd(st){ openStockModal(); document.getElementById('sStatus').value=st; }
+function openStockEdit(idx){
+  editStockIdx=idx;
+  const it=S.stocks[curPlatform][idx];
+  document.getElementById('mStockTtl').innerHTML=`編集 <button class="sheet-x" onclick="closeM('mStock')">×</button>`;
+  document.getElementById('sTitle').value=it.title;document.getElementById('sMemo').value=it.memo||'';
+  document.getElementById('sStatus').innerHTML=getStatuses(curPlatform).map(s=>`<option value="${s}" ${s===it.status?'selected':''}>${s}</option>`).join('');
+  document.getElementById('sDelBtn').innerHTML=`<button class="btn-ghost btn-danger" onclick="deleteStock()">削除する</button>`;
+  openM('mStock');
+}
+function saveStock(){
+  const t=document.getElementById('sTitle').value.trim();
+  if(!t){toast('タイトルを入力してください');return;}
+  const item={title:t,status:document.getElementById('sStatus').value,memo:document.getElementById('sMemo').value.trim(),platform:curPlatform};
+  if(editStockIdx!==null){
+    const existing=S.stocks[curPlatform][editStockIdx];
+    S.stocks[curPlatform][editStockIdx]={...existing,...item};
+    toast('更新');
+    if(existing.id) gasPost({sheet:'stocks',action:'update',id:existing.id,...item}).catch(()=>{});
+  } else {
+    const id='stock_'+Date.now();
+    S.stocks[curPlatform].push({id,...item});
+    toast('追加');
+    gasPost({sheet:'stocks',action:'add',id,...item}).catch(()=>{});
+  }
+  save();closeM('mStock');renderContent();
+}
+function deleteStock(){
+  if(!confirm('削除しますか？'))return;
+  const item=S.stocks[curPlatform][editStockIdx];
+  S.stocks[curPlatform].splice(editStockIdx,1);
+  save();closeM('mStock');renderContent();toast('削除');
+  if(item&&item.id) gasPost({sheet:'stocks',action:'delete',id:item.id}).catch(()=>{});
+}
+
+// ═══════════ NETA ═══════════
+function setFilter(f,btn){
+  netaFilter=f;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  btn.classList.add('on');renderNeta();
+}
+function renderNeta(){
+  const q=(document.getElementById('netaQ').value||'').toLowerCase();
+  let items=[...S.neta];
+  if(netaFilter==='done') items=items.filter(n=>n.done);
+  else if(netaFilter!=='all') items=items.filter(n=>n.genre===netaFilter&&!n.done);
+  else items=items.filter(n=>!n.done);
+  if(q) items=items.filter(n=>n.title.toLowerCase().includes(q)||(n.tags||[]).join(' ').includes(q));
+  items.sort((a,b)=>({h:0,m:1,l:2}[a.pri]||1)-({h:0,m:1,l:2}[b.pri]||1));
+  if(!items.length){
+    document.getElementById('netaList').innerHTML=`<div class="empty"><div class="empty-head">ネタがありません</div><div class="empty-body">+ ボタンで追加してください</div></div>`;
+    return;
+  }
+  document.getElementById('netaList').innerHTML=items.map(n=>{
+    const ri=S.neta.indexOf(n);
+    return `<div class="ni ${n.done?'done-ni':''}">
+      <div class="ni-pip" style="background:${PRI_COLOR[n.pri]||'#3d4d70'}"></div>
+      <div class="ni-body" onclick="openNetaEdit(${ri})" style="cursor:pointer">
+        <div class="ni-title">${n.title}</div>
+        <div class="ni-meta">${n.genre}${(n.tags||[]).length?' · '+n.tags.join(', '):''}</div>
+      </div>
+      <button class="ni-del" title="公開済みにする" onclick="event.stopPropagation();toggleNeta(${ri})" style="color:${n.done?'var(--go)':'var(--on-3)'}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8l4 4 8-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="ni-del" onclick="event.stopPropagation();delNeta(${ri})">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+function toggleNeta(i){S.neta[i].done=!S.neta[i].done;save();renderNeta();renderHome();}
+function delNeta(i){if(!confirm('削除しますか？'))return;S.neta.splice(i,1);save();renderNeta();renderHome();}
+
+let _editNetaIdx = null;
+function openNetaEdit(idx){
+  _editNetaIdx = idx;
+  const n = S.neta[idx];
+  document.getElementById('neTitle').value = n.title||'';
+  document.getElementById('neGenre').value = n.genre||'製造業あるある';
+  document.getElementById('nePri').value = n.pri||'m';
+  document.getElementById('neTags').value = (n.tags||[]).join(',');
+  openM('mNetaEdit');
+}
+function saveNetaEdit(){
+  if(_editNetaIdx===null) return;
+  const n = S.neta[_editNetaIdx];
+  const tags = document.getElementById('neTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  n.title  = document.getElementById('neTitle').value.trim()||n.title;
+  n.genre  = document.getElementById('neGenre').value;
+  n.pri    = document.getElementById('nePri').value;
+  n.tags   = tags;
+  save(); closeM('mNetaEdit'); renderNeta(); toast('ネタを更新しました');
+  if(n.id) gasPost({sheet:'neta',action:'update',id:n.id,title:n.title,genre:n.genre,pri:n.pri,tags:tags.join(',')}).catch(()=>{});
+}
+function openNetaModal(){document.getElementById('nTitle').value='';document.getElementById('nTags').value='';openM('mNeta');}
+function saveNeta(){
+  const t=document.getElementById('nTitle').value.trim();
+  if(!t){toast('タイトルを入力してください');return;}
+  const tags=document.getElementById('nTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const item={title:t,genre:document.getElementById('nGenre').value,pri:document.getElementById('nPri').value,tags,done:false};
+  const id='neta_'+Date.now();
+  S.neta.push({id,...item});
+  save();closeM('mNeta');renderNeta();renderHome();toast('ネタ追加');
+  gasPost({sheet:'neta',action:'add',id,...item,tags:tags.join(',')}).catch(()=>{});
+}
+
+// ═══════════ CALENDAR ═══════════
+function renderCal(){
+  const now=new Date();
+  if(!calY){calY=now.getFullYear();calM=now.getMonth();}
+  if(!calSel) calSel=now.toISOString().slice(0,10);
+  renderCalGrid();renderEvSection();
+}
+function calShift(d){calM+=d;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}renderCalGrid();renderEvSection();}
+function renderCalGrid(){
+  const mn=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calLabel').textContent=`${mn[calM]} ${calY}`;
+  const today=new Date().toISOString().slice(0,10);
+  const first=new Date(calY,calM,1).getDay();
+  const last=new Date(calY,calM+1,0).getDate();
+  const prevL=new Date(calY,calM,0).getDate();
+  const dows=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  document.getElementById('dowRow').innerHTML=dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  let html='';let day=1,nx=1;
+  for(let i=0;i<42;i++){
+    let d,ds,oth=false;
+    if(i<first){d=prevL-first+i+1;ds=`${calM===0?calY-1:calY}-${String(calM===0?12:calM).padStart(2,'0')}-${String(d).padStart(2,'0')}`;oth=true;}
+    else if(day>last){d=nx++;ds=`${calM===11?calY+1:calY}-${String(calM===11?1:calM+2).padStart(2,'0')}-${String(d).padStart(2,'0')}`;oth=true;}
+    else{d=day++;ds=`${calY}-${String(calM+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+    let cls='cal-day';
+    if(oth)cls+=' other';
+    if(ds===today&&!oth)cls+=' today';
+    if(ds===calSel)cls+=' sel';
+    const evs=S.events.filter(e=>e.date===ds);
+    const dots=evs.slice(0,3).map(e=>`<div class="ev-dot" style="background:${TYPE_COLOR[e.type]}"></div>`).join('');
+    html+=`<div class="${cls}" onclick="selDay('${ds}')">${d}<div class="ev-dots">${dots}</div></div>`;
+  }
+  document.getElementById('dayGrid').innerHTML=html;
+}
+function selDay(ds){calSel=ds;renderCalGrid();renderEvSection();}
+function renderEvSection(){
+  const evs=S.events.filter(e=>e.date===calSel);
+  const [y,m,d]=calSel.split('-');
+  let html=`<div class="ev-section-lbl">${y} / ${m} / ${d}</div>`;
+  if(!evs.length){html+=`<div class="empty" style="padding:28px 0"><div class="empty-head">予定なし</div></div>`;}
+  else evs.forEach(ev=>{
+    const ri=S.events.indexOf(ev);
+    html+=`<div class="ev-item">
+      <div class="ev-bar" style="background:${TYPE_COLOR[ev.type]}"></div>
+      <div class="ev-body"><div class="ev-title">${ev.title}</div><div class="ev-kind">${TYPE_LABEL[ev.type]}</div></div>
+      <button class="ev-del" onclick="delEv(${ri})"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    </div>`;
+  });
+  document.getElementById('evSection').innerHTML=html;
+}
+function delEv(i){
+  const ev=S.events[i];
+  S.events.splice(i,1);save();renderCalGrid();renderEvSection();toast('削除');
+  if(ev&&ev.id) gasPost({sheet:'events',action:'delete',id:ev.id}).catch(()=>{});
+}
+function openEvModal(){document.getElementById('evTtl').value='';document.getElementById('evDate').value=calSel||new Date().toISOString().slice(0,10);openM('mEv');}
+function saveEv(){
+  const t=document.getElementById('evTtl').value.trim(),d=document.getElementById('evDate').value;
+  if(!t||!d){toast('タイトルと日付を入力してください');return;}
+  const id='ev_'+Date.now();
+  const type=document.getElementById('evType').value;
+  S.events.push({id,title:t,date:d,type});
+  save();closeM('mEv');calSel=d;renderCalGrid();renderEvSection();toast('予定追加');
+  gasPost({sheet:'events',action:'add',id,title:t,date:d,type}).catch(()=>{});
+}
+
+// ═══════════ REPORT ═══════════
+function renderReport(){
+  const k=S.kpi;
+  const nP=S.stocks.note.filter(s=>s.status==='公開済み').length;
+  const tP=S.stocks.tiktok.filter(s=>s.status==='投稿済み').length;
+  const xP=S.stocks.x.filter(s=>s.status==='投稿済み').length;
+  const nL=S.stocks.note.filter(s=>s.status!=='公開済み').length;
+  const tL=S.stocks.tiktok.filter(s=>s.status!=='投稿済み').length;
+  const na=S.neta.length||1;
+  const r1=Math.round(S.neta.filter(n=>n.genre==='製造業あるある').length/na*100);
+  const r2=Math.round(S.neta.filter(n=>n.genre==='Claude活用').length/na*100);
+  const r3=100-r1-r2;
+  const now=new Date();
+
+  document.getElementById('repWrap').innerHTML=`
+    <div class="rep-section">
+      <div class="rep-lbl">KPI</div>
+      <div class="rep-row"><span class="rep-key">note フォロワー</span><span class="rep-val">${k.note} / 200</span></div>
+      <div class="rep-row"><span class="rep-key">X フォロワー</span><span class="rep-val">${k.x} / 100</span></div>
+      <div class="rep-row"><span class="rep-key">TikTok フォロワー</span><span class="rep-val">${k.tik} / 100</span></div>
+      <div class="rep-row"><span class="rep-key">TikTok 再生数</span><span class="rep-val">${k.play.toLocaleString()}</span></div>
+      <button class="btn-ghost" style="margin-top:14px" onclick="openKpiModal()">KPIを更新する</button>
+    </div>
+
+    <div class="rep-section">
+      <div class="rep-lbl">Content</div>
+      <div class="rep-row"><span class="rep-key">note 公開済み</span><span class="rep-val">${nP}本</span></div>
+      <div class="rep-row"><span class="rep-key">note ストック</span><span class="rep-val">${nL}本</span></div>
+      <div class="rep-row"><span class="rep-key">TikTok 投稿済み</span><span class="rep-val">${tP}本</span></div>
+      <div class="rep-row"><span class="rep-key">TikTok ストック</span><span class="rep-val">${tL}本</span></div>
+      <div class="rep-row"><span class="rep-key">X 投稿済み</span><span class="rep-val">${xP}本</span></div>
+      <div class="rep-row"><span class="rep-key">ネタ残り</span><span class="rep-val">${S.neta.filter(n=>!n.done).length}本</span></div>
+    </div>
+
+    <div class="rep-section">
+      <div class="rep-lbl">比率（目標 70 : 20 : 10）</div>
+      <div class="rep-row"><span class="rep-key">製造業あるある</span><span class="rep-val" style="color:${r1>=60?'var(--go)':'var(--fire)'}">${r1}%</span></div>
+      <div class="rep-row"><span class="rep-key">Claude活用</span><span class="rep-val">${r2}%</span></div>
+      <div class="rep-row"><span class="rep-key">実録</span><span class="rep-val">${r3}%</span></div>
+      <div class="ratio-bar" style="margin-top:12px">
+        <div class="ratio-seg" style="width:${r1}%;background:var(--go)"></div>
+        <div class="ratio-seg" style="width:${r2}%;background:var(--link)"></div>
+        <div class="ratio-seg" style="width:${r3}%;background:var(--fire)"></div>
+      </div>
+    </div>
+
+    ${(() => {
+      // CEO判断履歴
+      const log = (S.judgmentLog||[]).slice().reverse().slice(0,10);
+      if(!log.length) return '';
+      const rows = log.map(j=>`
+        <div class="rep-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+          <div style="font-size:10px;color:var(--on-3);letter-spacing:.06em">${j.date} · ${j.author||''}</div>
+          <div style="font-size:13px;line-height:1.6">${j.text}</div>
+        </div>`).join('');
+      return `<div class="rep-section"><div class="rep-lbl">CEO判断履歴</div>${rows}</div>`;
+    })()}
+
+    ${(() => {
+      // CEOスコア（自動計算）
+      const nL2=S.stocks.note.filter(s=>s.status!=='公開済み').length;
+      const tL2=S.stocks.tiktok.filter(s=>s.status!=='投稿済み').length;
+      const netaL=S.neta.filter(n=>!n.done).length;
+      const doneTasks=S.tasks.filter(t=>t.done).length;
+      const totalTasks=S.tasks.length||1;
+      // スコア計算（各25点）
+      const s1 = Math.min(nL2/3*25, 25);          // noteストック（3本以上で満点）
+      const s2 = Math.min(tL2/3*25, 25);           // TikTokストック（3本以上で満点）
+      const s3 = Math.min(netaL/10*25, 25);         // ネタ（10本以上で満点）
+      const s4 = (doneTasks/totalTasks)*25;          // タスク完了率
+      const score = Math.round(s1+s2+s3+s4);
+      const scoreColor = score>=80?'var(--go)':score>=60?'var(--fire)':'var(--flag)';
+      return `<div class="rep-section">
+        <div class="rep-lbl">CEOスコア</div>
+        <div style="text-align:center;padding:20px 0 8px">
+          <div style="font-family:'Inter',sans-serif;font-size:64px;font-weight:300;letter-spacing:-.04em;color:${scoreColor};line-height:1">${score}</div>
+          <div style="font-size:11px;color:var(--on-3);margin-top:6px;letter-spacing:.06em">/ 100点</div>
+        </div>
+        <div class="rep-row"><span class="rep-key">noteストック</span><span class="rep-val">${Math.round(s1)}/25</span></div>
+        <div class="rep-row"><span class="rep-key">TikTokストック</span><span class="rep-val">${Math.round(s2)}/25</span></div>
+        <div class="rep-row"><span class="rep-key">ネタ残数</span><span class="rep-val">${Math.round(s3)}/25</span></div>
+        <div class="rep-row"><span class="rep-key">タスク完了率</span><span class="rep-val">${Math.round(s4)}/25</span></div>
+      </div>`;
+    })()}
+
+    <div class="rep-section">
+      <div class="rep-lbl">SNS</div>
+      <a class="sns-row" href="https://x.com/claude_works_jp" target="_blank">
+        <div class="sns-mark"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l5.2 6L1 13h1.4l4.6-5.3L11.5 13H13L7.5 6.7 12.5 1H11L6.7 5.9 2.5 1H1Z" fill="currentColor"/></svg></div>
+        <div class="sns-body"><div class="sns-name">@claude_works_jp</div><div class="sns-url">x.com/claude_works_jp</div></div>
+        <div class="sns-arr">↗</div>
+      </a>
+      <a class="sns-row" href="https://www.tiktok.com/@claude_works_jp" target="_blank">
+        <div class="sns-mark" style="font-size:14px;color:var(--on-2)">▶</div>
+        <div class="sns-body"><div class="sns-name">@claude_works_jp</div><div class="sns-url">tiktok.com/@claude_works_jp</div></div>
+        <div class="sns-arr">↗</div>
+      </a>
+      <a class="sns-row" href="https://note.com/hearty_viper4633" target="_blank">
+        <div class="sns-mark" style="font-size:13px;font-weight:700;color:var(--on-2)">n</div>
+        <div class="sns-body"><div class="sns-name">hearty_viper4633</div><div class="sns-url">note.com/hearty_viper4633</div></div>
+        <div class="sns-arr">↗</div>
+      </a>
+    </div>
+
+    <div style="text-align:center;padding:8px 0 24px;font-size:10px;color:var(--on-4);letter-spacing:.1em">
+      CEO室 OS v5.0 · GAS連携版 · ${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}
+    </div>
+  `;
+}
+
+// ═══════════ REGISTER v3（全シート対応） ═══════════
+let _parsedGPTData = null;
+let _fromURL = false;
+
+function _parseJSON(raw){
+  return JSON.parse(raw.replace(/```json\n?|```/g,'').trim());
+}
+
+// ── typeとシートのマッピング定義 ──
+// 新しいtypeはここに1行追加するだけでOK
+const TYPE_SHEET_MAP = {
+  neta:         'neta',
+  task:         'tasks',
+  stock:        'stocks',
+  event:        'events',
+  judgment:     'judgment',
+  prompt:       'prompts',
+  improvement:  'improvements',
+  improvements: 'improvements',
+  analytics:    'analytics',
+  kpi:          'kpi',
+};
+
+// typeに応じたアイテムを生成
+function _buildItem(data, id, today){
+  const tags = data.tags ? String(data.tags).split(',').map(t=>t.trim()).filter(Boolean) : [];
+  switch(data.type){
+    case 'task':
+      return {id, title:data.title||'無題', cat:data.cat||'daily', pri:data.pri||'m', done:false};
+    case 'stock':
+      return {id, platform:(['note','tiktok','x'].includes(data.media)?data.media:'note'), title:data.title||'無題', status:data.status||'未着手', memo:data.memo||''};
+    case 'event':
+      return {id, title:data.title||'無題', date:data.date||today, type:data.media||'other'};
+    case 'judgment':
+      return {date:today, text:data.text||data.content||data.title||'', author:data.author||'ChatGPT'};
+    case 'prompt':
+      return {id, title:data.title||'無題', usage:data.usage||'', claude_prompt:data.claude_prompt||data.content||'', chatgpt_prompt:data.chatgpt_prompt||''};
+    case 'improvement':
+    case 'improvements':
+      return {id, date:today, content:data.content||data.title||'無題', status:data.status||'未対応'};
+    case 'analytics':
+      return {date:today, title:data.title||'', result:data.result||'', learning:data.learning||''};
+    case 'kpi':
+      return {date:today, note_followers:data.note_followers||0, x_followers:data.x_followers||0, tik_followers:data.tik_followers||0, tik_plays:data.tik_plays||0};
+    default: // neta
+      return {id, title:data.title||'無題', genre:data.genre||'製造業あるある', pri:data.pri||'m', tags:tags.join(','), done:false};
+  }
+}
+
+const TYPE_DEF = {
+  neta:        { label:'ネタ',      color:'var(--go)',   badge:'NT' },
+  task:        { label:'タスク',    color:'var(--fire)', badge:'TK' },
+  stock:       { label:'ストック',  color:'var(--link)', badge:'ST' },
+  event:       { label:'イベント',  color:'var(--fire)', badge:'EV' },
+  judgment:    { label:'CEO判断',   color:'var(--fire)', badge:'JD' },
+  prompt:      { label:'プロンプト',color:'var(--on-2)', badge:'PR' },
+  improvement: { label:'改善',      color:'var(--go)',   badge:'IM' },
+  improvements:{ label:'改善',      color:'var(--go)',   badge:'IM' },
+  analytics:   { label:'分析',      color:'var(--link)', badge:'AN' },
+  kpi:         { label:'KPI',       color:'var(--link)', badge:'KP' },
+};
+
+function _getTypeDef(type){ return TYPE_DEF[type] || { label:'ネタ', color:'var(--go)', badge:'NT' }; }
+
+// 項目を個別削除
+function removePreviewItem(idx){
+  if(!_parsedGPTData) return;
+  _parsedGPTData.splice(idx, 1);
+  if(_parsedGPTData.length === 0){ clearRegister(); return; }
+  _rebuildPreview();
+}
+
+function _rebuildPreview(){
+  const items = _parsedGPTData;
+  const counts = {};
+  items.forEach(d => {
+    const key = TYPE_DEF[d.type] ? d.type : 'neta';
+    counts[key] = (counts[key]||0) + 1;
+  });
+  const summaryRows = Object.entries(counts).map(([type, cnt]) => {
+    const def = _getTypeDef(type);
+    return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--on-4)"><span style="font-size:12px;color:var(--on-2)">${def.label}</span><span style="font-size:13px;font-weight:700;color:${def.color}">${cnt}件</span></div>`;
+  }).join('');
+
+  const listRows = items.map((d,i) => {
+    const def = _getTypeDef(d.type);
+    const label = d.title || d.content || '無題';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--ink-2);border:1px solid var(--on-4);border-radius:10px">
+      <div style="font-size:10px;color:var(--on-3);width:20px;flex-shrink:0">${i+1}</div>
+      <div style="flex:1;font-size:13px;font-weight:500;color:var(--on);line-height:1.4">${label}</div>
+      <div style="font-size:9px;font-weight:700;color:${def.color};letter-spacing:.04em;flex-shrink:0">${def.badge}</div>
+      <button onclick="removePreviewItem(${i})" style="background:transparent;border:none;color:var(--on-3);font-size:16px;cursor:pointer;padding:0 2px;flex-shrink:0">×</button>
+    </div>`;
+  }).join('');
+
+  const banner = _fromURL
+    ? `<div style="background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.3);border-radius:10px;padding:11px 14px;margin-bottom:12px;font-size:12px;color:var(--fire);font-weight:600">チャッピーからの登録候補です — ×で不要な項目を削除できます</div>`
+    : '';
+
+  document.getElementById('registerPreview').innerHTML = banner + `
+    <div style="background:var(--ink-2);border:1px solid var(--fire);border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.16em;color:var(--fire);margin-bottom:10px">登録予定 ${items.length}件</div>
+      ${summaryRows}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;max-height:240px;overflow-y:auto">${listRows}</div>`;
+
+  document.getElementById('registerBtn').style.display='block';
+  document.getElementById('registerBtn').textContent = items.length > 1 ? `${items.length}件を一括登録する` : '登録する';
+}
+
+function parseAndPreview(fromURL){
+  _fromURL = !!fromURL;
+  const raw = document.getElementById('registerJson').value.trim();
+  if(!raw){ toast('JSONを貼り付けてください'); return; }
+  try {
+    const parsed = _parseJSON(raw);
+    const all = Array.isArray(parsed) ? parsed : [parsed];
+    // ⑩ 対応typeのみ通過、不明は警告してスキップ
+    const valid = [];
+    const skipped = [];
+    all.forEach(d => {
+      if(!d || typeof d !== 'object' || !d.type){ skipped.push(d); return; }
+      const known = Object.keys(TYPE_SHEET_MAP); // マッピングと自動同期
+      if(known.includes(d.type)) valid.push(d);
+      else skipped.push(d);
+    });
+    if(valid.length === 0){ toast('対応しているJSONがありません'); return; }
+    if(skipped.length > 0) toast(`${skipped.length}件は対応していないJSONのためスキップ`);
+    _parsedGPTData = valid;
+    _rebuildPreview();
+    const cb = document.getElementById('checkBtn');
+    if(cb){ cb.textContent='もう一度確認する'; cb.style.padding='10px'; cb.style.fontSize='12px'; cb.style.opacity='.6'; }
+    toast(_fromURL ? `チャッピーのデータ ${valid.length}件を読み込みました` : `${valid.length}件を確認してください`);
+  } catch(e) {
+    toast('JSONの形式が正しくありません');
+    document.getElementById('registerPreview').innerHTML=`<div style="color:var(--flag);font-size:12px;padding:12px 0">エラー: ${e.message}</div>`;
+    document.getElementById('registerBtn').style.display='none';
+  }
+}
+
+async function registerFromGPT(){
+  if(!_parsedGPTData || !_parsedGPTData.length){ toast('先に内容を確認してください'); return; }
+  const btn = document.getElementById('registerBtn');
+  btn.textContent='保存中...'; btn.disabled=true;
+
+  const items = _parsedGPTData;
+  const today = new Date().toISOString().slice(0,10);
+
+  // マッピング方式：シート別にグループ化
+  const grouped = {};
+  items.forEach((data, i) => {
+    const id = 'gpt_'+Date.now()+'_'+i;
+    const sheet = TYPE_SHEET_MAP[data.type] || 'neta';
+    const item = _buildItem(data, id, today);
+    if(!grouped[sheet]) grouped[sheet] = [];
+    grouped[sheet].push(item);
+    // ローカルSTATEに反映
+    if(sheet==='neta'){ const o={...item,tags:(item.tags?String(item.tags).split(',').filter(Boolean):[])}; S.neta.push(o); }
+    else if(sheet==='tasks'){ S.tasks.push(item); }
+    else if(sheet==='stocks'){ const p=item.platform||'note'; S.stocks[p]=S.stocks[p]||[]; S.stocks[p].push(item); }
+    else if(sheet==='events'){ S.events.push(item); }
+    else if(sheet==='improvements'){ S.improvements.push(item); }
+  });
+  save();
+
+  // 全シートを同時送信（マッピング方式：新typeを追加してもここは変更不要）
+  const posts = Object.entries(grouped).map(([sheet, rows]) =>
+    gasPost({sheet, action:'batchAdd', rows})
+  );
+
+  const results = await Promise.allSettled(posts);
+  const fail = results.filter(r=>r.status==='rejected').length;
+  const totalOk = fail===0 ? items.length : Math.max(0, items.length - fail);
+  const totalFail = items.length - totalOk;
+
+  btn.textContent='登録する'; btn.disabled=false;
+  document.getElementById('registerPreview').innerHTML = totalFail===0
+    ? `<div style="background:rgba(34,211,160,.1);border:1px solid rgba(34,211,160,.3);border-radius:12px;padding:20px;text-align:center"><div style="font-size:28px;margin-bottom:8px">✅</div><div style="font-size:18px;font-weight:700;color:var(--go)">${items.length}件 登録完了</div><div style="font-size:11px;color:var(--on-2);margin-top:6px">GAS保存・スプレッドシートに反映済み</div></div>`
+    : `<div style="background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);border-radius:12px;padding:20px;text-align:center"><div style="font-size:28px;margin-bottom:8px">⚠️</div><div style="font-size:18px;font-weight:700;color:var(--fire)">${totalOk}件登録 · ${totalFail}件失敗</div><div style="font-size:11px;color:var(--on-2);margin-top:6px">失敗分はローカル保存済み</div></div>`;
+  toast(totalFail===0 ? `✅ ${items.length}件 登録完了` : `⚠️ ${totalOk}件登録・${totalFail}件失敗`);
+
+  setTimeout(()=>{ clearRegister(); renderHome(); }, 3000);
+}
+
+function clearRegister(){
+  document.getElementById('registerJson').value='';
+  document.getElementById('registerPreview').innerHTML='';
+  document.getElementById('registerBtn').style.display='none';
+  document.getElementById('registerBtn').textContent='登録する';
+  const cb=document.getElementById('checkBtn');
+  if(cb){ cb.textContent='内容を確認する'; cb.style.padding='14px'; cb.style.fontSize='14px'; cb.style.opacity='1'; }
+  _parsedGPTData=null; _fromURL=false;
+  toast('クリアしました');
+}
+
+function copyPrompt(){
+  const text = document.getElementById('promptTemplate').textContent;
+  navigator.clipboard.writeText(text).then(()=>toast('プロンプトをコピーしました')).catch(()=>{
+    const ta=document.createElement('textarea'); ta.value=text;
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast('プロンプトをコピーしました');
+  });
+}
+function renderImprove(){
+  const items=[...S.improvements].reverse();
+  const stColor={'未対応':'var(--flag)','対応中':'var(--fire)','完了':'var(--go)'};
+  if(!items.length){
+    document.getElementById('improveList').innerHTML=`<div class="empty"><div class="empty-head">改善メモなし</div><div class="empty-body">＋ボタンで追加してください</div></div>`;
+    return;
+  }
+  document.getElementById('improveList').innerHTML=items.map(imp=>{
+    const ri=S.improvements.indexOf(S.improvements.find(i=>i.id===imp.id));
+    return `<div style="padding:14px 0;border-bottom:1px solid var(--on-4)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:10px;color:var(--on-2);letter-spacing:.06em">${imp.date}</div>
+        <div style="font-size:10px;font-weight:700;color:${stColor[imp.status]||'var(--on-3)'};letter-spacing:.06em">${imp.status}</div>
+      </div>
+      <div style="font-size:14px;font-weight:500;line-height:1.6;color:var(--on)">${imp.content}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        ${imp.status!=='完了'?`<button onclick="updateImproveStatus('${imp.id}','完了')" style="font-size:11px;padding:5px 12px;background:transparent;border:1px solid var(--go);color:var(--go);border-radius:8px;cursor:pointer;">完了にする</button>`:''}
+        ${imp.status==='未対応'?`<button onclick="updateImproveStatus('${imp.id}','対応中')" style="font-size:11px;padding:5px 12px;background:transparent;border:1px solid var(--fire);color:var(--fire);border-radius:8px;cursor:pointer;">対応中にする</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openImproveModal(){
+  document.getElementById('impContent').value='';
+  document.getElementById('impStatus').value='未対応';
+  openM('mImprove');
+}
+
+function saveImprove(){
+  const content=document.getElementById('impContent').value.trim();
+  if(!content){toast('内容を入力してください');return;}
+  const id='imp_'+Date.now();
+  const date=new Date().toISOString().slice(0,10);
+  const status=document.getElementById('impStatus').value;
+  S.improvements.push({id,date,content,status});
+  save();closeM('mImprove');renderImprove();toast('改善メモを記録しました');
+  gasPost({sheet:'improvements',action:'add',id,date,content,status}).catch(()=>{});
+}
+
+function updateImproveStatus(id,status){
+  const item=S.improvements.find(i=>i.id===id);
+  if(!item)return;
+  item.status=status;
+  save();renderImprove();toast(status+'に更新');
+  gasPost({sheet:'improvements',action:'update',id,status}).catch(()=>{});
+}
+
+// 週報は独立画面（ナビ外）
+function goReport(){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('scrReport').classList.add('on');
+  document.querySelectorAll('.bn').forEach(b=>b.classList.remove('on'));
+  renderReport();
+}
+
+// ═══════════ INIT ═══════════
+const _n=new Date(); calY=_n.getFullYear(); calM=_n.getMonth(); calSel=_n.toISOString().slice(0,10);
+load();
+renderHome();
+
+// 【URLパラメータ】encodeURIComponent済みJSONを自動入力
+// チャッピーはこのURLを生成して森下に渡す:
+// https://tangerine-tulumba-f6d369.netlify.app/?register=encodeURIComponent(JSON)
+(function checkURLParams(){
+  try {
+    const params = new URLSearchParams(window.location.search);
+    // ?register= または ?data= どちらでも対応
+    const raw = params.get('register') || params.get('data');
+    if(!raw) return;
+
+    // encodeURIComponent済みをdecode（URLSearchParamsが自動decodeするが念のため）
+    let decoded = '';
+    try { decoded = decodeURIComponent(raw); } catch(e){ decoded = raw; }
+
+    // 登録タブに遷移
+    go('Register', document.querySelectorAll('.bn')[2]);
+
+    setTimeout(()=>{
+      const ta = document.getElementById('registerJson');
+      if(!ta) return;
+      ta.value = decoded;
+      // URLからの場合はfromURL=trueでプレビュー
+      parseAndPreview(true);
+      // URLパラメータをクリア（ブラウザ履歴を汚さない）
+      window.history.replaceState({}, '', window.location.pathname);
+    }, 400);
+  } catch(e){ console.warn('URLパラメータエラー:', e); }
+})();
+</script>
+</body>
+</html>
