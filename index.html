@@ -7,16 +7,18 @@
 
 <!--
   ============================================================
-  CEO室OS Ver.2 — Sprint 4
+  CEO室OS Ver.2 — Sprint 5
   ============================================================
   実装範囲:
-  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-3から継続、UI変更なし)
-  ・【Sprint4追加】ミッションの日次リセット(開いた日付が変わっていたら自動リセット)
-    + 「昨日の成果」を1日1回だけToastで表示
-  ・【Sprint4追加】AI秘書「今日の依頼」を日付ベースで自動判定し、
-    日付が変わったものは自動で「履歴」へ回るように変更
-  ・【Sprint4追加】Menu「KPI一覧」「収益管理」をModalで実装(3軸ダッシュボード/Revenue一覧)
-  ※GAS接続はまだ行っていない(API_URL=null / Sprint5以降で接続予定)。
+  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-4から継続、UI大枠は変更なし)
+  ・【Sprint5追加】DEV_MODE(true/false)を新設。true=常にダミーデータ(API_URL設定と独立)
+  ・【Sprint5追加】DataLayer全メソッドの分岐条件を shouldUseApi() に統一
+  ・【Sprint5追加】エラー耐性: API失敗時は必ずToast通知→ダミーデータへ自動フォールバック→画面は止めない
+  ・【Sprint5 UI改善】昨日の成果Toastを0.5秒遅延表示
+  ・【Sprint5 UI改善】AI秘書の依頼履歴を5件初期表示+「もっと見る」で展開
+  ・【Sprint5 UI改善】Menuの詳細Modalがある項目(KPI一覧/収益管理)にバッジ+chevron色分け
+  ・別ファイル Code.gs を18シート対応版に更新(HOME以外のアクションは実装済みだが未接続)
+  ※現状 DEV_MODE=true / API_URL=null のため、挙動はSprint4までと同じ(ダミーデータ)。
   設計方針: 開発仕様書 v1.0 第1〜12章に準拠
     - 1機能=1コンポーネント、カードは独立
     - Canva素材は差し替え可能(ASSETS)。無くても崩れないUI
@@ -626,6 +628,13 @@ img{max-width:100%;display:block;}
 .co-menu-row__label{ flex:1; font-size:14px; font-weight:700; }
 .co-menu-row__chevron{ color:var(--c-text-300); flex-shrink:0; }
 .co-menu-row__chevron svg{ width:16px;height:16px; }
+/* 【Sprint5 UI改善】タップ後にModalが開く項目だけchevronをアクセントカラーにして区別する */
+.co-menu-row--has-detail .co-menu-row__chevron{ color:var(--c-orange-500); }
+.co-detail-badge{
+  font-size:10px; font-weight:700; color:var(--c-orange-600);
+  background:var(--c-orange-100); padding:3px 8px; border-radius:var(--r-chip);
+  flex-shrink:0;
+}
 
 /* ============================================================
    12. Bottom Navigation (第9章-12 / 第12章-4)
@@ -833,6 +842,23 @@ function applyImageAsset(el, url, fallbackClass) {
      key / value
    ============================================================ */
 const API_URL = null; // 例: "https://script.google.com/macros/s/xxxxx/exec"
+
+/**
+ * 【Sprint5】開発モード切替。
+ * DEV_MODE=true の間は、API_URLが設定されていても常にダミーデータを使う。
+ * 「本番はAPI接続、でも手元の動作確認はいつでもダミーに戻せる」を両立するための
+ * 独立したスイッチ。API_URLとDEV_MODEは互いに干渉しない(片方だけ変えればよい)。
+ *
+ *   DEV_MODE=true  → 常にダミーデータ(API_URLの値は無視)
+ *   DEV_MODE=false かつ API_URL設定あり → APIを使用
+ *   DEV_MODE=false かつ API_URL=null    → ダミーデータ(今はこの状態)
+ */
+const DEV_MODE = true;
+
+/** API経由でデータ取得すべきかどうかを判定する(DataLayer各メソッドが参照) */
+function shouldUseApi() {
+  return !DEV_MODE && !!API_URL;
+}
 
 /**
  * GAS Web App への共通リクエストヘルパー。
@@ -1133,18 +1159,20 @@ const MENU_SEED = {
 
 const DataLayer = {
   /**
-   * 【Sprint3】HOME用データ取得。
-   * API_URLが設定されていればGAS経由でSpreadsheet(missions/kpi/briefing/
-   * projects/sns/activityシート)から取得し、未設定ならダミーデータを返す。
+   * 【Sprint3/5】HOME用データ取得。
+   * shouldUseApi()がtrueならGAS経由でSpreadsheet(missions/kpi/briefing/
+   * projects/sns/activityシート)から取得し、そうでなければダミーデータを返す。
    * ローカル永続化されたミッション完了状態のみ復元し、それ以外はダミーとして返す
    */
   async getHomeData() {
-    if (API_URL) {
+    if (shouldUseApi()) {
       // 【GAS接続ポイント】action=getHomeData → missions/kpi/briefing/projects/sns/activity 各シートを結合して返す想定
       try {
         return await apiRequest("getHomeData");
       } catch (e) {
         console.error("[DataLayer] getHomeData: API取得失敗。ダミーデータにフォールバックします。", e);
+        // 【Sprint5 エラー耐性】画面を止めずToastで知らせてダミーデータへフォールバック
+        showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
     // ---- ここから既存のダミーデータ処理(Sprint1〜2から継続 / Sprint4で日次リセットを追加) ----
@@ -1183,16 +1211,17 @@ const DataLayer = {
   },
 
   /**
-   * 【Sprint3】ミッション完了状態の更新。
-   * API_URL設定時は missions シートの該当行(id一致)の done列を更新する想定。
+   * 【Sprint3/5】ミッション完了状態の更新。
+   * shouldUseApi()がtrueなら missions シートの該当行(id一致)の done列を更新する想定。
    */
   async setMissionDone(missionId, done) {
-    if (API_URL) {
+    if (shouldUseApi()) {
       // 【GAS接続ポイント】action=setMissionDone → missionsシートのid一致行のdone列を更新
       try {
         return await apiRequest("setMissionDone", { missionId, done }, "POST");
       } catch (e) {
         console.error("[DataLayer] setMissionDone: API更新失敗。ローカル保存にフォールバックします。", e);
+        showToast("保存に失敗しました。この端末に一時保存します");
       }
     }
     // ---- ここから既存のダミーデータ処理(Sprint1〜2から変更なし) ----
@@ -1207,17 +1236,18 @@ const DataLayer = {
   },
 
   /**
-   * 【Sprint3】Projects(開発中) / Portfolio(実績)取得。
-   * API_URL設定時は projects / portfolio / portfolio_history / portfolio_releases /
+   * 【Sprint3/5】Projects(開発中) / Portfolio(実績)取得。
+   * shouldUseApi()がtrueなら projects / portfolio / portfolio_history / portfolio_releases /
    * portfolio_fixes の各シートを結合して返す想定(portfolio_idで紐付け)。
    */
   async getProjectsData() {
-    if (API_URL) {
+    if (shouldUseApi()) {
       // 【GAS接続ポイント】action=getProjectsData → projects + portfolio(+子シート3つ)を結合
       try {
         return await apiRequest("getProjectsData");
       } catch (e) {
         console.error("[DataLayer] getProjectsData: API取得失敗。ダミーデータにフォールバックします。", e);
+        showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
     // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
@@ -1225,16 +1255,17 @@ const DataLayer = {
   },
 
   /**
-   * 【Sprint3】AI秘書(ChatGPT/Claude)データ取得。
-   * API_URL設定時は ai_agents / ai_templates / ai_requests シートを結合して返す想定。
+   * 【Sprint3/5】AI秘書(ChatGPT/Claude)データ取得。
+   * shouldUseApi()がtrueなら ai_agents / ai_templates / ai_requests シートを結合して返す想定。
    */
   async getAiData() {
-    if (API_URL) {
+    if (shouldUseApi()) {
       // 【GAS接続ポイント】action=getAiData → ai_agents + ai_templates + ai_requests(本日分/履歴分)を結合
       try {
         return await apiRequest("getAiData");
       } catch (e) {
         console.error("[DataLayer] getAiData: API取得失敗。ダミーデータにフォールバックします。", e);
+        showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
     // ---- ここから既存のダミーデータ処理(Sprint2から継続 / Sprint4で今日・履歴の自動振り分けを追加) ----
@@ -1273,16 +1304,17 @@ const DataLayer = {
   },
 
   /**
-   * 【Sprint3】AI秘書: クイック依頼を今日の依頼リストへ追加。
-   * API_URL設定時は ai_requests シートへ1行追加する想定(isToday=true, date=今日)。
+   * 【Sprint3/5】AI秘書: クイック依頼を今日の依頼リストへ追加。
+   * shouldUseApi()がtrueなら ai_requests シートへ1行追加する想定(isToday=true, date=今日)。
    */
   async addAiRequest(request) {
-    if (API_URL) {
+    if (shouldUseApi()) {
       // 【GAS接続ポイント】action=addAiRequest → ai_requestsシートへ1行追加
       try {
         return await apiRequest("addAiRequest", request, "POST");
       } catch (e) {
         console.error("[DataLayer] addAiRequest: API追加失敗。ローカル保存にフォールバックします。", e);
+        showToast("送信に失敗しました。この端末に一時保存します");
       }
     }
     // ---- ここから既存のダミーデータ処理(Sprint2から継続 / Sprint4でdate付与を追加) ----
@@ -1298,16 +1330,17 @@ const DataLayer = {
   },
 
   /**
-   * 【Sprint3】SNS(TikTok/X/note)データ取得。
-   * API_URL設定時は sns_platforms / sns_followers / sns_posts シートを結合して返す想定。
+   * 【Sprint3/5】SNS(TikTok/X/note)データ取得。
+   * shouldUseApi()がtrueなら sns_platforms / sns_followers / sns_posts シートを結合して返す想定。
    */
   async getSnsData() {
-    if (API_URL) {
+    if (shouldUseApi()) {
       // 【GAS接続ポイント】action=getSnsData → sns_platforms + sns_followers(時系列) + sns_posts を結合
       try {
         return await apiRequest("getSnsData");
       } catch (e) {
         console.error("[DataLayer] getSnsData: API取得失敗。ダミーデータにフォールバックします。", e);
+        showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
     // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
@@ -1315,16 +1348,17 @@ const DataLayer = {
   },
 
   /**
-   * 【Sprint3】Menuデータ取得。
-   * API_URL設定時は menu_profile / menu_items / settings シートを結合して返す想定。
+   * 【Sprint3/5】Menuデータ取得。
+   * shouldUseApi()がtrueなら menu_profile / menu_items / settings シートを結合して返す想定。
    */
   async getMenuData() {
-    if (API_URL) {
+    if (shouldUseApi()) {
       // 【GAS接続ポイント】action=getMenuData → menu_profile + menu_items(+ settings)を結合
       try {
         return await apiRequest("getMenuData");
       } catch (e) {
         console.error("[DataLayer] getMenuData: API取得失敗。ダミーデータにフォールバックします。", e);
+        showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
     // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
@@ -1826,6 +1860,14 @@ async function renderAiScreen() {
   const data = await DataLayer.getAiData();
   const templateChips = data.templates.map(t => `<button class="co-template-chip">${t}</button>`).join("");
 
+  // 【Sprint5 UI改善】依頼履歴は増え続けると縦に伸びるため、直近5件のみ初期表示し「もっと見る」で展開する
+  const HISTORY_VISIBLE_COUNT = 5;
+  const historyVisible = data.history.slice(0, HISTORY_VISIBLE_COUNT);
+  const historyHidden = data.history.slice(HISTORY_VISIBLE_COUNT);
+  const historyMoreBtn = historyHidden.length
+    ? `<button class="co-section__link" id="ai-history-more" style="width:100%; text-align:center; padding:10px 0 2px;">もっと見る(${historyHidden.length}件)</button>`
+    : "";
+
   target.innerHTML = `
     ${renderScreenTitle("AI秘書")}
     <section class="co-section" data-component="ai-agents">
@@ -1848,11 +1890,22 @@ async function renderAiScreen() {
     </section>
     <section class="co-section" data-component="ai-history" style="margin-bottom:8px;">
       <div class="co-section__head"><p class="co-section__title">依頼履歴</p></div>
-      <div class="co-card">${data.history.map(r => renderRequestItem(r, true)).join("")}</div>
+      <div class="co-card" id="ai-history-list">${historyVisible.map(r => renderRequestItem(r, true)).join("")}</div>
+      ${historyMoreBtn}
     </section>`;
 
   animateEntrance(target);
   bindAiEvents(target, data);
+
+  // 【Sprint5 UI改善】もっと見る→残りを追加表示してボタンを消す
+  const moreBtn = target.querySelector("#ai-history-more");
+  if (moreBtn) {
+    moreBtn.addEventListener("click", () => {
+      const listEl = target.querySelector("#ai-history-list");
+      listEl.insertAdjacentHTML("beforeend", historyHidden.map(r => renderRequestItem(r, true)).join(""));
+      moreBtn.remove();
+    });
+  }
 }
 
 /* ============================================================
@@ -1936,10 +1989,13 @@ async function renderSnsScreen() {
    4e. Menu コンポーネント
    ============================================================ */
 function renderMenuRow(item) {
+  // 【Sprint5 UI改善】タップ後にModalが開く項目(kpi/revenue)は視覚的に区別する
+  const hasDetail = item.key === "kpi" || item.key === "revenue";
   return `
-    <div class="co-menu-row" data-menu-key="${item.key}">
+    <div class="co-menu-row ${hasDetail ? "co-menu-row--has-detail" : ""}" data-menu-key="${item.key}">
       <span class="co-menu-row__icon">${icon(item.icon)}</span>
       <span class="co-menu-row__label">${item.label}</span>
+      ${hasDetail ? `<span class="co-detail-badge">詳細あり</span>` : ""}
       <span class="co-menu-row__chevron">${icon("chevronRight")}</span>
     </div>`;
 }
@@ -2189,7 +2245,8 @@ async function renderHomeScreen() {
     const today = todayISO();
     if (sessionStorage.getItem(shownKey) !== today) {
       const { doneCount, total } = data.yesterdaySummary;
-      showToast(`昨日は${doneCount}/${total}ミッション達成でした`);
+      // 【Sprint5 UI改善】画面全体が見えてから成果を伝えたいので0.5秒遅らせて表示
+      setTimeout(() => showToast(`昨日は${doneCount}/${total}ミッション達成でした`), 500);
       sessionStorage.setItem(shownKey, today);
     }
   }
