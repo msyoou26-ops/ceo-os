@@ -846,7 +846,7 @@ function applyImageAsset(el, url, fallbackClass) {
    ■ settings(汎用設定 / 通知設定・テーマなど将来用のKey-Value)
      key / value
    ============================================================ */
-const API_URL = null; // 例: "https://script.google.com/macros/s/xxxxx/exec"
+const API_URL = "https://script.google.com/macros/s/AKfycby-Ce9QNDrsrUMeytViBzyJDaY-nGNrLHTtL7XQR5kR2rTmbcSR_-LQ4RDwSdCPOsv3zA/exec";
 
 /**
  * 【Sprint5】開発モード切替。
@@ -858,7 +858,7 @@ const API_URL = null; // 例: "https://script.google.com/macros/s/xxxxx/exec"
  *   DEV_MODE=false かつ API_URL設定あり → APIを使用
  *   DEV_MODE=false かつ API_URL=null    → ダミーデータ(今はこの状態)
  */
-const DEV_MODE = true;
+const DEV_MODE = false;
 
 /** API経由でデータ取得すべきかどうかを判定する(DataLayer各メソッドが参照) */
 function shouldUseApi() {
