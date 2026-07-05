@@ -7,23 +7,23 @@
 
 <!--
   ============================================================
-  CEO室OS Ver.2 — Sprint 6
+  CEO室OS Ver.2 — Sprint 6.1 / Sprint7 PMレビュー反映
   ============================================================
   実装範囲:
-  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-5から継続、UI変更なし)
-  ・【Sprint6追加】Logger(INFO/WARN/ERROR)を新設。console.log直書きを廃止し、
-    DEV_MODE=trueの時だけ出力・本番では自動的に沈黙する設計
-  ・【Sprint6追加】apiRequest()にタイムアウト(8秒/AbortController)を追加。
-    ハングしても画面が固まらないようにする
-  ・【Sprint6追加】APIレスポンスを { version, data } 形式で受け取り、
-    version未設定は警告ログ、{error}は例外化して呼び出し元でフォールバック
-  ・【Sprint6追加】正規化レイヤー(normalizeHomeData等5関数)を新設。
-    API/ダミーいずれの経路でも同じ形へ正規化してからUIへ渡す
-    (Spreadsheet側の列順変更・型崩れがUIに影響しない構造)
-  ・【Sprint6追加】Repository層を新設。UI → Repository → DataLayer → API/GAS
-    という責務分離を実現(今は単純委譲、将来キャッシュ等を追加できる設計)
-  ・別ファイル Code.gs もレスポンスを{version, data}形式に統一
+  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-6から継続、UI変更なし)
+  ・【Sprint6】Logger / apiRequestタイムアウト / {version,data}形式 / 正規化レイヤー / Repository層
+  ・【Sprint6.1 PMレビュー反映】
+    - Repositoryにキャッシュ切替口(CacheStrategies: none/memory)を追加。デフォルトnoneで挙動不変
+    - normalize系を共通ユーティリティ(normalizeString/Number/Boolean/Array/Enum等)で再構成
+    - apiRequestにSUPPORTED_VERSION照合(不一致はWARNのみ継続)・認証ヘッダ余白(AUTH_TOKEN)を追加
+    - Code.gsに列名定数(COLUMNS)を追加し、全データ取得関数をCOLUMNS参照に統一
+  ・【Sprint7 PMレビュー反映】(設計変更ではなく3点の実装改善)
+    - Code.gs doPost: JSON/text-plainどちらの本文でも解釈できるようparsePostBody()を追加
+    - index.html apiRequest: POST送信をtext/plainに変更(GAS側のCORS preflight回避。上記と対)
+    - Code.gs updateRowByKey: TextFinderで対象行を検索する方式に変更(将来の行数増加に備えた高速化)
+    - Code.gs jsonResponse/errorResponse: success/timestampフィールドを追加(既存動作に影響なし)
   ※現状 DEV_MODE=true / API_URL=null のため、挙動はSprint4までと同じ(ダミーデータ)。
+  ※Sprint7以降は新規の抽象化・共通化を凍結し、本番接続(Spreadsheet/GASデプロイ/API確認)を優先する方針。
   設計方針: 開発仕様書 v1.0 第1〜12章に準拠
     - 1機能=1コンポーネント、カードは独立
     - Canva素材は差し替え可能(ASSETS)。無くても崩れないUI
@@ -923,9 +923,13 @@ async function apiRequest(action, params = {}, method = "GET") {
       Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
       res = await fetch(url.toString(), { signal: controller.signal, headers: buildAuthHeaders() });
     } else {
+      // 【Sprint7 PMレビュー反映】Content-Type: application/json だとGAS Web App相手に
+      // preflight(OPTIONS)が発生し失敗しやすいため、text/plainで送りJSON文字列だけを
+      // 本文に入れる(Code.gs側のparsePostBody()がこれをJSON.parseで受け取る)。
+      // Authorizationヘッダのみ、AUTH_TOKEN設定時に付与する。
       res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...buildAuthHeaders() },
+        headers: { "Content-Type": "text/plain", ...buildAuthHeaders() },
         body: JSON.stringify({ action, ...params }),
         signal: controller.signal
       });
