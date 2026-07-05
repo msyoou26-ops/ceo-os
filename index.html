@@ -877,6 +877,27 @@ const Logger = {
 };
 
 /**
+ * 【Sprint6.1】将来の認証を見据えた余白。
+ * 今は未使用(null)だが、Bearerトークンやセッションキーなどを
+ * ここに設定するだけでapiRequest()が自動的にヘッダへ載せる構造にしておく。
+ * 認証方式が決まっても、変更はこのファイルのAPI設定周りだけで完結する想定。
+ */
+const AUTH_TOKEN = null; // 例: "Bearer xxxxxxxx"
+
+/** 認証ヘッダを組み立てる。AUTH_TOKEN未設定なら空オブジェクト(=今までと同じ挙動)。 */
+function buildAuthHeaders() {
+  return AUTH_TOKEN ? { Authorization: AUTH_TOKEN } : {};
+}
+
+/**
+ * 【Sprint6.1】APIバージョン管理。
+ * クライアントが対応できるレスポンス形式のバージョンをここで宣言する。
+ * サーバー側(Code.gs)のversionと食い違っていても、いきなり止めるのではなく
+ * WARNログを出すだけで動作は継続する(将来の互換性確保のための緩い検証)。
+ */
+const SUPPORTED_VERSION = "1.0";
+
+/**
  * GAS Web App への共通リクエストヘルパー。
  * API_URLが未設定の間は呼ばれない(DataLayer側でガードする)ため、
  * ここではAPI_URL設定後にそのまま動く形で用意しておく。
@@ -885,6 +906,9 @@ const Logger = {
  * ・タイムアウト(8秒): 通信がハングしても画面が固まらないようAbortControllerで打ち切る
  * ・レスポンス形式の検証: { version, data } 形式を期待し、versionが無ければ警告ログ
  * ・エラー形式の統一: { error: "..." } が返ってきたら例外として投げる(呼び出し元でフォールバック)
+ * 【Sprint6.1】以下を追加:
+ * ・認証ヘッダ(buildAuthHeaders)を全リクエストに付与できる余白を追加
+ * ・SUPPORTED_VERSIONとの不一致をWARNのみで継続動作するように変更
  */
 const API_TIMEOUT_MS = 8000;
 
@@ -897,11 +921,11 @@ async function apiRequest(action, params = {}, method = "GET") {
       const url = new URL(API_URL);
       url.searchParams.set("action", action);
       Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-      res = await fetch(url.toString(), { signal: controller.signal });
+      res = await fetch(url.toString(), { signal: controller.signal, headers: buildAuthHeaders() });
     } else {
       res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...buildAuthHeaders() },
         body: JSON.stringify({ action, ...params }),
         signal: controller.signal
       });
@@ -911,7 +935,12 @@ async function apiRequest(action, params = {}, method = "GET") {
     const json = await res.json();
     if (!json || typeof json !== "object") throw new Error(`API error (${action}): 不正なレスポンス形式`);
     if (json.error) throw new Error(`API error (${action}): ${json.error}`);
-    if (!json.version) Logger.warn(`apiRequest(${action}): レスポンスにversionがありません`, json);
+    if (!json.version) {
+      Logger.warn(`apiRequest(${action}): レスポンスにversionがありません`, json);
+    } else if (json.version !== SUPPORTED_VERSION) {
+      // 【Sprint6.1】バージョン不一致は致命的エラーにせず、WARNのみで動作を継続する
+      Logger.warn(`apiRequest(${action}): APIバージョン不一致 (supported=${SUPPORTED_VERSION}, received=${json.version})`);
+    }
 
     // 【Sprint6】{ version, data } 形式ならdataを取り出す。旧形式(dataキー無し)にも後方互換で対応。
     return json.data !== undefined ? json.data : json;
@@ -1200,95 +1229,124 @@ const MENU_SEED = {
 };
 
 /* ============================================================
-   2c. 【Sprint6】正規化レイヤー(Validation / Normalization)
+   2c. 【Sprint6/6.1】正規化レイヤー(Validation / Normalization)
    ------------------------------------------------------------
    目的: Spreadsheet側の列順変更・空セル・型崩れ(数値が文字列で
    返ってくる等)がUI側の描画関数に影響しないよう、DataLayerが
    値を返す直前に必ずこの正規化を通す。API経由でもダミーデータ
    経由でも同じ正規化を通すため、常に同じ形のオブジェクトが
    render系関数に渡ることを保証する。
+
+   【Sprint6.1】各normalize*関数の重複を減らすため、
+   normalizeString/Number/Boolean/Array/Enum という共通ユーティリティを
+   新設し、個別のnormalize関数はこれらの組み合わせだけで書く方針にした。
    ============================================================ */
+function normalizeString(v, fallback = "") {
+  return v === undefined || v === null ? fallback : String(v);
+}
+function normalizeNumber(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+function normalizeBoolean(v, fallback = false) {
+  if (typeof v === "boolean") return v;
+  if (v === undefined || v === null || v === "") return fallback;
+  return String(v).toLowerCase() === "true";
+}
+function normalizeArray(v, itemNormalizer) {
+  if (!Array.isArray(v)) return [];
+  return itemNormalizer ? v.map(itemNormalizer) : v;
+}
+function normalizeEnum(v, allowed, fallback) {
+  return allowed.includes(v) ? v : fallback;
+}
+function normalizeNumberArray(v, fallback = []) {
+  return Array.isArray(v) ? v.map(Number).filter(Number.isFinite) : fallback;
+}
+
+const AXIS_VALUES = ["開発", "発信", "収益化"];
+const KPI_DIR_VALUES = ["up", "down", "flat"];
+
 function normalizeMission(m) {
   m = m || {};
   return {
-    id: String(m.id ?? ""),
-    title: String(m.title ?? "無題のミッション"),
-    axis: ["開発", "発信", "収益化"].includes(m.axis) ? m.axis : "発信",
+    id: normalizeString(m.id),
+    title: normalizeString(m.title, "無題のミッション"),
+    axis: normalizeEnum(m.axis, AXIS_VALUES, "発信"),
     priority: m.priority === "high" ? "high" : "normal",
-    xp: Number.isFinite(Number(m.xp)) ? Number(m.xp) : 0,
-    done: m.done === true || String(m.done).toLowerCase() === "true"
+    xp: normalizeNumber(m.xp),
+    done: normalizeBoolean(m.done)
   };
 }
 function normalizeKpiItem(k) {
   k = k || {};
   return {
-    key: String(k.key ?? ""),
-    title: String(k.title ?? ""),
-    axis: ["開発", "発信", "収益化"].includes(k.axis) ? k.axis : "発信",
-    value: Number.isFinite(Number(k.value)) ? Number(k.value) : 0,
-    unit: String(k.unit ?? ""),
-    deltaPct: Number.isFinite(Number(k.deltaPct)) ? Number(k.deltaPct) : 0,
-    dir: ["up", "down", "flat"].includes(k.dir) ? k.dir : "flat",
+    key: normalizeString(k.key),
+    title: normalizeString(k.title),
+    axis: normalizeEnum(k.axis, AXIS_VALUES, "発信"),
+    value: normalizeNumber(k.value),
+    unit: normalizeString(k.unit),
+    deltaPct: normalizeNumber(k.deltaPct),
+    dir: normalizeEnum(k.dir, KPI_DIR_VALUES, "flat"),
     icon: k.icon || "chart",
-    history: Array.isArray(k.history) ? k.history.map(Number).filter(Number.isFinite) : undefined
+    history: Array.isArray(k.history) ? normalizeNumberArray(k.history) : undefined
   };
 }
 function normalizeDevProject(p) {
   p = p || {};
-  const progress = Number.isFinite(Number(p.progress)) ? Number(p.progress) : 0;
   return {
-    id: String(p.id ?? ""),
-    name: String(p.name ?? ""),
-    progress: Math.min(100, Math.max(0, progress)),
+    id: normalizeString(p.id),
+    name: normalizeString(p.name),
+    progress: Math.min(100, Math.max(0, normalizeNumber(p.progress))),
     color: p.color || "#FF6A2C",
-    sprint: String(p.sprint ?? ""),
-    next: String(p.next ?? ""),
-    updatedAt: String(p.updatedAt ?? ""),
-    ai: String(p.ai ?? "")
+    sprint: normalizeString(p.sprint),
+    next: normalizeString(p.next),
+    updatedAt: normalizeString(p.updatedAt),
+    ai: normalizeString(p.ai)
   };
 }
 function normalizeActivityItem(a) {
   a = a || {};
-  return { id: String(a.id ?? ""), title: String(a.title ?? ""), time: String(a.time ?? ""), icon: a.icon || "sparkle" };
+  return { id: normalizeString(a.id), title: normalizeString(a.title), time: normalizeString(a.time), icon: a.icon || "sparkle" };
 }
 function normalizeHomeSnsItem(s) {
   s = s || {};
-  return { key: String(s.key ?? ""), label: String(s.label ?? ""), color: s.color || "#0A1B33", value: String(s.value ?? ""), sub: String(s.sub ?? "") };
+  return { key: normalizeString(s.key), label: normalizeString(s.label), color: s.color || "#0A1B33", value: normalizeString(s.value), sub: normalizeString(s.sub) };
 }
 /** HOME用データの正規化。API/ダミーいずれの経路でも最終的にこれを通す。 */
 function normalizeHomeData(raw) {
   raw = raw || {};
   return {
-    streakDays: Number.isFinite(Number(raw.streakDays)) ? Number(raw.streakDays) : 0,
-    missions: Array.isArray(raw.missions) ? raw.missions.map(normalizeMission) : [],
-    briefing: Array.isArray(raw.briefing) ? raw.briefing.map(String) : [],
-    kpi: Array.isArray(raw.kpi) ? raw.kpi.map(normalizeKpiItem) : [],
-    projects: Array.isArray(raw.projects) ? raw.projects.map(normalizeDevProject) : [],
-    sns: Array.isArray(raw.sns) ? raw.sns.map(normalizeHomeSnsItem) : [],
-    activity: Array.isArray(raw.activity) ? raw.activity.map(normalizeActivityItem) : [],
+    streakDays: normalizeNumber(raw.streakDays),
+    missions: normalizeArray(raw.missions, normalizeMission),
+    briefing: normalizeArray(raw.briefing, (v) => normalizeString(v)),
+    kpi: normalizeArray(raw.kpi, normalizeKpiItem),
+    projects: normalizeArray(raw.projects, normalizeDevProject),
+    sns: normalizeArray(raw.sns, normalizeHomeSnsItem),
+    activity: normalizeArray(raw.activity, normalizeActivityItem),
     yesterdaySummary: raw.yesterdaySummary && typeof raw.yesterdaySummary === "object" ? raw.yesterdaySummary : null
   };
 }
 
+function normalizeDateTextPair(x) {
+  return { date: normalizeString(x && x.date), text: normalizeString(x && x.text) };
+}
 function normalizePortfolioItem(p) {
   p = p || {};
-  const toList = (v) => Array.isArray(v)
-    ? v.map(x => ({ date: String((x && x.date) ?? ""), text: String((x && x.text) ?? "") }))
-    : [];
   return {
-    id: String(p.id ?? ""),
-    name: String(p.name ?? ""),
-    tag: String(p.tag ?? ""),
-    initial: String(p.initial ?? (p.name ? p.name.slice(0, 2) : "")),
+    id: normalizeString(p.id),
+    name: normalizeString(p.name),
+    tag: normalizeString(p.tag),
+    initial: normalizeString(p.initial) || (p.name ? String(p.name).slice(0, 2) : ""),
     color: p.color || "#14304F",
-    summary: String(p.summary ?? ""),
-    stack: Array.isArray(p.stack) ? p.stack.map(String) : String(p.stack ?? "").split(",").map(s => s.trim()).filter(Boolean),
+    summary: normalizeString(p.summary),
+    stack: Array.isArray(p.stack) ? p.stack.map(String) : normalizeString(p.stack).split(",").map(s => s.trim()).filter(Boolean),
     github: p.github || null,
     netlify: p.netlify || null,
-    history: toList(p.history),
-    releases: toList(p.releases),
-    fixes: toList(p.fixes),
-    result: String(p.result ?? ""),
+    history: normalizeArray(p.history, normalizeDateTextPair),
+    releases: normalizeArray(p.releases, normalizeDateTextPair),
+    fixes: normalizeArray(p.fixes, normalizeDateTextPair),
+    result: normalizeString(p.result),
     screenshot: p.screenshot || null
   };
 }
@@ -1296,58 +1354,70 @@ function normalizePortfolioItem(p) {
 function normalizeProjectsData(raw) {
   raw = raw || {};
   return {
-    dev: Array.isArray(raw.dev) ? raw.dev.map(normalizeDevProject) : [],
-    portfolio: Array.isArray(raw.portfolio) ? raw.portfolio.map(normalizePortfolioItem) : []
+    dev: normalizeArray(raw.dev, normalizeDevProject),
+    portfolio: normalizeArray(raw.portfolio, normalizePortfolioItem)
   };
 }
 
 function normalizeAgent(a) {
   a = a || {};
-  return { id: String(a.id ?? ""), name: String(a.name ?? ""), role: String(a.role ?? ""), status: a.status || "待機中", lastUsed: String(a.lastUsed ?? ""), color: a.color || "#1FA463" };
+  return { id: normalizeString(a.id), name: normalizeString(a.name), role: normalizeString(a.role), status: a.status || "待機中", lastUsed: normalizeString(a.lastUsed), color: a.color || "#1FA463" };
 }
 function normalizeRequestItem(r) {
   r = r || {};
   return {
-    id: String(r.id ?? ""),
+    id: normalizeString(r.id),
     ai: r.ai === "Claude" ? "Claude" : "ChatGPT",
-    text: String(r.text ?? ""),
+    text: normalizeString(r.text),
     status: r.status || "待機中",
-    date: String(r.date ?? "")
+    date: normalizeString(r.date)
   };
 }
 /** AI秘書データの正規化。 */
 function normalizeAiData(raw) {
   raw = raw || {};
   return {
-    agents: Array.isArray(raw.agents) ? raw.agents.map(normalizeAgent) : [],
-    templates: Array.isArray(raw.templates) ? raw.templates.map(String) : [],
-    todayRequests: Array.isArray(raw.todayRequests) ? raw.todayRequests.map(normalizeRequestItem) : [],
-    history: Array.isArray(raw.history) ? raw.history.map(normalizeRequestItem) : []
+    agents: normalizeArray(raw.agents, normalizeAgent),
+    templates: normalizeArray(raw.templates, (v) => normalizeString(v)),
+    todayRequests: normalizeArray(raw.todayRequests, normalizeRequestItem),
+    history: normalizeArray(raw.history, normalizeRequestItem)
   };
 }
 
+function normalizePost(post) {
+  return { date: normalizeString(post && post.date), title: normalizeString(post && post.title) };
+}
 function normalizePlatform(p) {
   p = p || {};
   return {
-    key: String(p.key ?? ""),
-    label: String(p.label ?? ""),
+    key: normalizeString(p.key),
+    label: normalizeString(p.label),
     color: p.color || "#0A1B33",
-    followers: Array.isArray(p.followers) ? p.followers.map(Number).filter(Number.isFinite) : [0, 0],
-    stockCount: Number.isFinite(Number(p.stockCount)) ? Number(p.stockCount) : 0,
-    nextPost: String(p.nextPost ?? ""),
-    scheduled: String(p.scheduled ?? ""),
-    lastPosts: Array.isArray(p.lastPosts) ? p.lastPosts.map(post => ({ date: String((post && post.date) ?? ""), title: String((post && post.title) ?? "") })) : []
+    followers: normalizeNumberArray(p.followers, [0, 0]),
+    stockCount: normalizeNumber(p.stockCount),
+    nextPost: normalizeString(p.nextPost),
+    scheduled: normalizeString(p.scheduled),
+    lastPosts: normalizeArray(p.lastPosts, normalizePost)
   };
 }
 /** SNSデータの正規化。 */
 function normalizeSnsData(raw) {
   raw = raw || {};
-  return { platforms: Array.isArray(raw.platforms) ? raw.platforms.map(normalizePlatform) : [] };
+  return { platforms: normalizeArray(raw.platforms, normalizePlatform) };
 }
 
 function normalizeMenuItem(item) {
   item = item || {};
-  return { key: String(item.key ?? ""), label: String(item.label ?? ""), icon: item.icon || "settings" };
+  return { key: normalizeString(item.key), label: normalizeString(item.label), icon: item.icon || "settings" };
+}
+function normalizeRevenueEntry(e) {
+  return {
+    date: normalizeString(e && e.date),
+    platform: normalizeString(e && e.platform),
+    amount: normalizeNumber(e && e.amount),
+    category: normalizeString(e && e.category),
+    confirmed: normalizeBoolean(e && e.confirmed)
+  };
 }
 /** Menuデータの正規化(KPI一覧・収益管理を含む)。 */
 function normalizeMenuData(raw) {
@@ -1356,22 +1426,16 @@ function normalizeMenuData(raw) {
   const revenue = raw.revenue || {};
   return {
     profile: {
-      name: String(profile.name ?? ""),
-      role: String(profile.role ?? ""),
-      streakDays: Number.isFinite(Number(profile.streakDays)) ? Number(profile.streakDays) : 0
+      name: normalizeString(profile.name),
+      role: normalizeString(profile.role),
+      streakDays: normalizeNumber(profile.streakDays)
     },
-    items: Array.isArray(raw.items) ? raw.items.map(normalizeMenuItem) : [],
-    kpi: Array.isArray(raw.kpi) ? raw.kpi.map(normalizeKpiItem) : [],
+    items: normalizeArray(raw.items, normalizeMenuItem),
+    kpi: normalizeArray(raw.kpi, normalizeKpiItem),
     revenue: {
-      monthLabel: String(revenue.monthLabel ?? ""),
-      total: Number.isFinite(Number(revenue.total)) ? Number(revenue.total) : 0,
-      entries: Array.isArray(revenue.entries) ? revenue.entries.map(e => ({
-        date: String((e && e.date) ?? ""),
-        platform: String((e && e.platform) ?? ""),
-        amount: Number.isFinite(Number(e && e.amount)) ? Number(e.amount) : 0,
-        category: String((e && e.category) ?? ""),
-        confirmed: !!(e && e.confirmed)
-      })) : []
+      monthLabel: normalizeString(revenue.monthLabel),
+      total: normalizeNumber(revenue.total),
+      entries: normalizeArray(revenue.entries, normalizeRevenueEntry)
     }
   };
 }
@@ -1589,21 +1653,71 @@ const DataLayer = {
    2d. 【Sprint6】Repository層
    ------------------------------------------------------------
    目的: UI(render系関数)がDataLayerを直接呼ばず、必ずこの層を
-   経由するようにする。今は単純にDataLayerへ委譲するだけだが、
+   経由するようにする。データ取得の責務はRepositoryだけが持ち、
    将来的にはここへキャッシュ・複数データソースの合成・
    リトライ制御などの責務を追加していく想定。
 
    責務分離のゴール:
      UI → Repository → DataLayer → API/GAS → Spreadsheet
+
+   【Sprint6.1】キャッシュ戦略の切替口を追加。
+   CacheStrategiesの中から使うものを1つ選ぶだけで、
+   Repositoryの呼び出し側(UI)や下位のDataLayerには一切手を入れずに
+   キャッシュの有無・方式を変更できる構造にしてある。
    ============================================================ */
+const CacheStrategies = {
+  /** 何もキャッシュしない(現在のデフォルト。常に最新を取りに行く=今までと同じ挙動) */
+  none: {
+    get: () => null,
+    set: () => {},
+    clear: () => {}
+  },
+  /** メモリ上だけの一時キャッシュ(タブを閉じたら消える。将来有効化する場合の候補①) */
+  memory: (() => {
+    const store = new Map();
+    return {
+      get: (key) => (store.has(key) ? store.get(key) : null),
+      set: (key, value) => store.set(key, value),
+      clear: (key) => (key ? store.delete(key) : store.clear())
+    };
+  })()
+  // 【将来追加候補】
+  // localStorage: ブラウザを閉じても残す「Offline Cache」。オフライン時の表示継続に使える。
+  // gasCacheService: GAS側のCacheServiceと連携し、Spreadsheetへのアクセス回数を減らす。
+  //   (この場合はDataLayer/Code.gs側の対応も必要になる)
+};
+
+/** 今使うキャッシュ戦略。切り替えたい場合はこの1行だけ変更すればよい。 */
+const CACHE_STRATEGY = CacheStrategies.none;
+
+/** キャッシュを確認し、無ければfetcher()を実行して結果をキャッシュする共通処理 */
+async function withCache(key, fetcher) {
+  const cached = CACHE_STRATEGY.get(key);
+  if (cached !== null && cached !== undefined) {
+    Logger.info(`[Repository] cache hit: ${key}`);
+    return cached;
+  }
+  const fresh = await fetcher();
+  CACHE_STRATEGY.set(key, fresh);
+  return fresh;
+}
+
 const Repository = {
-  getHomeData: () => DataLayer.getHomeData(),
-  setMissionDone: (missionId, done) => DataLayer.setMissionDone(missionId, done),
-  getProjectsData: () => DataLayer.getProjectsData(),
-  getAiData: () => DataLayer.getAiData(),
-  addAiRequest: (request) => DataLayer.addAiRequest(request),
-  getSnsData: () => DataLayer.getSnsData(),
-  getMenuData: () => DataLayer.getMenuData()
+  getHomeData: () => withCache("home", () => DataLayer.getHomeData()),
+  setMissionDone: async (missionId, done) => {
+    const result = await DataLayer.setMissionDone(missionId, done);
+    CACHE_STRATEGY.clear("home"); // 更新系操作はキャッシュを無効化しておく(有効化した時のための保険)
+    return result;
+  },
+  getProjectsData: () => withCache("projects", () => DataLayer.getProjectsData()),
+  getAiData: () => withCache("ai", () => DataLayer.getAiData()),
+  addAiRequest: async (request) => {
+    const result = await DataLayer.addAiRequest(request);
+    CACHE_STRATEGY.clear("ai");
+    return result;
+  },
+  getSnsData: () => withCache("sns", () => DataLayer.getSnsData()),
+  getMenuData: () => withCache("menu", () => DataLayer.getMenuData())
 };
 
 /* ============================================================
