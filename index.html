@@ -7,23 +7,17 @@
 
 <!--
   ============================================================
-  CEO室OS Ver.2 — Sprint 6.1 / Sprint7 PMレビュー反映
+  CEO室OS Ver.2 — Sprint 8
   ============================================================
   実装範囲:
-  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-6から継続、UI変更なし)
-  ・【Sprint6】Logger / apiRequestタイムアウト / {version,data}形式 / 正規化レイヤー / Repository層
-  ・【Sprint6.1 PMレビュー反映】
-    - Repositoryにキャッシュ切替口(CacheStrategies: none/memory)を追加。デフォルトnoneで挙動不変
-    - normalize系を共通ユーティリティ(normalizeString/Number/Boolean/Array/Enum等)で再構成
-    - apiRequestにSUPPORTED_VERSION照合(不一致はWARNのみ継続)・認証ヘッダ余白(AUTH_TOKEN)を追加
-    - Code.gsに列名定数(COLUMNS)を追加し、全データ取得関数をCOLUMNS参照に統一
-  ・【Sprint7 PMレビュー反映】(設計変更ではなく3点の実装改善)
-    - Code.gs doPost: JSON/text-plainどちらの本文でも解釈できるようparsePostBody()を追加
-    - index.html apiRequest: POST送信をtext/plainに変更(GAS側のCORS preflight回避。上記と対)
-    - Code.gs updateRowByKey: TextFinderで対象行を検索する方式に変更(将来の行数増加に備えた高速化)
-    - Code.gs jsonResponse/errorResponse: success/timestampフィールドを追加(既存動作に影響なし)
-  ※現状 DEV_MODE=true / API_URL=null のため、挙動はSprint4までと同じ(ダミーデータ)。
-  ※Sprint7以降は新規の抽象化・共通化を凍結し、本番接続(Spreadsheet/GASデプロイ/API確認)を優先する方針。
+  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-7から継続、UI変更なし)
+  ・【Sprint7】HOMEをGoogle Spreadsheet + GAS Web Appに実接続(API_URL/DEV_MODE=false)
+  ・【Sprint8追加】API_ENABLED_SCREENSを新設し、画面ごとに段階的にAPI接続を有効化できる
+    構造に変更。Sprint8時点では home と projects のみ true(AI/SNS/Menuはまだダミー)
+  ・【Sprint8追加】Projects/Portfolio画面をSpreadsheet接続(projects/portfolio/
+    portfolio_history/portfolio_releases/portfolio_fixesシートを使用)
+  ※接続前にrender側/normalize側/Code.gs側のフィールド名を4点照合済み(不整合なし)。
+  ※Spreadsheet側にportfolio関連4シートの追加作成が必要(翔側の作業)。
   設計方針: 開発仕様書 v1.0 第1〜12章に準拠
     - 1機能=1コンポーネント、カードは独立
     - Canva素材は差し替え可能(ASSETS)。無くても崩れないUI
@@ -860,9 +854,23 @@ const API_URL = "https://script.google.com/macros/s/AKfycby-Ce9QNDrsrUMeytViBzyJ
  */
 const DEV_MODE = false;
 
-/** API経由でデータ取得すべきかどうかを判定する(DataLayer各メソッドが参照) */
-function shouldUseApi() {
-  return !DEV_MODE && !!API_URL;
+/**
+ * 【Sprint8】画面ごとにAPI接続を段階的に有効化するためのフラグ。
+ * DEV_MODE/API_URLの大枠の条件は維持しつつ、「どの画面から実データに
+ * 切り替えるか」を1つずつコントロールする。Sprint8時点では home と
+ * projects のみ true(AI/SNS/Menuはまだダミーのまま = 誤って広がらない)。
+ */
+const API_ENABLED_SCREENS = {
+  home: true,
+  projects: true,
+  ai: false,
+  sns: false,
+  menu: false
+};
+
+/** API経由でデータ取得すべきかどうかを判定する(DataLayer各メソッドが画面名を渡して呼ぶ) */
+function shouldUseApi(screen) {
+  return !DEV_MODE && !!API_URL && !!API_ENABLED_SCREENS[screen];
 }
 
 /**
@@ -1452,7 +1460,7 @@ const DataLayer = {
    * ローカル永続化されたミッション完了状態のみ復元し、それ以外はダミーとして返す
    */
   async getHomeData() {
-    if (shouldUseApi()) {
+    if (shouldUseApi("home")) {
       // 【GAS接続ポイント】action=getHomeData → missions/kpi/briefing/projects/sns/activity 各シートを結合して返す想定
       try {
         return normalizeHomeData(await apiRequest("getHomeData"));
@@ -1502,7 +1510,7 @@ const DataLayer = {
    * shouldUseApi()がtrueなら missions シートの該当行(id一致)の done列を更新する想定。
    */
   async setMissionDone(missionId, done) {
-    if (shouldUseApi()) {
+    if (shouldUseApi("home")) {
       // 【GAS接続ポイント】action=setMissionDone → missionsシートのid一致行のdone列を更新
       try {
         return await apiRequest("setMissionDone", { missionId, done }, "POST");
@@ -1528,7 +1536,7 @@ const DataLayer = {
    * portfolio_fixes の各シートを結合して返す想定(portfolio_idで紐付け)。
    */
   async getProjectsData() {
-    if (shouldUseApi()) {
+    if (shouldUseApi("projects")) {
       // 【GAS接続ポイント】action=getProjectsData → projects + portfolio(+子シート3つ)を結合
       try {
         return normalizeProjectsData(await apiRequest("getProjectsData"));
@@ -1546,7 +1554,7 @@ const DataLayer = {
    * shouldUseApi()がtrueなら ai_agents / ai_templates / ai_requests シートを結合して返す想定。
    */
   async getAiData() {
-    if (shouldUseApi()) {
+    if (shouldUseApi("ai")) {
       // 【GAS接続ポイント】action=getAiData → ai_agents + ai_templates + ai_requests(本日分/履歴分)を結合
       try {
         return normalizeAiData(await apiRequest("getAiData"));
@@ -1595,7 +1603,7 @@ const DataLayer = {
    * shouldUseApi()がtrueなら ai_requests シートへ1行追加する想定(isToday=true, date=今日)。
    */
   async addAiRequest(request) {
-    if (shouldUseApi()) {
+    if (shouldUseApi("ai")) {
       // 【GAS接続ポイント】action=addAiRequest → ai_requestsシートへ1行追加
       try {
         return await apiRequest("addAiRequest", request, "POST");
@@ -1621,7 +1629,7 @@ const DataLayer = {
    * shouldUseApi()がtrueなら sns_platforms / sns_followers / sns_posts シートを結合して返す想定。
    */
   async getSnsData() {
-    if (shouldUseApi()) {
+    if (shouldUseApi("sns")) {
       // 【GAS接続ポイント】action=getSnsData → sns_platforms + sns_followers(時系列) + sns_posts を結合
       try {
         return normalizeSnsData(await apiRequest("getSnsData"));
@@ -1639,7 +1647,7 @@ const DataLayer = {
    * shouldUseApi()がtrueなら menu_profile / menu_items / settings シートを結合して返す想定。
    */
   async getMenuData() {
-    if (shouldUseApi()) {
+    if (shouldUseApi("menu")) {
       // 【GAS接続ポイント】action=getMenuData → menu_profile + menu_items(+ settings)を結合
       try {
         return normalizeMenuData(await apiRequest("getMenuData"));
