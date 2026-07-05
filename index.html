@@ -7,15 +7,16 @@
 
 <!--
   ============================================================
-  CEO室OS Ver.2 — Sprint 3
+  CEO室OS Ver.2 — Sprint 4
   ============================================================
   実装範囲:
-  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-2から継続、UI変更なし)
-  ・【Sprint3追加】DataLayerをAPI_URL切替方式に変更(ダミーデータ卒業の土台作り)
-    - API_URLが設定されていればGAS経由でSpreadsheetから取得
-    - API_URL=nullの間は従来通りダミーデータ(Sprint1-2の挙動を完全維持)
-  ・【Sprint3追加】Spreadsheet設計書をコード内コメントとして明記(DataLayer直前を参照)
-  ※まだGASへは接続していない(Sprint4以降で接続予定)。
+  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-3から継続、UI変更なし)
+  ・【Sprint4追加】ミッションの日次リセット(開いた日付が変わっていたら自動リセット)
+    + 「昨日の成果」を1日1回だけToastで表示
+  ・【Sprint4追加】AI秘書「今日の依頼」を日付ベースで自動判定し、
+    日付が変わったものは自動で「履歴」へ回るように変更
+  ・【Sprint4追加】Menu「KPI一覧」「収益管理」をModalで実装(3軸ダッシュボード/Revenue一覧)
+  ※GAS接続はまだ行っていない(API_URL=null / Sprint5以降で接続予定)。
   設計方針: 開発仕様書 v1.0 第1〜12章に準拠
     - 1機能=1コンポーネント、カードは独立
     - Canva素材は差し替え可能(ASSETS)。無くても崩れないUI
@@ -1101,7 +1102,33 @@ const MENU_SEED = {
     { key: "backup",   label: "バックアップ", icon: "shield" },
     { key: "sync",     label: "データ同期", icon: "database" },
     { key: "notify",   label: "通知設定",   icon: "bell" }
-  ]
+  ],
+  /*
+   * 【Sprint4】KPI一覧(Menu内Modal用)。
+   * HOMEのKPIカードと同じ3軸(開発/発信/収益化)を、週次推移つきで確認できる
+   * 「CEOダッシュボード」として実装。将来Spreadsheetでは kpi シート本体は共通で、
+   * ここでは表示用に7日分の history を追加している(kpiシートに history列は持たず、
+   * 実際はkpiの日次スナップショットを別途集計する想定 — Sprint5以降で設計)。
+   */
+  kpi: [
+    { key: "dev",       title: "開発進捗",   axis: "開発",   value: 42,    unit: "%",  deltaPct: 5,   dir: "up",   history: [18, 22, 28, 33, 36, 40, 42] },
+    { key: "followers", title: "フォロワー", axis: "発信",   value: 1240,  unit: "人", deltaPct: 2.1, dir: "up",   history: [1120, 1150, 1170, 1190, 1210, 1225, 1240] },
+    { key: "posts",     title: "投稿数",     axis: "発信",   value: 18,    unit: "件", deltaPct: 0,   dir: "flat", history: [14, 15, 15, 16, 17, 18, 18] },
+    { key: "revenue",   title: "収益",       axis: "収益化", value: 12400, unit: "円", deltaPct: 8.4, dir: "up",   history: [8000, 8500, 9200, 10000, 10800, 11600, 12400] }
+  ],
+  /*
+   * 【Sprint4】収益管理(Menu内Modal用)。
+   * 開発仕様書 第7章 Revenue(日付/媒体/金額/カテゴリ/メモ/確定)に準拠したダミーデータ。
+   */
+  revenue: {
+    monthLabel: "2026年7月",
+    total: 12400,
+    entries: [
+      { date: "7/1", platform: "note", amount: 8000,  category: "有料マガジン", confirmed: true },
+      { date: "6/28", platform: "メルカリ", amount: 3200, category: "不用品売却", confirmed: true },
+      { date: "6/20", platform: "note", amount: 1200,  category: "単体記事販売", confirmed: false }
+    ]
+  }
 };
 
 const DataLayer = {
@@ -1120,17 +1147,37 @@ const DataLayer = {
         console.error("[DataLayer] getHomeData: API取得失敗。ダミーデータにフォールバックします。", e);
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint1〜2から変更なし) ----
+    // ---- ここから既存のダミーデータ処理(Sprint1〜2から継続 / Sprint4で日次リセットを追加) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
+
+      /*
+       * 【Sprint4】ミッション日次リセット。
+       * 「毎日開きたくなるOS」の核なので、開いた瞬間に日付が変わっていたら
+       * 自動でミッションの完了状態をリセットする(深夜バッチ不要・開いた時に判定する方式)。
+       * リセット前の達成数は yesterdaySummary として1日だけ保持し、
+       * 「昨日の成果が見える」体験に使う(renderHomeScreen側でToast表示)。
+       */
+      const today = todayISO();
+      let yesterdaySummary = saved.yesterdaySummary || null;
+      if (saved.lastResetDate && saved.lastResetDate !== today) {
+        const prevMissionState = saved.missionState || {};
+        const doneCount = Object.values(prevMissionState).filter(Boolean).length;
+        yesterdaySummary = { date: saved.lastResetDate, doneCount, total: DUMMY_SEED.missions.length };
+        saved.missionState = {};
+        saved.yesterdaySummary = yesterdaySummary;
+      }
+      saved.lastResetDate = today;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+
       const missions = DUMMY_SEED.missions.map(m => ({
         ...m,
         done: saved.missionState ? !!saved.missionState[m.id] : m.done
       }));
       // 演出上の疑似レイテンシ(Skeletonが一瞬で消えないように/実運用ではAPI待ち時間になる)
       setTimeout(() => {
-        resolve({ ...DUMMY_SEED, missions });
+        resolve({ ...DUMMY_SEED, missions, yesterdaySummary });
       }, 450);
     });
   },
@@ -1190,14 +1237,37 @@ const DataLayer = {
         console.error("[DataLayer] getAiData: API取得失敗。ダミーデータにフォールバックします。", e);
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
+    // ---- ここから既存のダミーデータ処理(Sprint2から継続 / Sprint4で今日・履歴の自動振り分けを追加) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(AI_STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
-      const extraRequests = saved.todayRequests || [];
+
+      /*
+       * 【Sprint4】Sprint2形式(todayRequestsのみ・日付なし)からの移行措置。
+       * 既存の保存データがあれば、今日の日付を付けて新形式(requests配列+date)へ変換する。
+       */
+      if (!saved.requests && saved.todayRequests) {
+        saved.requests = saved.todayRequests.map(r => ({ ...r, date: todayISO(), displayDate: toMD() }));
+        delete saved.todayRequests;
+        localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(saved));
+      }
+
+      /*
+       * 「今日の依頼」は当日分のみ、日付が変わったものは自動で「履歴」へ回す。
+       * (第5章の要件: 今日の依頼=当日限定 / 履歴=日付順)
+       */
+      const requests = saved.requests || [];
+      const today = todayISO();
+      const localToday = requests.filter(r => r.date === today);
+      const localHistory = requests
+        .filter(r => r.date !== today)
+        .map(r => ({ ...r, date: r.displayDate || r.date }))
+        .sort((a, b) => (a.date < b.date ? 1 : -1));
+
       setTimeout(() => resolve({
         ...AI_SEED,
-        todayRequests: [...extraRequests, ...AI_SEED.todayRequests]
+        todayRequests: [...localToday, ...AI_SEED.todayRequests],
+        history: [...localHistory, ...AI_SEED.history]
       }), 400);
     });
   },
@@ -1215,12 +1285,13 @@ const DataLayer = {
         console.error("[DataLayer] addAiRequest: API追加失敗。ローカル保存にフォールバックします。", e);
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
+    // ---- ここから既存のダミーデータ処理(Sprint2から継続 / Sprint4でdate付与を追加) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(AI_STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
-      saved.todayRequests = saved.todayRequests || [];
-      saved.todayRequests.unshift(request);
+      saved.requests = saved.requests || [];
+      // 【Sprint4】date(比較用ISO) / displayDate(履歴表示用 "M/D") を付与し、翌日は自動で履歴側に回るようにする
+      saved.requests.unshift({ ...request, date: todayISO(), displayDate: toMD() });
       localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(saved));
       resolve(true);
     });
@@ -1274,6 +1345,18 @@ function timeGreeting() {
 function formatDate(d) {
   const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
   return `${d.getMonth() + 1}月${d.getDate()}日(${w})`;
+}
+
+/**
+ * 【Sprint4】日次リセット・AI依頼の「今日/履歴」振り分けに使う日付ユーティリティ。
+ * todayISO(): "2026-07-05" のような比較用キー
+ * toMD(d): "7/5" のような表示用文字列(既存の履歴表示フォーマットに合わせる)
+ */
+function todayISO(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function toMD(d = new Date()) {
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 function formatNumber(n) {
@@ -1878,13 +1961,89 @@ function buildProfileModal(profile) {
       <p class="co-modal-section__label">継続日数</p>
       <p>${profile.streakDays}日</p>
     </div>
-    <p class="co-modal-empty-note">プロフィール編集はSprint3以降で対応予定です。</p>`;
+    <p class="co-modal-empty-note">プロフィール編集はSprint5以降で対応予定です。</p>`;
+}
+
+/**
+ * 【Sprint4】KPI一覧Modal(CEOダッシュボード)。
+ * HOMEと同じ3軸(開発/発信/収益化)ごとにグルーピングし、週次推移を
+ * スパークラインで見せる。既存のbuildSparkline()をそのまま再利用。
+ */
+function buildKpiListModal(kpiList) {
+  const axisOrder = ["開発", "発信", "収益化"];
+  const axisColor = { "開発": "#14304F", "発信": "#FF6A2C", "収益化": "#1FA463" };
+  const groups = axisOrder.map(axis => {
+    const items = kpiList.filter(k => k.axis === axis);
+    if (!items.length) return "";
+    const rows = items.map(k => `
+      <div class="co-modal-list-item" style="align-items:center;">
+        <span style="flex:1;">
+          <b style="display:block; font-size:14px; font-weight:800;">${k.title}</b>
+          <span class="tabular-num" style="font-size:18px; font-weight:900;">${formatNumber(k.value)}</span>
+          <span style="font-size:11px; color:var(--c-text-500);">${k.unit} ・ ${k.dir === "up" ? "+" : k.dir === "down" ? "-" : ""}${k.deltaPct}%</span>
+        </span>
+        <span style="width:90px;">${buildSparkline(k.history, axisColor[axis])}</span>
+      </div>`).join("");
+    return `
+      <div class="co-modal-section">
+        <p class="co-modal-section__label" style="color:${axisColor[axis]};">${axis}</p>
+        ${rows}
+      </div>`;
+  }).join("");
+
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">KPI一覧</p><p class="co-modal-subtitle">開発・発信・収益化(直近7日)</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    ${groups}`;
+}
+
+/**
+ * 【Sprint4】収益管理Modal。
+ * 開発仕様書 第7章 Revenue(日付/媒体/金額/カテゴリ/確定)に準拠した一覧表示。
+ */
+function buildRevenueModal(revenue) {
+  const rows = revenue.entries.map(e => `
+    <div class="co-modal-list-item">
+      <span class="co-modal-list-item__date">${e.date}</span>
+      <span style="flex:1;">${e.platform} ・ ${e.category}</span>
+      <span style="font-weight:800;">¥${formatNumber(e.amount)}</span>
+      <span class="co-status-badge" data-status="${e.confirmed ? "完了" : "待機中"}">${e.confirmed ? "確定" : "未確定"}</span>
+    </div>`).join("");
+
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">収益管理</p><p class="co-modal-subtitle">${revenue.monthLabel}</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">今月の合計</p>
+      <span class="tabular-num" id="revenue-total" style="font-size:26px; font-weight:900;">0</span><span style="font-size:14px; font-weight:700;">円</span>
+    </div>
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">内訳</p>
+      ${rows}
+    </div>
+    <p class="co-modal-empty-note">収益の追加入力はSprint5以降で対応予定です。</p>`;
 }
 
 function bindMenuEvents(container, data) {
   container.querySelectorAll("[data-menu-key]").forEach(row => {
     row.addEventListener("click", () => {
-      showToast("この項目はSprint3以降で実装予定です");
+      const key = row.dataset.menuKey;
+      // 【Sprint4】KPI一覧・収益管理はModalで詳細を見せる。他はまだ準備中。
+      if (key === "kpi") {
+        openModal(buildKpiListModal(data.kpi));
+        return;
+      }
+      if (key === "revenue") {
+        openModal(buildRevenueModal(data.revenue));
+        const totalEl = document.getElementById("revenue-total");
+        if (totalEl) animateCountUp(totalEl, data.revenue.total);
+        return;
+      }
+      showToast("この項目はSprint5以降で実装予定です");
     });
   });
   const profileEl = container.querySelector("[data-menu-profile]");
@@ -2018,6 +2177,22 @@ async function renderHomeScreen() {
       el.style.width = `${el.dataset.progressTo}%`;
     });
   });
+
+  /*
+   * 【Sprint4】「昨日の成果が見える」体験。
+   * 日付が変わった直後の初回表示でのみ、前日の達成状況をToastで知らせる。
+   * sessionStorageで「今日はもう見せた」を管理し、同じ日に何度もHOMEへ
+   * 戻ってきてもToastが繰り返し出ないようにする(第10章のToast乱用禁止に配慮)。
+   */
+  if (data.yesterdaySummary) {
+    const shownKey = "ceoOS_v2_yesterday_summary_shown";
+    const today = todayISO();
+    if (sessionStorage.getItem(shownKey) !== today) {
+      const { doneCount, total } = data.yesterdaySummary;
+      showToast(`昨日は${doneCount}/${total}ミッション達成でした`);
+      sessionStorage.setItem(shownKey, today);
+    }
+  }
 }
 
 /* ============================================================
