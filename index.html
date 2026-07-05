@@ -7,15 +7,15 @@
 
 <!--
   ============================================================
-  CEO室OS Ver.2 — Sprint 2
+  CEO室OS Ver.2 — Sprint 3
   ============================================================
   実装範囲:
-  ・HOME
-  ・AI秘書
-  ・Projects / Portfolio
-  ・SNS
-  ・Menu
-  ※各画面はダミーデータ中心。将来GAS/API連携予定。
+  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-2から継続、UI変更なし)
+  ・【Sprint3追加】DataLayerをAPI_URL切替方式に変更(ダミーデータ卒業の土台作り)
+    - API_URLが設定されていればGAS経由でSpreadsheetから取得
+    - API_URL=nullの間は従来通りダミーデータ(Sprint1-2の挙動を完全維持)
+  ・【Sprint3追加】Spreadsheet設計書をコード内コメントとして明記(DataLayer直前を参照)
+  ※まだGASへは接続していない(Sprint4以降で接続予定)。
   設計方針: 開発仕様書 v1.0 第1〜12章に準拠
     - 1機能=1コンポーネント、カードは独立
     - Canva素材は差し替え可能(ASSETS)。無くても崩れないUI
@@ -750,6 +750,113 @@ function applyImageAsset(el, url, fallbackClass) {
 }
 
 /* ============================================================
+   0b. 【Sprint3】API接続設定 — Google Spreadsheet / GAS連携の土台
+   ------------------------------------------------------------
+   目的: 「ダミーデータ卒業」に向けて、DataLayerの各関数を
+   “API_URLが設定されていればAPIから取得、nullならダミーデータ”
+   という切替方式に統一する。
+
+   使い方:
+   ・今は API_URL = null のまま運用する(Sprint3では接続しない)。
+   ・将来GASをWebアプリとして公開したら、そのURLをここに入れるだけで、
+     DataLayer配下の各関数が自動的にAPI経路に切り替わる。
+   ・呼び出し側(renderHomeScreen, renderProjectsScreen 等)は
+     一切変更不要 ── DataLayerの中身だけを差し替える設計。
+
+   API側(GAS)に期待する仕様(Sprint4以降で実装予定):
+   ・GET  {API_URL}?action=getHomeData      → HOME用データ一式を返す
+   ・GET  {API_URL}?action=getProjectsData  → Projects/Portfolio一式
+   ・GET  {API_URL}?action=getAiData        → AI秘書一式
+   ・GET  {API_URL}?action=getSnsData       → SNS一式
+   ・GET  {API_URL}?action=getMenuData      → Menu一式
+   ・POST {API_URL}  body:{action:"setMissionDone", ...}   → ミッション更新
+   ・POST {API_URL}  body:{action:"addAiRequest", ...}     → AI依頼追加
+   返却JSONの形は、現在の各ダミーデータ(DUMMY_SEED / PROJECTS_SEED /
+   AI_SEED / SNS_SEED / MENU_SEED)と同じキー構成にすること。
+   これにより画面側のrender関数を一切変更せずに接続できる。
+
+   ------------------------------------------------------------
+   【Spreadsheet設計書(Sprint3時点の設計案)】
+   実際にシートを作るのはSprint4以降。ここでは列構成を先に固める。
+
+   ■ missions(HOMEの今日のミッション)
+     id / title / axis(開発・発信・収益化) / priority(high/normal) /
+     xp / done(true/false) / date(YYYY-MM-DD, 日次リセット用)
+
+   ■ kpi(HOMEのKPIカード)
+     key / title / axis / value / unit / deltaPct / dir(up/down/flat) / icon
+
+   ■ briefing(AIブリーフィングの文言)
+     id / text / sortOrder / date
+
+   ■ projects(開発中プロジェクト)
+     id / name / progress / color / sprint / next / updatedAt / ai
+
+   ■ portfolio(実績)
+     id / name / tag / initial / color / summary / stack(カンマ区切り) /
+     github / netlify / result / screenshot
+     ※ history/releases/fixesは1実績に対して複数行になるため、
+        以下の子シートに分離する(正規化):
+     - portfolio_history:  portfolio_id / date / text
+     - portfolio_releases: portfolio_id / date / text
+     - portfolio_fixes:    portfolio_id / date / text
+
+   ■ ai_agents(AI秘書のロールカード)
+     id / name / role / status / lastUsed / color
+
+   ■ ai_templates(クイック依頼のテンプレート)
+     id / label / sortOrder
+
+   ■ ai_requests(依頼履歴・今日の依頼)
+     id / ai / text / status / date / isToday(true/false)
+
+   ■ sns_platforms(SNS基本情報)
+     key / label / color / stockCount / nextPost / scheduled
+
+   ■ sns_followers(フォロワー推移・時系列)
+     platform_key / date / count
+
+   ■ sns_posts(投稿履歴)
+     platform_key / date / title
+
+   ■ activity(最近の成果)
+     id / title / time / icon
+
+   ■ menu_profile(プロフィール)
+     name / role / streakDays
+
+   ■ menu_items(Menu一覧の項目)
+     key / label / icon / sortOrder
+
+   ■ settings(汎用設定 / 通知設定・テーマなど将来用のKey-Value)
+     key / value
+   ============================================================ */
+const API_URL = null; // 例: "https://script.google.com/macros/s/xxxxx/exec"
+
+/**
+ * GAS Web App への共通リクエストヘルパー。
+ * API_URLが未設定の間は呼ばれない(DataLayer側でガードする)ため、
+ * ここではAPI_URL設定後にそのまま動く形で用意しておく。
+ */
+async function apiRequest(action, params = {}, method = "GET") {
+  const url = new URL(API_URL);
+  if (method === "GET") {
+    url.searchParams.set("action", action);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`API error (${action}): ${res.status}`);
+    return res.json();
+  }
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, ...params })
+  });
+  if (!res.ok) throw new Error(`API error (${action}): ${res.status}`);
+  return res.json();
+}
+
+/* ============================================================
    1. ICONS — 統一線アイコン(24x24 / stroke 1.8) SVGを直書き
    ------------------------------------------------------------
    外部アイコンフォント/CDNに依存せず、通信0で表示できるようにする。
@@ -807,6 +914,13 @@ function icon(name){ return ICONS[name] || ""; }
    ============================================================ */
 const STORAGE_KEY = "ceoOS_v2_home_state";
 
+/**
+ * 【Sprint3】このオブジェクトの各キーは、将来のSpreadsheetシートに対応する。
+ *   missions → missions シート / kpi → kpi シート / briefing → briefing シート
+ *   projects → projects シート / sns → sns_platforms+sns_followers+sns_posts シート
+ *   activity → activity シート
+ * API_URL接続後は DataLayer.getHomeData() がこの形と同じJSONをAPIから受け取る。
+ */
 const DUMMY_SEED = {
   streakDays: 87,
   /*
@@ -861,6 +975,11 @@ const DUMMY_SEED = {
    ============================================================ */
 const AI_STORAGE_KEY = "ceoOS_v2_ai_state";
 
+/**
+ * 【Sprint3】dev → projects シート / portfolio → portfolio シート
+ * (portfolioのhistory/releases/fixesは将来 portfolio_history / portfolio_releases /
+ *  portfolio_fixes の子シートに分離し、portfolio_idで結合する設計)
+ */
 const PROJECTS_SEED = {
   /* 開発中: 翔自身が今動かしている案件のみ(第9章の方針を継続) */
   dev: [
@@ -928,6 +1047,10 @@ const PROJECTS_SEED = {
   ]
 };
 
+/**
+ * 【Sprint3】agents → ai_agents シート / templates → ai_templates シート
+ * todayRequests/history → ai_requests シート(isToday列で本日分/履歴分を判別)
+ */
 const AI_SEED = {
   agents: [
     { id: "chatgpt", name: "ChatGPT", role: "CEO ・ 戦略/企画/レビュー", status: "待機中", lastUsed: "3時間前", color: "#1FA463" },
@@ -944,6 +1067,10 @@ const AI_SEED = {
   ]
 };
 
+/**
+ * 【Sprint3】platforms配下は将来 sns_platforms(基本情報) / sns_followers(時系列) /
+ * sns_posts(投稿履歴) の3シートに分割し、platform_keyで結合する設計。
+ */
 const SNS_SEED = {
   platforms: [
     { key: "tiktok", label: "TikTok", color: "#E5484D",
@@ -961,6 +1088,10 @@ const SNS_SEED = {
   ]
 };
 
+/**
+ * 【Sprint3】profile → menu_profile シート / items → menu_items シート
+ * (通知設定・テーマなどの汎用値は将来 settings シート(Key-Value)で管理予定)
+ */
 const MENU_SEED = {
   profile: { name: "森下翔", role: "製造部 ・ QC42circleリーダー", streakDays: 87 },
   items: [
@@ -974,8 +1105,22 @@ const MENU_SEED = {
 };
 
 const DataLayer = {
-  /** ローカル永続化されたミッション完了状態のみ復元し、それ以外はダミーとして返す */
-  getHomeData() {
+  /**
+   * 【Sprint3】HOME用データ取得。
+   * API_URLが設定されていればGAS経由でSpreadsheet(missions/kpi/briefing/
+   * projects/sns/activityシート)から取得し、未設定ならダミーデータを返す。
+   * ローカル永続化されたミッション完了状態のみ復元し、それ以外はダミーとして返す
+   */
+  async getHomeData() {
+    if (API_URL) {
+      // 【GAS接続ポイント】action=getHomeData → missions/kpi/briefing/projects/sns/activity 各シートを結合して返す想定
+      try {
+        return await apiRequest("getHomeData");
+      } catch (e) {
+        console.error("[DataLayer] getHomeData: API取得失敗。ダミーデータにフォールバックします。", e);
+      }
+    }
+    // ---- ここから既存のダミーデータ処理(Sprint1〜2から変更なし) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
@@ -990,8 +1135,20 @@ const DataLayer = {
     });
   },
 
-  /** ミッション完了状態の更新 */
-  setMissionDone(missionId, done) {
+  /**
+   * 【Sprint3】ミッション完了状態の更新。
+   * API_URL設定時は missions シートの該当行(id一致)の done列を更新する想定。
+   */
+  async setMissionDone(missionId, done) {
+    if (API_URL) {
+      // 【GAS接続ポイント】action=setMissionDone → missionsシートのid一致行のdone列を更新
+      try {
+        return await apiRequest("setMissionDone", { missionId, done }, "POST");
+      } catch (e) {
+        console.error("[DataLayer] setMissionDone: API更新失敗。ローカル保存にフォールバックします。", e);
+      }
+    }
+    // ---- ここから既存のダミーデータ処理(Sprint1〜2から変更なし) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
@@ -1002,13 +1159,38 @@ const DataLayer = {
     });
   },
 
-  /** Sprint2: Projects(開発中) / Portfolio(実績) */
-  getProjectsData() {
+  /**
+   * 【Sprint3】Projects(開発中) / Portfolio(実績)取得。
+   * API_URL設定時は projects / portfolio / portfolio_history / portfolio_releases /
+   * portfolio_fixes の各シートを結合して返す想定(portfolio_idで紐付け)。
+   */
+  async getProjectsData() {
+    if (API_URL) {
+      // 【GAS接続ポイント】action=getProjectsData → projects + portfolio(+子シート3つ)を結合
+      try {
+        return await apiRequest("getProjectsData");
+      } catch (e) {
+        console.error("[DataLayer] getProjectsData: API取得失敗。ダミーデータにフォールバックします。", e);
+      }
+    }
+    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
     return new Promise((resolve) => setTimeout(() => resolve(PROJECTS_SEED), 400));
   },
 
-  /** Sprint2: AI秘書(ChatGPT/Claude) */
-  getAiData() {
+  /**
+   * 【Sprint3】AI秘書(ChatGPT/Claude)データ取得。
+   * API_URL設定時は ai_agents / ai_templates / ai_requests シートを結合して返す想定。
+   */
+  async getAiData() {
+    if (API_URL) {
+      // 【GAS接続ポイント】action=getAiData → ai_agents + ai_templates + ai_requests(本日分/履歴分)を結合
+      try {
+        return await apiRequest("getAiData");
+      } catch (e) {
+        console.error("[DataLayer] getAiData: API取得失敗。ダミーデータにフォールバックします。", e);
+      }
+    }
+    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(AI_STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
@@ -1020,8 +1202,20 @@ const DataLayer = {
     });
   },
 
-  /** AI秘書: クイック依頼を今日の依頼リストへ追加(ローカル保存のみ / Sprint3でAI連携予定) */
-  addAiRequest(request) {
+  /**
+   * 【Sprint3】AI秘書: クイック依頼を今日の依頼リストへ追加。
+   * API_URL設定時は ai_requests シートへ1行追加する想定(isToday=true, date=今日)。
+   */
+  async addAiRequest(request) {
+    if (API_URL) {
+      // 【GAS接続ポイント】action=addAiRequest → ai_requestsシートへ1行追加
+      try {
+        return await apiRequest("addAiRequest", request, "POST");
+      } catch (e) {
+        console.error("[DataLayer] addAiRequest: API追加失敗。ローカル保存にフォールバックします。", e);
+      }
+    }
+    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(AI_STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
@@ -1032,13 +1226,37 @@ const DataLayer = {
     });
   },
 
-  /** Sprint2: SNS(TikTok/X/note) */
-  getSnsData() {
+  /**
+   * 【Sprint3】SNS(TikTok/X/note)データ取得。
+   * API_URL設定時は sns_platforms / sns_followers / sns_posts シートを結合して返す想定。
+   */
+  async getSnsData() {
+    if (API_URL) {
+      // 【GAS接続ポイント】action=getSnsData → sns_platforms + sns_followers(時系列) + sns_posts を結合
+      try {
+        return await apiRequest("getSnsData");
+      } catch (e) {
+        console.error("[DataLayer] getSnsData: API取得失敗。ダミーデータにフォールバックします。", e);
+      }
+    }
+    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
     return new Promise((resolve) => setTimeout(() => resolve(SNS_SEED), 400));
   },
 
-  /** Sprint2: Menu */
-  getMenuData() {
+  /**
+   * 【Sprint3】Menuデータ取得。
+   * API_URL設定時は menu_profile / menu_items / settings シートを結合して返す想定。
+   */
+  async getMenuData() {
+    if (API_URL) {
+      // 【GAS接続ポイント】action=getMenuData → menu_profile + menu_items(+ settings)を結合
+      try {
+        return await apiRequest("getMenuData");
+      } catch (e) {
+        console.error("[DataLayer] getMenuData: API取得失敗。ダミーデータにフォールバックします。", e);
+      }
+    }
+    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
     return new Promise((resolve) => setTimeout(() => resolve(MENU_SEED), 250));
   }
 };
