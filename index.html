@@ -1031,9 +1031,9 @@ const DUMMY_SEED = {
    * 一目で「今日やることがどの軸に効くか」が分かるようにする。
    */
   missions: [
-    { id: "m1", title: "CEO室OS Sprint2 実装", meta: "開発",   priority: "high",   xp: 30, done: false },
-    { id: "m2", title: "TikTok投稿 1本",       meta: "発信",   priority: "normal", xp: 20, done: false },
-    { id: "m3", title: "note有料記事 執筆",     meta: "収益化", priority: "normal", xp: 25, done: false }
+    { id: "m1", title: "CEO室OS Sprint2 実装", axis: "開発",   priority: "high",   xp: 30, done: false },
+    { id: "m2", title: "TikTok投稿 1本",       axis: "発信",   priority: "normal", xp: 20, done: false },
+    { id: "m3", title: "note有料記事 執筆",     axis: "収益化", priority: "normal", xp: 25, done: false }
   ],
   briefing: [
     "今日はCEO室OS Sprint2の設計を1つ進めましょう。",
@@ -1863,11 +1863,11 @@ function renderHeader(state) {
 function renderMissionCard(missions) {
   const doneCount = missions.filter(m => m.done).length;
   const rows = missions.map(m => `
-    <div class="co-mission ${m.done ? "is-done" : ""}" data-mission-id="${m.id}" data-xp="${m.xp}" data-axis="${m.meta}">
+    <div class="co-mission ${m.done ? "is-done" : ""}" data-mission-id="${m.id}" data-xp="${m.xp}" data-axis="${m.axis}">
       <div class="co-mission__check" data-role="check">${icon("check")}</div>
       <div class="co-mission__body">
         <p class="co-mission__title">${m.title}</p>
-        <p class="co-mission__meta" data-axis="${m.meta}">${m.meta}</p>
+        <p class="co-mission__meta" data-axis="${m.axis}">${m.axis}</p>
       </div>
       <span class="co-mission__priority" data-level="${m.priority}">${m.priority === "high" ? "優先度:高" : "通常"}</span>
     </div>
@@ -1942,7 +1942,7 @@ function renderProjectCard(projects) {
         <span class="co-project__pct">${p.progress}%</span>
       </div>
       <div class="co-progress"><div class="co-progress__bar" style="background:${p.color}" data-progress-to="${p.progress}"></div></div>
-      <p class="co-project__meta">${p.due} ・ 担当AI: ${p.ai}</p>
+      <p class="co-project__meta">現在: ${p.sprint} ・ 次: ${p.next} ・ 担当AI: ${p.ai}</p>
     </div>`).join("");
   return `
     <section class="co-section" data-component="project-card">
