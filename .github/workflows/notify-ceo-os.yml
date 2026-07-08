@@ -1,0 +1,24 @@
+name: Notify CEO Room OS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send push event to CEO Room OS
+        run: |
+          curl -X POST -L --post302 --post303 \
+            -H "Content-Type: application/json" \
+            "https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLeDSFLxLGtCsX7O79MAdy0YDnvbE2tLl51Yyl1DTf-rXxK2JXhpCuJiA/exec?source=github&token=${{ secrets.CEO_OS_WEBHOOK_TOKEN }}" \
+            -d "$(cat <<'EOF'
+          {
+            "repository": {"name": "${{ github.event.repository.name }}"},
+            "ref": "${{ github.ref }}",
+            "pusher": {"name": "${{ github.actor }}"},
+            "commits": ${{ toJson(github.event.commits) }}
+          }
+          EOF
+          )"
