@@ -21,7 +21,9 @@ jobs:
 
       - name: Send push event to CEO Room OS
         env:
-          TOKEN: ${{ secrets.CEO_OS_WEBHOOK_TOKEN }}
+          RAW_TOKEN: ${{ secrets.CEO_OS_WEBHOOK_TOKEN }}
         run: |
-          URL="https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLeDSFLxLGtCsX7O79MAdy0YDnvbE2tLl51Yyl1DTf-rXxK2JXhpCuJiA/exec?source=github&token=${TOKEN}"
-          curl -X POST -L --post302 --post303 -H "Content-Type: application/json" --data @payload.json "$URL"
+          TOKEN=$(printf '%s' "$RAW_TOKEN" | tr -d '\n\r ')
+          BASE_URL="https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLeDSFLxLGtCsX7O79MAdy0YDnvbE2tLl51Yyl1DTf-rXxK2JXhpCuJiA/exec"
+          FULL_URL="${BASE_URL}?source=github&token=${TOKEN}"
+          curl -v -X POST -L --post302 --post303 -H "Content-Type: application/json" --data @payload.json "${FULL_URL}"
