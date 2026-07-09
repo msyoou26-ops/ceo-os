@@ -670,6 +670,68 @@ img{max-width:100%;display:block;}
 }
 
 /* ============================================================
+   11g. 【Sprint11】CEOレベル / フェーズ / 投資管理 / 実績バッジ
+   ------------------------------------------------------------
+   HOMEは軽さ優先: レベルバー1本+フェーズカード1枚のみ。
+   詳細(投資明細・バッジ一覧・レベル詳細)はMenuのModalへ逃がす。
+   ============================================================ */
+.co-levelbar{
+  display:flex; align-items:center; gap:12px;
+  cursor:pointer;
+}
+.co-levelbar__badge{
+  width:38px;height:38px;border-radius:11px;
+  background:linear-gradient(135deg, var(--c-navy-900), var(--c-navy-700));
+  color:#fff; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:900; flex-shrink:0;
+}
+.co-levelbar__body{ flex:1; min-width:0; }
+.co-levelbar__top{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:5px; }
+.co-levelbar__label{ font-size:12.5px; font-weight:800; }
+.co-levelbar__xp{ font-size:10.5px; color:var(--c-text-500); font-weight:700; }
+.co-levelbar__track{ height:6px; border-radius:99px; background:var(--c-surface); overflow:hidden; }
+.co-levelbar__fill{ height:100%; border-radius:99px; background:linear-gradient(90deg, var(--c-orange-500), var(--c-orange-600)); width:0%; transition:width 900ms var(--ease); }
+
+.co-phasecard{ cursor:pointer; }
+.co-phasecard__top{ display:flex; align-items:center; gap:12px; }
+.co-phasecard__emoji{ font-size:26px; line-height:1; flex-shrink:0; }
+.co-phasecard__label{ font-size:14.5px; font-weight:800; margin:0; }
+.co-phasecard__step{ font-size:11px; color:var(--c-text-500); margin-top:2px; }
+.co-phasecard__desc{ font-size:12.5px; color:var(--c-text-500); margin:10px 0 0; line-height:1.6; }
+.co-phasecard__chevron{ margin-left:auto; color:var(--c-text-300); flex-shrink:0; }
+.co-phasecard__chevron svg{ width:18px;height:18px; }
+
+.co-phase-journey{ display:flex; flex-direction:column; }
+.co-phase-journey-item{ display:flex; gap:12px; padding:10px 0; }
+.co-phase-journey-item + .co-phase-journey-item{ border-top:1px solid var(--c-border); }
+.co-phase-journey-item__emoji{ font-size:20px; width:30px; text-align:center; flex-shrink:0; opacity:0.35; }
+.co-phase-journey-item.is-current .co-phase-journey-item__emoji{ opacity:1; }
+.co-phase-journey-item__body{ flex:1; }
+.co-phase-journey-item__label{ font-size:13.5px; font-weight:700; color:var(--c-text-300); margin:0; }
+.co-phase-journey-item.is-current .co-phase-journey-item__label{ color:var(--c-text-900); }
+.co-phase-journey-item__now{ font-size:10px; font-weight:700; color:var(--c-orange-600); background:var(--c-orange-100); padding:2px 8px; border-radius:var(--r-chip); margin-left:6px; }
+
+.co-invest-hero{ text-align:center; padding:6px 0 4px; }
+.co-invest-hero__value{ font-size:28px; font-weight:900; }
+.co-invest-hero__label{ font-size:11.5px; color:var(--c-text-500); margin-top:4px; }
+.co-invest-gauge{ height:8px; border-radius:99px; background:var(--c-surface); overflow:hidden; margin:14px 0 8px; }
+.co-invest-gauge__fill{ height:100%; border-radius:99px; background:linear-gradient(90deg, var(--c-green-500), #17c17a); width:0%; transition:width 900ms var(--ease); }
+.co-invest-gauge__label{ font-size:11.5px; color:var(--c-text-500); text-align:center; }
+.co-invest-item{ display:flex; align-items:center; justify-content:space-between; padding:9px 2px; }
+.co-invest-item + .co-invest-item{ border-top:1px solid var(--c-border); }
+.co-invest-item__name{ font-size:13.5px; font-weight:700; }
+.co-invest-item__amount{ font-size:13px; font-weight:800; color:var(--c-text-500); }
+.co-invest-message{ font-size:12.5px; color:var(--c-text-500); line-height:1.7; margin:0 0 6px; }
+
+.co-badge-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.co-badge{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px 8px; border-radius:14px; background:var(--c-surface); text-align:center; }
+.co-badge__icon{ width:42px;height:42px;border-radius:13px; display:flex; align-items:center; justify-content:center; background:var(--c-bg); color:var(--c-text-300); }
+.co-badge__icon svg{ width:20px;height:20px; }
+.co-badge.is-unlocked .co-badge__icon{ background:linear-gradient(135deg, var(--c-orange-500), var(--c-orange-600)); color:#fff; }
+.co-badge__label{ font-size:11.5px; font-weight:700; color:var(--c-text-300); line-height:1.4; }
+.co-badge.is-unlocked .co-badge__label{ color:var(--c-text-900); }
+
+/* ============================================================
    12. Bottom Navigation (第9章-12 / 第12章-4)
    ============================================================ */
 .co-bottomnav{
@@ -795,7 +857,7 @@ function applyImageAsset(el, url, fallbackClass) {
 /* ============================================================
    0b. 【Sprint3】API接続設定 — Google Spreadsheet / GAS連携の土台
    ============================================================ */
-const API_URL = "https://script.google.com/macros/s/AKfycby-Ce9QNDrsrUMeytViBzyJDaY-nGNrLHTtL7XQR5kR2rTmbcSR_-LQ4RDwSdCPOsv3zA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLeDSFLxLGtCsX7O79MAdy0YDnvbE2tLl51Yyl1DTf-rXxK2JXhpCuJiA/exec";
 
 const DEV_MODE = false;
 
@@ -804,7 +866,7 @@ const API_ENABLED_SCREENS = {
   projects: true,
   ai: false,
   sns: false,
-  menu: false
+  menu: true
 };
 
 function shouldUseApi(screen) {
@@ -949,7 +1011,9 @@ const DUMMY_SEED = {
     { id: "a1", title: "TikTok投稿を公開しました",         time: "2時間前", icon: "video" },
     { id: "a2", title: "note記事「製造業あるある」公開",   time: "昨日",   icon: "note" },
     { id: "a3", title: "CEO室OS Sprint1 HOME画面が完成",   time: "2日前",   icon: "code" }
-  ]
+  ],
+  player: { level: 1, xp: 0, xpIntoLevel: 0, xpForNextLevel: 100, progressPct: 0 },
+  phase: { number: 1, key: "seed", emoji: "🌱", label: "種まき期間", description: "今はまだ種まき期間。焦らず積み上げていきましょう。" }
 };
 
 const AI_STORAGE_KEY = "ceoOS_v2_ai_state";
@@ -1072,7 +1136,23 @@ const MENU_SEED = {
       { date: "6/28", platform: "メルカリ", amount: 3200, category: "不用品売却", confirmed: true },
       { date: "6/20", platform: "note", amount: 1200,  category: "単体記事販売", confirmed: false }
     ]
-  }
+  },
+  player: { level: 1, xp: 0, xpIntoLevel: 0, xpForNextLevel: 100, progressPct: 0 },
+  phase: { number: 1, key: "seed", emoji: "🌱", label: "種まき期間", description: "今はまだ種まき期間。焦らず積み上げていきましょう。" },
+  investment: {
+    monthlyTotal: 0, cumulativeInvestment: 0, cumulativeRevenue: 0,
+    recoveryPct: 0, remainingToRecover: 0, months: 1, items: [],
+    messages: ["まだ投資データがありません。"]
+  },
+  badges: [
+    { id: "github_first_update", label: "GitHub初更新", icon: "github", unlocked: false },
+    { id: "first_revenue",       label: "初収益達成",   icon: "coin",   unlocked: false },
+    { id: "ceoos_50",            label: "CEO室OS進捗50%", icon: "rocket", unlocked: false },
+    { id: "streak_7",            label: "継続7日達成",   icon: "flame",  unlocked: false },
+    { id: "sprint_complete",     label: "初Sprint完了",  icon: "star",   unlocked: false },
+    { id: "note_100",            label: "note 100人",    icon: "note",   unlocked: false },
+    { id: "tiktok_1000",         label: "TikTok 1000人", icon: "video",  unlocked: false }
+  ]
 };
 
 /* ============================================================
@@ -1190,6 +1270,60 @@ function normalizeHomeSnsItem(s) {
   s = s || {};
   return { key: normalizeString(s.key), label: normalizeString(s.label), color: s.color || "#0A1B33", value: normalizeString(s.value), sub: normalizeString(s.sub) };
 }
+/* ---- 【Sprint11】CEOレベル / フェーズ / 投資管理 / 実績バッジの正規化 ---- */
+function normalizePlayer(p) {
+  p = p || {};
+  return {
+    level: normalizeNumber(p.level, 1),
+    xp: normalizeNumber(p.xp, 0),
+    xpIntoLevel: normalizeNumber(p.xpIntoLevel, 0),
+    xpForNextLevel: normalizeNumber(p.xpForNextLevel, 100),
+    progressPct: Math.min(100, Math.max(0, normalizeNumber(p.progressPct, 0)))
+  };
+}
+const PHASE_NUMBERS = [1, 2, 3, 4, 5];
+function normalizePhase(p) {
+  p = p || {};
+  return {
+    number: PHASE_NUMBERS.includes(normalizeNumber(p.number)) ? normalizeNumber(p.number) : 1,
+    key: normalizeString(p.key, "seed"),
+    emoji: normalizeString(p.emoji, "🌱"),
+    label: normalizeString(p.label, "種まき期間"),
+    description: normalizeString(p.description)
+  };
+}
+function normalizeInvestmentItem(i) {
+  i = i || {};
+  return {
+    id: normalizeString(i.id),
+    category: normalizeString(i.category),
+    monthlyAmount: normalizeNumber(i.monthlyAmount),
+    active: normalizeBoolean(i.active, true)
+  };
+}
+function normalizeInvestmentSummary(raw) {
+  raw = raw || {};
+  return {
+    monthlyTotal: normalizeNumber(raw.monthlyTotal),
+    cumulativeInvestment: normalizeNumber(raw.cumulativeInvestment),
+    cumulativeRevenue: normalizeNumber(raw.cumulativeRevenue),
+    recoveryPct: normalizeNumber(raw.recoveryPct),
+    remainingToRecover: normalizeNumber(raw.remainingToRecover),
+    months: normalizeNumber(raw.months, 1),
+    items: normalizeArray(raw.items, normalizeInvestmentItem),
+    messages: normalizeArray(raw.messages, (v) => normalizeString(v))
+  };
+}
+function normalizeBadge(b) {
+  b = b || {};
+  return {
+    id: normalizeString(b.id),
+    label: normalizeString(b.label),
+    icon: b.icon || "star",
+    unlocked: normalizeBoolean(b.unlocked, false)
+  };
+}
+
 function normalizeHomeData(raw) {
   raw = raw || {};
   return {
@@ -1200,7 +1334,9 @@ function normalizeHomeData(raw) {
     projects: normalizeArray(raw.projects, normalizeDevProject),
     sns: normalizeArray(raw.sns, normalizeHomeSnsItem),
     activity: normalizeArray(raw.activity, normalizeActivityItem),
-    yesterdaySummary: raw.yesterdaySummary && typeof raw.yesterdaySummary === "object" ? raw.yesterdaySummary : null
+    yesterdaySummary: raw.yesterdaySummary && typeof raw.yesterdaySummary === "object" ? raw.yesterdaySummary : null,
+    player: normalizePlayer(raw.player),
+    phase: normalizePhase(raw.phase)
   };
 }
 
@@ -1310,7 +1446,11 @@ function normalizeMenuData(raw) {
       monthLabel: normalizeString(revenue.monthLabel),
       total: normalizeNumber(revenue.total),
       entries: normalizeArray(revenue.entries, normalizeRevenueEntry)
-    }
+    },
+    player: normalizePlayer(raw.player),
+    phase: normalizePhase(raw.phase),
+    investment: normalizeInvestmentSummary(raw.investment),
+    badges: normalizeArray(raw.badges, normalizeBadge)
   };
 }
 
@@ -1629,6 +1769,99 @@ function renderHeader(state) {
         <button class="co-icon-btn" id="btn-settings" aria-label="設定">${icon("settings")}</button>
       </div>
     </header>`;
+}
+
+/* ============================================================
+   4a-2. 【Sprint11】CEOレベルバー / フェーズカード
+   ------------------------------------------------------------
+   HOMEでは軽い表示のみ。タップでMenu側と同じ詳細Modalを開く。
+   ============================================================ */
+function renderLevelBar(player) {
+  return `
+    <section class="co-section" data-component="level-bar">
+      <div class="co-card co-levelbar" data-action="open-level-detail">
+        <span class="co-levelbar__badge">Lv${player.level}</span>
+        <div class="co-levelbar__body">
+          <div class="co-levelbar__top">
+            <span class="co-levelbar__label">CEOレベル ${player.level}</span>
+            <span class="co-levelbar__xp">${player.xpIntoLevel}/${player.xpForNextLevel} XP</span>
+          </div>
+          <div class="co-levelbar__track"><div class="co-levelbar__fill" data-progress-to="${player.progressPct}"></div></div>
+        </div>
+      </div>
+    </section>`;
+}
+
+const PHASE_STEP_LABELS = { 1: "Step 1 / 5", 2: "Step 2 / 5", 3: "Step 3 / 5", 4: "Step 4 / 5", 5: "Step 5 / 5" };
+
+function renderPhaseCard(phase) {
+  return `
+    <section class="co-section" data-component="phase-card">
+      <div class="co-card co-phasecard" data-action="open-phase-detail">
+        <div class="co-phasecard__top">
+          <span class="co-phasecard__emoji">${phase.emoji}</span>
+          <div>
+            <p class="co-phasecard__label">${phase.label}</p>
+            <p class="co-phasecard__step">${PHASE_STEP_LABELS[phase.number] || ""}</p>
+          </div>
+          <span class="co-phasecard__chevron">${icon("chevronRight")}</span>
+        </div>
+        <p class="co-phasecard__desc">${phase.description}</p>
+      </div>
+    </section>`;
+}
+
+/** レベル詳細Modal(次のレベルまでのゲージを大きく見せる)。HOME/Menu共通で使う。 */
+function buildLevelDetailModal(player) {
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">CEOレベル ${player.level}</p><p class="co-modal-subtitle">ミッション達成・GitHub更新でXPが貯まります</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">次のレベルまで</p>
+      <div class="co-progress"><div class="co-progress__bar" style="background:var(--c-orange-500); width:${player.progressPct}%"></div></div>
+      <p style="margin-top:8px;">${player.xpIntoLevel} / ${player.xpForNextLevel} XP(累計 ${formatNumber(player.xp)} XP)</p>
+    </div>
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">XPの増やし方</p>
+      <p>ミッション完了(通常20〜30XP)、GitHubへのpush(+15XP)、リリース(+50XP)でXPが増えます。</p>
+    </div>`;
+}
+
+/** フェーズ詳細Modal(5段階の成長ジャーニーを一覧表示)。HOME/Menu共通。 */
+const PHASE_JOURNEY = [
+  { number: 1, emoji: "🌱", label: "種まき期間" },
+  { number: 2, emoji: "🚀", label: "初収益フェーズ" },
+  { number: 3, emoji: "⚙️", label: "仕組み化フェーズ" },
+  { number: 4, emoji: "🏢", label: "自動化フェーズ" },
+  { number: 5, emoji: "👑", label: "CEO化フェーズ" }
+];
+function buildPhaseDetailModal(phase) {
+  const rows = PHASE_JOURNEY.map(step => `
+    <div class="co-phase-journey-item ${step.number === phase.number ? "is-current" : ""}">
+      <span class="co-phase-journey-item__emoji">${step.emoji}</span>
+      <div class="co-phase-journey-item__body">
+        <p class="co-phase-journey-item__label">${step.label}${step.number === phase.number ? '<span class="co-phase-journey-item__now">今ここ</span>' : ""}</p>
+      </div>
+    </div>`).join("");
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">${phase.emoji} ${phase.label}</p><p class="co-modal-subtitle">CEOとしての成長段階</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section"><p>${phase.description}</p></div>
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">成長ジャーニー</p>
+      <div class="co-phase-journey">${rows}</div>
+    </div>`;
+}
+
+function bindLevelPhaseEvents(container, data) {
+  const levelEl = container.querySelector('[data-action="open-level-detail"]');
+  if (levelEl) levelEl.addEventListener("click", () => openModal(buildLevelDetailModal(data.player)));
+  const phaseEl = container.querySelector('[data-action="open-phase-detail"]');
+  if (phaseEl) phaseEl.addEventListener("click", () => openModal(buildPhaseDetailModal(data.phase)));
 }
 
 function renderMissionCard(missions) {
@@ -2247,8 +2480,16 @@ async function renderSnsScreen() {
 /* ============================================================
    4e. Menu コンポーネント
    ============================================================ */
+/** 【Sprint11】Menu画面固定の追加項目。menu_itemsシートの内容に関わらず常に表示する。 */
+const SPRINT11_MENU_ITEMS = [
+  { key: "level",      label: "CEOレベル",   icon: "star" },
+  { key: "phase",      label: "成長フェーズ", icon: "rocket" },
+  { key: "investment", label: "投資管理",     icon: "briefcase" },
+  { key: "badges",     label: "実績バッジ",   icon: "shield" }
+];
+const MENU_KEYS_WITH_DETAIL = ["kpi", "revenue", "level", "phase", "investment", "badges"];
 function renderMenuRow(item) {
-  const hasDetail = item.key === "kpi" || item.key === "revenue";
+  const hasDetail = MENU_KEYS_WITH_DETAIL.includes(item.key);
   return `
     <div class="co-menu-row ${hasDetail ? "co-menu-row--has-detail" : ""}" data-menu-key="${item.key}">
       <span class="co-menu-row__icon">${icon(item.icon)}</span>
@@ -2333,6 +2574,75 @@ function buildRevenueModal(revenue) {
     <p class="co-modal-empty-note">収益の追加入力はSprint5以降で対応予定です。</p>`;
 }
 
+/**
+ * 【Sprint11】投資管理Modal。
+ * 方針:「赤字」「マイナス」という言葉は一切使わない。
+ * 常に「今月の投資」「未来への種まき」「回収まであと◯円」「回収率◯%」の
+ * 前向きな表現のみで見せる(generateInvestmentMessages_ 側で文言を生成)。
+ */
+function buildInvestmentModal(investment) {
+  const itemsHtml = investment.items.length
+    ? investment.items.map(i => `
+        <div class="co-invest-item">
+          <span class="co-invest-item__name">${i.category}${i.active ? "" : "(停止中)"}</span>
+          <span class="co-invest-item__amount">${formatYenClient_(i.monthlyAmount)}/月</span>
+        </div>`).join("")
+    : `<p class="co-modal-empty-note">まだ投資項目が登録されていません。</p>`;
+
+  const messagesHtml = investment.messages.map(m => `<p class="co-invest-message">${m}</p>`).join("");
+  const gaugePct = Math.min(100, investment.recoveryPct);
+
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">投資管理</p><p class="co-modal-subtitle">未来への種まき状況</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+
+    <div class="co-modal-section co-invest-hero">
+      <div class="co-invest-hero__value">${formatYenClient_(investment.monthlyTotal)}</div>
+      <div class="co-invest-hero__label">今月の投資(未来への種まき)</div>
+    </div>
+
+    <div class="co-modal-section">
+      <div class="co-invest-gauge"><div class="co-invest-gauge__fill" data-progress-to="${gaugePct}"></div></div>
+      <p class="co-invest-gauge__label">投資回収ゲージ ${investment.recoveryPct}%</p>
+    </div>
+
+    <div class="co-modal-section">
+      ${messagesHtml}
+    </div>
+
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">投資項目(累計 ${investment.months}ヶ月)</p>
+      ${itemsHtml}
+    </div>`;
+}
+
+/** 円表示ヘルパー(クライアント側)。GAS側のformatYen_と表記を揃える。 */
+function formatYenClient_(n) {
+  return "¥" + formatNumber(Math.round(n));
+}
+
+/**
+ * 【Sprint11】実績バッジModal。
+ * 表示のみ(自動解除ロジックはGAS側のcomputeBadges_で判定済み)。
+ * 将来バッジが増えても、このModalはbadges配列を渡すだけで対応できる。
+ */
+function buildBadgesModal(badges) {
+  const cards = badges.map(b => `
+    <div class="co-badge ${b.unlocked ? "is-unlocked" : ""}">
+      <span class="co-badge__icon">${icon(b.icon)}</span>
+      <span class="co-badge__label">${b.label}</span>
+    </div>`).join("");
+  const unlockedCount = badges.filter(b => b.unlocked).length;
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">実績バッジ</p><p class="co-modal-subtitle">${unlockedCount}/${badges.length} 解除済み</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section"><div class="co-badge-grid">${cards}</div></div>`;
+}
+
 function bindMenuEvents(container, data) {
   container.querySelectorAll("[data-menu-key]").forEach(row => {
     row.addEventListener("click", () => {
@@ -2345,6 +2655,27 @@ function bindMenuEvents(container, data) {
         openModal(buildRevenueModal(data.revenue));
         const totalEl = document.getElementById("revenue-total");
         if (totalEl) animateCountUp(totalEl, data.revenue.total);
+        return;
+      }
+      if (key === "level") {
+        openModal(buildLevelDetailModal(data.player));
+        return;
+      }
+      if (key === "phase") {
+        openModal(buildPhaseDetailModal(data.phase));
+        return;
+      }
+      if (key === "investment") {
+        openModal(buildInvestmentModal(data.investment));
+        requestAnimationFrame(() => {
+          document.querySelectorAll(".co-modal-sheet [data-progress-to]").forEach(el => {
+            el.style.width = `${el.dataset.progressTo}%`;
+          });
+        });
+        return;
+      }
+      if (key === "badges") {
+        openModal(buildBadgesModal(data.badges));
         return;
       }
       showToast("この項目はSprint5以降で実装予定です");
@@ -2372,7 +2703,7 @@ async function renderMenuScreen() {
       </div>
     </section>
     <section class="co-section" data-component="menu-list" style="margin-bottom:8px;">
-      <div class="co-card">${data.items.map(renderMenuRow).join("")}</div>
+      <div class="co-card">${data.items.map(renderMenuRow).join("")}${SPRINT11_MENU_ITEMS.map(renderMenuRow).join("")}</div>
     </section>`;
 
   animateEntrance(target);
@@ -2450,6 +2781,8 @@ async function renderHomeScreen() {
 
   contentEl.innerHTML = [
     renderHeader(data),
+    renderLevelBar(data.player),
+    renderPhaseCard(data.phase),
     renderMissionCard(data.missions),
     renderBriefingCard(data.briefing),
     renderQuickActions(),
@@ -2467,6 +2800,7 @@ async function renderHomeScreen() {
 
   animateEntrance(contentEl);
   bindHeaderEvents(contentEl);
+  bindLevelPhaseEvents(contentEl, data);
   bindMissionEvents(contentEl.querySelector('[data-component="mission-card"]'), data);
   bindQuickActionEvents(contentEl.querySelector('[data-component="quick-actions"]'));
   bindKpiEvents(contentEl.querySelector('[data-component="kpi-card"]'));
