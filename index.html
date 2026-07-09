@@ -732,6 +732,20 @@ img{max-width:100%;display:block;}
 .co-badge.is-unlocked .co-badge__label{ color:var(--c-text-900); }
 
 /* ============================================================
+   11h. 【Sprint12】ルールベースAI秘書カード
+   ------------------------------------------------------------
+   AIブリーフィング(既存, ネイビー背景)とは視覚的に区別するため、
+   白背景+オレンジのAIアバターで軽く見せる。最大3行のみ。
+   ============================================================ */
+.co-aiadvice__head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.co-aiadvice__avatar{ width:30px;height:30px;border-radius:10px; background:linear-gradient(135deg, var(--c-orange-500), var(--c-orange-600)); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.co-aiadvice__avatar svg{ width:15px;height:15px; }
+.co-aiadvice__title{ font-size:12.5px; font-weight:800; margin:0; }
+.co-aiadvice__item{ display:flex; gap:8px; font-size:13.5px; line-height:1.6; padding:6px 0; }
+.co-aiadvice__item + .co-aiadvice__item{ border-top:1px solid var(--c-border); }
+.co-aiadvice__dot{ width:5px;height:5px;border-radius:50%; background:var(--c-orange-500); margin-top:8px; flex-shrink:0; }
+
+/* ============================================================
    12. Bottom Navigation (第9章-12 / 第12章-4)
    ============================================================ */
 .co-bottomnav{
@@ -1013,7 +1027,8 @@ const DUMMY_SEED = {
     { id: "a3", title: "CEO室OS Sprint1 HOME画面が完成",   time: "2日前",   icon: "code" }
   ],
   player: { level: 1, xp: 0, xpIntoLevel: 0, xpForNextLevel: 100, progressPct: 0 },
-  phase: { number: 1, key: "seed", emoji: "🌱", label: "種まき期間", description: "今はまだ種まき期間。焦らず積み上げていきましょう。" }
+  phase: { number: 1, key: "seed", emoji: "🌱", label: "種まき期間", description: "今はまだ種まき期間。焦らず積み上げていきましょう。" },
+  aiAdvice: ["今日も一歩ずつ進めていきましょう。"]
 };
 
 const AI_STORAGE_KEY = "ceoOS_v2_ai_state";
@@ -1336,7 +1351,8 @@ function normalizeHomeData(raw) {
     activity: normalizeArray(raw.activity, normalizeActivityItem),
     yesterdaySummary: raw.yesterdaySummary && typeof raw.yesterdaySummary === "object" ? raw.yesterdaySummary : null,
     player: normalizePlayer(raw.player),
-    phase: normalizePhase(raw.phase)
+    phase: normalizePhase(raw.phase),
+    aiAdvice: normalizeArray(raw.aiAdvice, (v) => normalizeString(v))
   };
 }
 
@@ -1895,6 +1911,31 @@ function renderBriefingCard(items) {
     <section class="co-section" data-component="ai-briefing">
       <div class="co-card co-briefing" id="briefing-bg">
         <div class="co-briefing__label">${icon("sparkle")}AIブリーフィング</div>
+        ${rows}
+      </div>
+    </section>`;
+}
+
+/**
+ * ============================================================
+ * 【Sprint12】ルールベースAI秘書カード
+ * ------------------------------------------------------------
+ * GAS側の generateAiAdvice_(context) が返した文字列配列(最大3件)を
+ * そのまま表示するだけ。将来AI APIに差し替わっても、この関数は
+ * 一切変更不要(渡ってくる配列の中身が変わるだけ)。
+ * ============================================================ */
+function renderAiAdviceCard(lines) {
+  if (!lines || !lines.length) return "";
+  const rows = lines.slice(0, 3).map(text => `
+    <div class="co-aiadvice__item"><span class="co-aiadvice__dot"></span><span>${text}</span></div>
+  `).join("");
+  return `
+    <section class="co-section" data-component="ai-advice">
+      <div class="co-card">
+        <div class="co-aiadvice__head">
+          <span class="co-aiadvice__avatar">${icon("ai")}</span>
+          <p class="co-aiadvice__title">AI秘書からの提案</p>
+        </div>
         ${rows}
       </div>
     </section>`;
@@ -2783,6 +2824,7 @@ async function renderHomeScreen() {
     renderHeader(data),
     renderLevelBar(data.player),
     renderPhaseCard(data.phase),
+    renderAiAdviceCard(data.aiAdvice),
     renderMissionCard(data.missions),
     renderBriefingCard(data.briefing),
     renderQuickActions(),
