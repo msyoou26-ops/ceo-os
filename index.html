@@ -548,6 +548,40 @@ img{max-width:100%;display:block;}
 .co-portfolio-add svg{ width:17px;height:17px; }
 
 /* ============================================================
+   11c-2. GitHub履歴 / 開発タイムライン (Sprint10.3)
+   ------------------------------------------------------------
+   ・GitHub履歴は各開発中プロジェクトカードの直下に表示する共通コンポーネント。
+     将来リポジトリが増えても renderGithubHistoryItem() が同じ形で使い回せる。
+   ・開発タイムラインはProjects画面の一番下に表示し、Sprintの区切りなど
+     「今日何を進めたか」を時系列で見せる。将来note/X/TikTokの発信履歴も
+     同じ構造(source違い)で合流させる想定(#co-timeline-source-*)。
+   ============================================================ */
+.co-github-history{ margin-top:10px; padding-top:10px; border-top:1px solid var(--c-border); }
+.co-github-history__label{ font-size:11px; font-weight:700; color:var(--c-text-500); margin:0 0 8px; display:flex; align-items:center; gap:5px; }
+.co-github-history__label svg{ width:13px;height:13px; }
+.co-github-item{ display:flex; flex-direction:column; gap:4px; padding:9px 8px; border-radius:10px; cursor:pointer; transition:background var(--dur-fast) var(--ease); }
+.co-github-item:active{ background:var(--c-surface); }
+.co-github-item + .co-github-item{ border-top:1px solid var(--c-border); }
+.co-github-item__top{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.co-github-item__date{ font-size:10.5px; color:var(--c-text-300); font-weight:700; flex-shrink:0; }
+.co-github-item__repo{ font-size:9.5px; font-weight:700; color:var(--c-navy-700); background:rgba(20,48,79,0.07); padding:2px 7px; border-radius:var(--r-chip); }
+.co-github-item__title{ font-size:12.5px; font-weight:600; margin:0; line-height:1.4; }
+.co-github-item__meta{ display:flex; align-items:center; gap:10px; font-size:10.5px; color:var(--c-text-500); }
+.co-github-item__meta span{ display:inline-flex; align-items:center; gap:3px; }
+.co-github-item__meta svg{ width:11px;height:11px; }
+.co-github-item__tag{ font-size:9.5px; font-weight:700; color:var(--c-orange-600); background:var(--c-orange-100); padding:1px 7px; border-radius:var(--r-chip); }
+.co-github-history__empty{ font-size:11.5px; color:var(--c-text-300); padding:6px 2px; }
+
+.co-timeline2{ display:flex; flex-direction:column; }
+.co-timeline2-item{ display:flex; gap:12px; padding:11px 2px; position:relative; }
+.co-timeline2-item + .co-timeline2-item{ border-top:1px solid var(--c-border); }
+.co-timeline2-item__dot{ width:30px;height:30px;border-radius:9px; background:var(--c-surface); display:flex;align-items:center;justify-content:center; flex-shrink:0; color:var(--c-navy-900); }
+.co-timeline2-item__dot svg{ width:14px;height:14px; }
+.co-timeline2-item__body{ flex:1; min-width:0; }
+.co-timeline2-item__label{ font-size:13.5px; font-weight:700; margin:0; }
+.co-timeline2-item__meta{ font-size:11px; color:var(--c-text-500); margin-top:2px; }
+
+/* ============================================================
    11d. AI秘書
    ============================================================ */
 .co-agent-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-card-gap); }
@@ -760,106 +794,11 @@ function applyImageAsset(el, url, fallbackClass) {
 
 /* ============================================================
    0b. 【Sprint3】API接続設定 — Google Spreadsheet / GAS連携の土台
-   ------------------------------------------------------------
-   目的: 「ダミーデータ卒業」に向けて、DataLayerの各関数を
-   “API_URLが設定されていればAPIから取得、nullならダミーデータ”
-   という切替方式に統一する。
-
-   使い方:
-   ・今は API_URL = null のまま運用する(Sprint3では接続しない)。
-   ・将来GASをWebアプリとして公開したら、そのURLをここに入れるだけで、
-     DataLayer配下の各関数が自動的にAPI経路に切り替わる。
-   ・呼び出し側(renderHomeScreen, renderProjectsScreen 等)は
-     一切変更不要 ── DataLayerの中身だけを差し替える設計。
-
-   API側(GAS)に期待する仕様(Sprint4以降で実装予定):
-   ・GET  {API_URL}?action=getHomeData      → HOME用データ一式を返す
-   ・GET  {API_URL}?action=getProjectsData  → Projects/Portfolio一式
-   ・GET  {API_URL}?action=getAiData        → AI秘書一式
-   ・GET  {API_URL}?action=getSnsData       → SNS一式
-   ・GET  {API_URL}?action=getMenuData      → Menu一式
-   ・POST {API_URL}  body:{action:"setMissionDone", ...}   → ミッション更新
-   ・POST {API_URL}  body:{action:"addAiRequest", ...}     → AI依頼追加
-   返却JSONの形は、現在の各ダミーデータ(DUMMY_SEED / PROJECTS_SEED /
-   AI_SEED / SNS_SEED / MENU_SEED)と同じキー構成にすること。
-   これにより画面側のrender関数を一切変更せずに接続できる。
-
-   ------------------------------------------------------------
-   【Spreadsheet設計書(Sprint3時点の設計案)】
-   実際にシートを作るのはSprint4以降。ここでは列構成を先に固める。
-
-   ■ missions(HOMEの今日のミッション)
-     id / title / axis(開発・発信・収益化) / priority(high/normal) /
-     xp / done(true/false) / date(YYYY-MM-DD, 日次リセット用)
-
-   ■ kpi(HOMEのKPIカード)
-     key / title / axis / value / unit / deltaPct / dir(up/down/flat) / icon
-
-   ■ briefing(AIブリーフィングの文言)
-     id / text / sortOrder / date
-
-   ■ projects(開発中プロジェクト)
-     id / name / progress / color / sprint / next / updatedAt / ai
-
-   ■ portfolio(実績)
-     id / name / tag / initial / color / summary / stack(カンマ区切り) /
-     github / netlify / result / screenshot
-     ※ history/releases/fixesは1実績に対して複数行になるため、
-        以下の子シートに分離する(正規化):
-     - portfolio_history:  portfolio_id / date / text
-     - portfolio_releases: portfolio_id / date / text
-     - portfolio_fixes:    portfolio_id / date / text
-
-   ■ ai_agents(AI秘書のロールカード)
-     id / name / role / status / lastUsed / color
-
-   ■ ai_templates(クイック依頼のテンプレート)
-     id / label / sortOrder
-
-   ■ ai_requests(依頼履歴・今日の依頼)
-     id / ai / text / status / date / isToday(true/false)
-
-   ■ sns_platforms(SNS基本情報)
-     key / label / color / stockCount / nextPost / scheduled
-
-   ■ sns_followers(フォロワー推移・時系列)
-     platform_key / date / count
-
-   ■ sns_posts(投稿履歴)
-     platform_key / date / title
-
-   ■ activity(最近の成果)
-     id / title / time / icon
-
-   ■ menu_profile(プロフィール)
-     name / role / streakDays
-
-   ■ menu_items(Menu一覧の項目)
-     key / label / icon / sortOrder
-
-   ■ settings(汎用設定 / 通知設定・テーマなど将来用のKey-Value)
-     key / value
    ============================================================ */
 const API_URL = "https://script.google.com/macros/s/AKfycby-Ce9QNDrsrUMeytViBzyJDaY-nGNrLHTtL7XQR5kR2rTmbcSR_-LQ4RDwSdCPOsv3zA/exec";
 
-/**
- * 【Sprint5】開発モード切替。
- * DEV_MODE=true の間は、API_URLが設定されていても常にダミーデータを使う。
- * 「本番はAPI接続、でも手元の動作確認はいつでもダミーに戻せる」を両立するための
- * 独立したスイッチ。API_URLとDEV_MODEは互いに干渉しない(片方だけ変えればよい)。
- *
- *   DEV_MODE=true  → 常にダミーデータ(API_URLの値は無視)
- *   DEV_MODE=false かつ API_URL設定あり → APIを使用
- *   DEV_MODE=false かつ API_URL=null    → ダミーデータ(今はこの状態)
- */
 const DEV_MODE = false;
 
-/**
- * 【Sprint8】画面ごとにAPI接続を段階的に有効化するためのフラグ。
- * DEV_MODE/API_URLの大枠の条件は維持しつつ、「どの画面から実データに
- * 切り替えるか」を1つずつコントロールする。Sprint8時点では home と
- * projects のみ true(AI/SNS/Menuはまだダミーのまま = 誤って広がらない)。
- */
 const API_ENABLED_SCREENS = {
   home: true,
   projects: true,
@@ -868,56 +807,24 @@ const API_ENABLED_SCREENS = {
   menu: false
 };
 
-/** API経由でデータ取得すべきかどうかを判定する(DataLayer各メソッドが画面名を渡して呼ぶ) */
 function shouldUseApi(screen) {
   return !DEV_MODE && !!API_URL && !!API_ENABLED_SCREENS[screen];
 }
 
-/**
- * 【Sprint6】Logger — console.log直書きを廃止し、ログ出力を一元管理する。
- * DEV_MODE=trueの時だけ出力し、本番(DEV_MODE=false)では自動的に沈黙する設計。
- * INFO/WARN/ERRORの3段階のみ(第6章の「ログ設計」に沿ったシンプルな実装)。
- */
 const Logger = {
   info(...args) { if (DEV_MODE) console.log("[INFO]", ...args); },
   warn(...args) { if (DEV_MODE) console.warn("[WARN]", ...args); },
   error(...args) { if (DEV_MODE) console.error("[ERROR]", ...args); }
 };
 
-/**
- * 【Sprint6.1】将来の認証を見据えた余白。
- * 今は未使用(null)だが、Bearerトークンやセッションキーなどを
- * ここに設定するだけでapiRequest()が自動的にヘッダへ載せる構造にしておく。
- * 認証方式が決まっても、変更はこのファイルのAPI設定周りだけで完結する想定。
- */
-const AUTH_TOKEN = null; // 例: "Bearer xxxxxxxx"
+const AUTH_TOKEN = null;
 
-/** 認証ヘッダを組み立てる。AUTH_TOKEN未設定なら空オブジェクト(=今までと同じ挙動)。 */
 function buildAuthHeaders() {
   return AUTH_TOKEN ? { Authorization: AUTH_TOKEN } : {};
 }
 
-/**
- * 【Sprint6.1】APIバージョン管理。
- * クライアントが対応できるレスポンス形式のバージョンをここで宣言する。
- * サーバー側(Code.gs)のversionと食い違っていても、いきなり止めるのではなく
- * WARNログを出すだけで動作は継続する(将来の互換性確保のための緩い検証)。
- */
 const SUPPORTED_VERSION = "1.0";
 
-/**
- * GAS Web App への共通リクエストヘルパー。
- * API_URLが未設定の間は呼ばれない(DataLayer側でガードする)ため、
- * ここではAPI_URL設定後にそのまま動く形で用意しておく。
- *
- * 【Sprint6】以下を追加:
- * ・タイムアウト(8秒): 通信がハングしても画面が固まらないようAbortControllerで打ち切る
- * ・レスポンス形式の検証: { version, data } 形式を期待し、versionが無ければ警告ログ
- * ・エラー形式の統一: { error: "..." } が返ってきたら例外として投げる(呼び出し元でフォールバック)
- * 【Sprint6.1】以下を追加:
- * ・認証ヘッダ(buildAuthHeaders)を全リクエストに付与できる余白を追加
- * ・SUPPORTED_VERSIONとの不一致をWARNのみで継続動作するように変更
- */
 const API_TIMEOUT_MS = 8000;
 
 async function apiRequest(action, params = {}, method = "GET") {
@@ -931,10 +838,6 @@ async function apiRequest(action, params = {}, method = "GET") {
       Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
       res = await fetch(url.toString(), { signal: controller.signal, headers: buildAuthHeaders() });
     } else {
-      // 【Sprint7 PMレビュー反映】Content-Type: application/json だとGAS Web App相手に
-      // preflight(OPTIONS)が発生し失敗しやすいため、text/plainで送りJSON文字列だけを
-      // 本文に入れる(Code.gs側のparsePostBody()がこれをJSON.parseで受け取る)。
-      // Authorizationヘッダのみ、AUTH_TOKEN設定時に付与する。
       res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain", ...buildAuthHeaders() },
@@ -950,11 +853,9 @@ async function apiRequest(action, params = {}, method = "GET") {
     if (!json.version) {
       Logger.warn(`apiRequest(${action}): レスポンスにversionがありません`, json);
     } else if (json.version !== SUPPORTED_VERSION) {
-      // 【Sprint6.1】バージョン不一致は致命的エラーにせず、WARNのみで動作を継続する
       Logger.warn(`apiRequest(${action}): APIバージョン不一致 (supported=${SUPPORTED_VERSION}, received=${json.version})`);
     }
 
-    // 【Sprint6】{ version, data } 形式ならdataを取り出す。旧形式(dataキー無し)にも後方互換で対応。
     return json.data !== undefined ? json.data : json;
   } catch (err) {
     if (err.name === "AbortError") {
@@ -967,9 +868,7 @@ async function apiRequest(action, params = {}, method = "GET") {
 }
 
 /* ============================================================
-   1. ICONS — 統一線アイコン(24x24 / stroke 1.8) SVGを直書き
-   ------------------------------------------------------------
-   外部アイコンフォント/CDNに依存せず、通信0で表示できるようにする。
+   1. ICONS
    ============================================================ */
 const ICONS = {
   home:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>`,
@@ -1009,35 +908,18 @@ const ICONS = {
   database:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.5"/><path d="M5 5.5v13c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-13M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg>`,
   shield:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6.5v5c0 5-3 7.7-7 9-4-1.3-7-4-7-9v-5Z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg>`,
   chart:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>`,
-  rocket:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15c-2.3 2-5.3 2.4-7.3 2.2.3-2 1-4.7 3-6.7M12 15a12 12 0 0 0 5-9.6c0-.9-.5-1.4-1.4-1.4A12 12 0 0 0 6.8 9M12 15l-3.2-3.2"/><circle cx="14.5" cy="6.5" r="1"/></svg>`
+  rocket:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15c-2.3 2-5.3 2.4-7.3 2.2.3-2 1-4.7 3-6.7M12 15a12 12 0 0 0 5-9.6c0-.9-.5-1.4-1.4-1.4A12 12 0 0 0 6.8 9M12 15l-3.2-3.2"/><circle cx="14.5" cy="6.5" r="1"/></svg>`,
+  files:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8v-.5A2.5 2.5 0 0 1 10.5 5h6A2.5 2.5 0 0 1 19 7.5v6a2.5 2.5 0 0 1-2.5 2.5H16"/><rect x="5" y="8" width="11" height="11" rx="2.5"/></svg>`
 };
 function icon(name){ return ICONS[name] || ""; }
 
 /* ============================================================
    2. DATA LAYER
-   ------------------------------------------------------------
-   画面は直接データを触らない(第7章-17)。
-   現段階(Sprint1)はSpreadsheet/GAS未実装のため、
-   ダミーデータ + LocalStorageキャッシュのみで動作するが、
-   すべての関数をPromiseで統一し、将来API化しても
-   呼び出し側(コンポーネント)を書き換えずに済むようにしてある。
    ============================================================ */
 const STORAGE_KEY = "ceoOS_v2_home_state";
 
-/**
- * 【Sprint3】このオブジェクトの各キーは、将来のSpreadsheetシートに対応する。
- *   missions → missions シート / kpi → kpi シート / briefing → briefing シート
- *   projects → projects シート / sns → sns_platforms+sns_followers+sns_posts シート
- *   activity → activity シート
- * API_URL接続後は DataLayer.getHomeData() がこの形と同じJSONをAPIから受け取る。
- */
 const DUMMY_SEED = {
   streakDays: 87,
-  /*
-   * 【3軸メモ】ミッション・KPIは「開発・発信・収益化」の3軸で構成する。
-   * meta / axis の値はこの3語("開発"/"発信"/"収益化")に統一し、
-   * 一目で「今日やることがどの軸に効くか」が分かるようにする。
-   */
   missions: [
     { id: "m1", title: "CEO室OS Sprint2 実装", axis: "開発",   priority: "high",   xp: 30, done: false },
     { id: "m2", title: "TikTok投稿 1本",       axis: "発信",   priority: "normal", xp: 20, done: false },
@@ -1054,12 +936,6 @@ const DUMMY_SEED = {
     { key: "posts",     title: "投稿数",     axis: "発信",   value: 18,    unit: "件", deltaPct: 0,    dir: "flat", icon: "note" },
     { key: "revenue",   title: "収益",       axis: "収益化", value: 12400, unit: "円", deltaPct: 8.4,  dir: "up",   icon: "coin" }
   ],
-  /*
-   * 【仕様変更メモ】CEO室OSは「会社の管理システム」ではなく「翔個人のAI業務OS」。
-   * AWK管理システムは会社運用のシステムであり、HOMEで日常管理する対象ではない。
-   * → HOMEの「開発中プロジェクト」は翔自身が今動かしている案件のみを表示する。
-   * → AWKは実績(Portfolio)として Projects タブ側で将来扱う(下記PLACEHOLDER_CONTENT参照)。
-   */
   projects: [
     { id: "p1", name: "CEO室OS",    progress: 42, color: "#FF6A2C", due: "Sprint1 進行中", ai: "Claude" },
     { id: "p2", name: "その他AI開発", progress: 15, color: "#1FA463", due: "着手中",        ai: "ChatGPT" }
@@ -1076,34 +952,15 @@ const DUMMY_SEED = {
   ]
 };
 
-/* ============================================================
-   2b. Sprint2 DATA — Projects/Portfolio・AI秘書・SNS・Menu
-   ------------------------------------------------------------
-   HOMEと同じ方針: ダミーデータ + LocalStorage(必要な箇所のみ)。
-   将来Spreadsheet/GAS化する際もDataLayerの関数名は変えずに
-   内部実装だけ差し替えられるようにしてある。
-   ============================================================ */
 const AI_STORAGE_KEY = "ceoOS_v2_ai_state";
 
-/**
- * 【Sprint3】dev → projects シート / portfolio → portfolio シート
- * (portfolioのhistory/releases/fixesは将来 portfolio_history / portfolio_releases /
- *  portfolio_fixes の子シートに分離し、portfolio_idで結合する設計)
- */
 const PROJECTS_SEED = {
-  /* 開発中: 翔自身が今動かしている案件のみ(第9章の方針を継続) */
   dev: [
     { id: "dev-ceoos", name: "CEO室OS",     progress: 42, color: "#FF6A2C",
-      sprint: "Sprint2", next: "Projects/Portfolioの実装", updatedAt: "7/5", ai: "Claude" },
+      sprint: "Sprint2", next: "Projects/Portfolioの実装", updatedAt: "7/5", ai: "Claude", githubHistory: [] },
     { id: "dev-other",  name: "その他AI開発", progress: 15, color: "#1FA463",
-      sprint: "検証中",   next: "アイデア出し",            updatedAt: "7/2", ai: "ChatGPT" }
+      sprint: "検証中",   next: "アイデア出し",            updatedAt: "7/2", ai: "ChatGPT", githubHistory: [] }
   ],
-  /*
-   * Portfolio(実績): 会社の管理対象ではなく「翔個人の実績・発信素材」。
-   * AWKは第7章の項目(概要/使用技術/GitHub/Netlify/開発履歴/リリース履歴/修正履歴/成果/スクショ)を
-   * すべて保持する構造にしておき、他の実績カードは同じ構造で情報量だけ少ない状態にしている
-   * (=将来実績が増えてもカード・詳細モーダルの実装を変えずに追加できる)。
-   */
   portfolio: [
     {
       id: "pf-awk", name: "AWK管理システム", tag: "完成・運用中", initial: "AW", color: "#14304F",
@@ -1154,13 +1011,10 @@ const PROJECTS_SEED = {
       result: "同じ副業・製造業クラスタとのつながりが拡大中。",
       screenshot: null
     }
-  ]
+  ],
+  timeline: []
 };
 
-/**
- * 【Sprint3】agents → ai_agents シート / templates → ai_templates シート
- * todayRequests/history → ai_requests シート(isToday列で本日分/履歴分を判別)
- */
 const AI_SEED = {
   agents: [
     { id: "chatgpt", name: "ChatGPT", role: "CEO ・ 戦略/企画/レビュー", status: "待機中", lastUsed: "3時間前", color: "#1FA463" },
@@ -1177,10 +1031,6 @@ const AI_SEED = {
   ]
 };
 
-/**
- * 【Sprint3】platforms配下は将来 sns_platforms(基本情報) / sns_followers(時系列) /
- * sns_posts(投稿履歴) の3シートに分割し、platform_keyで結合する設計。
- */
 const SNS_SEED = {
   platforms: [
     { key: "tiktok", label: "TikTok", color: "#E5484D",
@@ -1198,10 +1048,6 @@ const SNS_SEED = {
   ]
 };
 
-/**
- * 【Sprint3】profile → menu_profile シート / items → menu_items シート
- * (通知設定・テーマなどの汎用値は将来 settings シート(Key-Value)で管理予定)
- */
 const MENU_SEED = {
   profile: { name: "森下翔", role: "製造部 ・ QC42circleリーダー", streakDays: 87 },
   items: [
@@ -1212,23 +1058,12 @@ const MENU_SEED = {
     { key: "sync",     label: "データ同期", icon: "database" },
     { key: "notify",   label: "通知設定",   icon: "bell" }
   ],
-  /*
-   * 【Sprint4】KPI一覧(Menu内Modal用)。
-   * HOMEのKPIカードと同じ3軸(開発/発信/収益化)を、週次推移つきで確認できる
-   * 「CEOダッシュボード」として実装。将来Spreadsheetでは kpi シート本体は共通で、
-   * ここでは表示用に7日分の history を追加している(kpiシートに history列は持たず、
-   * 実際はkpiの日次スナップショットを別途集計する想定 — Sprint5以降で設計)。
-   */
   kpi: [
     { key: "dev",       title: "開発進捗",   axis: "開発",   value: 42,    unit: "%",  deltaPct: 5,   dir: "up",   history: [18, 22, 28, 33, 36, 40, 42] },
     { key: "followers", title: "フォロワー", axis: "発信",   value: 1240,  unit: "人", deltaPct: 2.1, dir: "up",   history: [1120, 1150, 1170, 1190, 1210, 1225, 1240] },
     { key: "posts",     title: "投稿数",     axis: "発信",   value: 18,    unit: "件", deltaPct: 0,   dir: "flat", history: [14, 15, 15, 16, 17, 18, 18] },
     { key: "revenue",   title: "収益",       axis: "収益化", value: 12400, unit: "円", deltaPct: 8.4, dir: "up",   history: [8000, 8500, 9200, 10000, 10800, 11600, 12400] }
   ],
-  /*
-   * 【Sprint4】収益管理(Menu内Modal用)。
-   * 開発仕様書 第7章 Revenue(日付/媒体/金額/カテゴリ/メモ/確定)に準拠したダミーデータ。
-   */
   revenue: {
     monthLabel: "2026年7月",
     total: 12400,
@@ -1241,17 +1076,7 @@ const MENU_SEED = {
 };
 
 /* ============================================================
-   2c. 【Sprint6/6.1】正規化レイヤー(Validation / Normalization)
-   ------------------------------------------------------------
-   目的: Spreadsheet側の列順変更・空セル・型崩れ(数値が文字列で
-   返ってくる等)がUI側の描画関数に影響しないよう、DataLayerが
-   値を返す直前に必ずこの正規化を通す。API経由でもダミーデータ
-   経由でも同じ正規化を通すため、常に同じ形のオブジェクトが
-   render系関数に渡ることを保証する。
-
-   【Sprint6.1】各normalize*関数の重複を減らすため、
-   normalizeString/Number/Boolean/Array/Enum という共通ユーティリティを
-   新設し、個別のnormalize関数はこれらの組み合わせだけで書く方針にした。
+   2c. 正規化レイヤー
    ============================================================ */
 function normalizeString(v, fallback = "") {
   return v === undefined || v === null ? fallback : String(v);
@@ -1304,6 +1129,45 @@ function normalizeKpiItem(k) {
     history: Array.isArray(k.history) ? normalizeNumberArray(k.history) : undefined
   };
 }
+
+/* ---- 【Sprint10.3】GitHub履歴 / タイムラインの正規化 ---- */
+function normalizeGithubCommit(c) {
+  c = c || {};
+  return {
+    message: normalizeString(c.message),
+    author: normalizeString(c.author),
+    url: normalizeString(c.url)
+  };
+}
+function normalizeGithubEvent(e) {
+  e = e || {};
+  return {
+    date: normalizeString(e.date),
+    title: normalizeString(e.title, "更新"),
+    eventType: normalizeString(e.eventType, "push"),
+    commitCount: normalizeNumber(e.commitCount),
+    author: normalizeString(e.author, "unknown"),
+    progressTag: (e.progressTag === "" || e.progressTag === undefined || e.progressTag === null) ? null : normalizeString(e.progressTag),
+    releaseTag: (e.releaseTag === "" || e.releaseTag === undefined || e.releaseTag === null) ? null : normalizeString(e.releaseTag),
+    repo: normalizeString(e.repo),
+    repoLabel: normalizeString(e.repoLabel, normalizeString(e.repo)),
+    filesChanged: normalizeNumber(e.filesChanged),
+    commits: normalizeArray(e.commits, normalizeGithubCommit),
+    link: normalizeString(e.link)
+  };
+}
+function normalizeTimelineItem(t) {
+  t = t || {};
+  return {
+    date: normalizeString(t.date),
+    label: normalizeString(t.label, "更新"),
+    source: normalizeString(t.source, "github"),
+    type: normalizeString(t.type),
+    target: normalizeString(t.target),
+    link: normalizeString(t.link)
+  };
+}
+
 function normalizeDevProject(p) {
   p = p || {};
   return {
@@ -1314,7 +1178,8 @@ function normalizeDevProject(p) {
     sprint: normalizeString(p.sprint),
     next: normalizeString(p.next),
     updatedAt: normalizeString(p.updatedAt),
-    ai: normalizeString(p.ai)
+    ai: normalizeString(p.ai),
+    githubHistory: normalizeArray(p.githubHistory, normalizeGithubEvent)
   };
 }
 function normalizeActivityItem(a) {
@@ -1325,7 +1190,6 @@ function normalizeHomeSnsItem(s) {
   s = s || {};
   return { key: normalizeString(s.key), label: normalizeString(s.label), color: s.color || "#0A1B33", value: normalizeString(s.value), sub: normalizeString(s.sub) };
 }
-/** HOME用データの正規化。API/ダミーいずれの経路でも最終的にこれを通す。 */
 function normalizeHomeData(raw) {
   raw = raw || {};
   return {
@@ -1362,12 +1226,13 @@ function normalizePortfolioItem(p) {
     screenshot: p.screenshot || null
   };
 }
-/** Projects/Portfolioデータの正規化。 */
+/** 【Sprint10.3】Projects/Portfolioデータの正規化。timeline(開発タイムライン)を追加。 */
 function normalizeProjectsData(raw) {
   raw = raw || {};
   return {
     dev: normalizeArray(raw.dev, normalizeDevProject),
-    portfolio: normalizeArray(raw.portfolio, normalizePortfolioItem)
+    portfolio: normalizeArray(raw.portfolio, normalizePortfolioItem),
+    timeline: normalizeArray(raw.timeline, normalizeTimelineItem)
   };
 }
 
@@ -1385,7 +1250,6 @@ function normalizeRequestItem(r) {
     date: normalizeString(r.date)
   };
 }
-/** AI秘書データの正規化。 */
 function normalizeAiData(raw) {
   raw = raw || {};
   return {
@@ -1412,7 +1276,6 @@ function normalizePlatform(p) {
     lastPosts: normalizeArray(p.lastPosts, normalizePost)
   };
 }
-/** SNSデータの正規化。 */
 function normalizeSnsData(raw) {
   raw = raw || {};
   return { platforms: normalizeArray(raw.platforms, normalizePlatform) };
@@ -1431,7 +1294,6 @@ function normalizeRevenueEntry(e) {
     confirmed: normalizeBoolean(e && e.confirmed)
   };
 }
-/** Menuデータの正規化(KPI一覧・収益管理を含む)。 */
 function normalizeMenuData(raw) {
   raw = raw || {};
   const profile = raw.profile || {};
@@ -1453,35 +1315,19 @@ function normalizeMenuData(raw) {
 }
 
 const DataLayer = {
-  /**
-   * 【Sprint3/5】HOME用データ取得。
-   * shouldUseApi()がtrueならGAS経由でSpreadsheet(missions/kpi/briefing/
-   * projects/sns/activityシート)から取得し、そうでなければダミーデータを返す。
-   * ローカル永続化されたミッション完了状態のみ復元し、それ以外はダミーとして返す
-   */
   async getHomeData() {
     if (shouldUseApi("home")) {
-      // 【GAS接続ポイント】action=getHomeData → missions/kpi/briefing/projects/sns/activity 各シートを結合して返す想定
       try {
         return normalizeHomeData(await apiRequest("getHomeData"));
       } catch (e) {
         Logger.error("[DataLayer] getHomeData: API取得失敗。ダミーデータにフォールバックします。", e);
-        // 【Sprint5 エラー耐性】画面を止めずToastで知らせてダミーデータへフォールバック
         showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint1〜2から継続 / Sprint4で日次リセットを追加) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
 
-      /*
-       * 【Sprint4】ミッション日次リセット。
-       * 「毎日開きたくなるOS」の核なので、開いた瞬間に日付が変わっていたら
-       * 自動でミッションの完了状態をリセットする(深夜バッチ不要・開いた時に判定する方式)。
-       * リセット前の達成数は yesterdaySummary として1日だけ保持し、
-       * 「昨日の成果が見える」体験に使う(renderHomeScreen側でToast表示)。
-       */
       const today = todayISO();
       let yesterdaySummary = saved.yesterdaySummary || null;
       if (saved.lastResetDate && saved.lastResetDate !== today) {
@@ -1498,20 +1344,14 @@ const DataLayer = {
         ...m,
         done: saved.missionState ? !!saved.missionState[m.id] : m.done
       }));
-      // 演出上の疑似レイテンシ(Skeletonが一瞬で消えないように/実運用ではAPI待ち時間になる)
       setTimeout(() => {
         resolve({ ...DUMMY_SEED, missions, yesterdaySummary });
       }, 450);
     }).then(normalizeHomeData);
   },
 
-  /**
-   * 【Sprint3/5】ミッション完了状態の更新。
-   * shouldUseApi()がtrueなら missions シートの該当行(id一致)の done列を更新する想定。
-   */
   async setMissionDone(missionId, done) {
     if (shouldUseApi("home")) {
-      // 【GAS接続ポイント】action=setMissionDone → missionsシートのid一致行のdone列を更新
       try {
         return await apiRequest("setMissionDone", { missionId, done }, "POST");
       } catch (e) {
@@ -1519,7 +1359,6 @@ const DataLayer = {
         showToast("保存に失敗しました。この端末に一時保存します");
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint1〜2から変更なし) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
@@ -1530,14 +1369,8 @@ const DataLayer = {
     });
   },
 
-  /**
-   * 【Sprint3/5】Projects(開発中) / Portfolio(実績)取得。
-   * shouldUseApi()がtrueなら projects / portfolio / portfolio_history / portfolio_releases /
-   * portfolio_fixes の各シートを結合して返す想定(portfolio_idで紐付け)。
-   */
   async getProjectsData() {
     if (shouldUseApi("projects")) {
-      // 【GAS接続ポイント】action=getProjectsData → projects + portfolio(+子シート3つ)を結合
       try {
         return normalizeProjectsData(await apiRequest("getProjectsData"));
       } catch (e) {
@@ -1545,17 +1378,11 @@ const DataLayer = {
         showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
     return new Promise((resolve) => setTimeout(() => resolve(PROJECTS_SEED), 400)).then(normalizeProjectsData);
   },
 
-  /**
-   * 【Sprint3/5】AI秘書(ChatGPT/Claude)データ取得。
-   * shouldUseApi()がtrueなら ai_agents / ai_templates / ai_requests シートを結合して返す想定。
-   */
   async getAiData() {
     if (shouldUseApi("ai")) {
-      // 【GAS接続ポイント】action=getAiData → ai_agents + ai_templates + ai_requests(本日分/履歴分)を結合
       try {
         return normalizeAiData(await apiRequest("getAiData"));
       } catch (e) {
@@ -1563,25 +1390,16 @@ const DataLayer = {
         showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint2から継続 / Sprint4で今日・履歴の自動振り分けを追加) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(AI_STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
 
-      /*
-       * 【Sprint4】Sprint2形式(todayRequestsのみ・日付なし)からの移行措置。
-       * 既存の保存データがあれば、今日の日付を付けて新形式(requests配列+date)へ変換する。
-       */
       if (!saved.requests && saved.todayRequests) {
         saved.requests = saved.todayRequests.map(r => ({ ...r, date: todayISO(), displayDate: toMD() }));
         delete saved.todayRequests;
         localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(saved));
       }
 
-      /*
-       * 「今日の依頼」は当日分のみ、日付が変わったものは自動で「履歴」へ回す。
-       * (第5章の要件: 今日の依頼=当日限定 / 履歴=日付順)
-       */
       const requests = saved.requests || [];
       const today = todayISO();
       const localToday = requests.filter(r => r.date === today);
@@ -1598,13 +1416,8 @@ const DataLayer = {
     }).then(normalizeAiData);
   },
 
-  /**
-   * 【Sprint3/5】AI秘書: クイック依頼を今日の依頼リストへ追加。
-   * shouldUseApi()がtrueなら ai_requests シートへ1行追加する想定(isToday=true, date=今日)。
-   */
   async addAiRequest(request) {
     if (shouldUseApi("ai")) {
-      // 【GAS接続ポイント】action=addAiRequest → ai_requestsシートへ1行追加
       try {
         return await apiRequest("addAiRequest", request, "POST");
       } catch (e) {
@@ -1612,25 +1425,18 @@ const DataLayer = {
         showToast("送信に失敗しました。この端末に一時保存します");
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint2から継続 / Sprint4でdate付与を追加) ----
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(AI_STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
       saved.requests = saved.requests || [];
-      // 【Sprint4】date(比較用ISO) / displayDate(履歴表示用 "M/D") を付与し、翌日は自動で履歴側に回るようにする
       saved.requests.unshift({ ...request, date: todayISO(), displayDate: toMD() });
       localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(saved));
       resolve(true);
     });
   },
 
-  /**
-   * 【Sprint3/5】SNS(TikTok/X/note)データ取得。
-   * shouldUseApi()がtrueなら sns_platforms / sns_followers / sns_posts シートを結合して返す想定。
-   */
   async getSnsData() {
     if (shouldUseApi("sns")) {
-      // 【GAS接続ポイント】action=getSnsData → sns_platforms + sns_followers(時系列) + sns_posts を結合
       try {
         return normalizeSnsData(await apiRequest("getSnsData"));
       } catch (e) {
@@ -1638,17 +1444,11 @@ const DataLayer = {
         showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
     return new Promise((resolve) => setTimeout(() => resolve(SNS_SEED), 400)).then(normalizeSnsData);
   },
 
-  /**
-   * 【Sprint3/5】Menuデータ取得。
-   * shouldUseApi()がtrueなら menu_profile / menu_items / settings シートを結合して返す想定。
-   */
   async getMenuData() {
     if (shouldUseApi("menu")) {
-      // 【GAS接続ポイント】action=getMenuData → menu_profile + menu_items(+ settings)を結合
       try {
         return normalizeMenuData(await apiRequest("getMenuData"));
       } catch (e) {
@@ -1656,35 +1456,19 @@ const DataLayer = {
         showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
-    // ---- ここから既存のダミーデータ処理(Sprint2から変更なし) ----
     return new Promise((resolve) => setTimeout(() => resolve(MENU_SEED), 250)).then(normalizeMenuData);
   }
 };
 
 /* ============================================================
-   2d. 【Sprint6】Repository層
-   ------------------------------------------------------------
-   目的: UI(render系関数)がDataLayerを直接呼ばず、必ずこの層を
-   経由するようにする。データ取得の責務はRepositoryだけが持ち、
-   将来的にはここへキャッシュ・複数データソースの合成・
-   リトライ制御などの責務を追加していく想定。
-
-   責務分離のゴール:
-     UI → Repository → DataLayer → API/GAS → Spreadsheet
-
-   【Sprint6.1】キャッシュ戦略の切替口を追加。
-   CacheStrategiesの中から使うものを1つ選ぶだけで、
-   Repositoryの呼び出し側(UI)や下位のDataLayerには一切手を入れずに
-   キャッシュの有無・方式を変更できる構造にしてある。
+   2d. Repository層
    ============================================================ */
 const CacheStrategies = {
-  /** 何もキャッシュしない(現在のデフォルト。常に最新を取りに行く=今までと同じ挙動) */
   none: {
     get: () => null,
     set: () => {},
     clear: () => {}
   },
-  /** メモリ上だけの一時キャッシュ(タブを閉じたら消える。将来有効化する場合の候補①) */
   memory: (() => {
     const store = new Map();
     return {
@@ -1693,16 +1477,10 @@ const CacheStrategies = {
       clear: (key) => (key ? store.delete(key) : store.clear())
     };
   })()
-  // 【将来追加候補】
-  // localStorage: ブラウザを閉じても残す「Offline Cache」。オフライン時の表示継続に使える。
-  // gasCacheService: GAS側のCacheServiceと連携し、Spreadsheetへのアクセス回数を減らす。
-  //   (この場合はDataLayer/Code.gs側の対応も必要になる)
 };
 
-/** 今使うキャッシュ戦略。切り替えたい場合はこの1行だけ変更すればよい。 */
 const CACHE_STRATEGY = CacheStrategies.none;
 
-/** キャッシュを確認し、無ければfetcher()を実行して結果をキャッシュする共通処理 */
 async function withCache(key, fetcher) {
   const cached = CACHE_STRATEGY.get(key);
   if (cached !== null && cached !== undefined) {
@@ -1718,7 +1496,7 @@ const Repository = {
   getHomeData: () => withCache("home", () => DataLayer.getHomeData()),
   setMissionDone: async (missionId, done) => {
     const result = await DataLayer.setMissionDone(missionId, done);
-    CACHE_STRATEGY.clear("home"); // 更新系操作はキャッシュを無効化しておく(有効化した時のための保険)
+    CACHE_STRATEGY.clear("home");
     return result;
   },
   getProjectsData: () => withCache("projects", () => DataLayer.getProjectsData()),
@@ -1747,11 +1525,6 @@ function formatDate(d) {
   return `${d.getMonth() + 1}月${d.getDate()}日(${w})`;
 }
 
-/**
- * 【Sprint4】日次リセット・AI依頼の「今日/履歴」振り分けに使う日付ユーティリティ。
- * todayISO(): "2026-07-05" のような比較用キー
- * toMD(d): "7/5" のような表示用文字列(既存の履歴表示フォーマットに合わせる)
- */
 function todayISO(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -1763,7 +1536,6 @@ function formatNumber(n) {
   return n.toLocaleString("ja-JP");
 }
 
-/** 数値カウントアップアニメーション(第10章-11: Count Up採用) */
 function animateCountUp(el, to, opts = {}) {
   const duration = opts.duration || 700;
   const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1778,7 +1550,6 @@ function animateCountUp(el, to, opts = {}) {
   requestAnimationFrame(tick);
 }
 
-/** Toast表示(第10章-14: 保存/更新/削除等の短時間フィードバック, 約2秒) */
 function showToast(message) {
   const wrap = document.getElementById("toast-wrap");
   const el = document.createElement("div");
@@ -1792,7 +1563,6 @@ function showToast(message) {
   }, 1900);
 }
 
-/** ミッション完了時の "+XP" 演出をチェックボックス付近に表示 */
 function popXp(anchorEl, xp) {
   const rect = anchorEl.getBoundingClientRect();
   const el = document.createElement("div");
@@ -1804,7 +1574,6 @@ function popXp(anchorEl, xp) {
   setTimeout(() => el.remove(), 950);
 }
 
-/** Modal(第10章-15: 確認/編集/詳細/追加/削除は画面遷移の代わりにModalで表現) */
 function openModal(innerHtml) {
   const backdrop = document.getElementById("modal-backdrop");
   const sheet = backdrop.querySelector(".co-modal-sheet");
@@ -1820,7 +1589,6 @@ function closeModal() {
   document.body.style.overflow = "";
 }
 
-/** クリップボードコピー(GitHub/NetlifyのURLなどをワンタップコピー) */
 async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
@@ -1830,10 +1598,6 @@ async function copyToClipboard(text) {
   }
 }
 
-/**
- * 折れ線スパークライン(軽量・依存ライブラリ無し)。
- * SNS画面のフォロワー推移など、細かい数値説明を読ませずに傾向を伝える用途。
- */
 function buildSparkline(values, color) {
   const w = 100, h = 30, pad = 3;
   const min = Math.min(...values), max = Math.max(...values);
@@ -1849,8 +1613,7 @@ function buildSparkline(values, color) {
 }
 
 /* ============================================================
-   4. COMPONENTS — カードは独立(第12章-2)。それぞれ render*(data) で
-   HTML文字列を返す純粋関数に近い形にし、他カードへ影響しない。
+   4. COMPONENTS
    ============================================================ */
 
 function renderHeader(state) {
@@ -1989,7 +1752,6 @@ function renderActivityCard(activity) {
     </section>`;
 }
 
-/* ---- ダミー画面(その他タブ用 / Empty State仕様に準拠) ---- */
 function renderPlaceholderScreen(title, desc, iconName) {
   return `
     <div class="co-empty">
@@ -2004,7 +1766,6 @@ function renderSkeletonBlock(heights) {
   return `<div class="co-section">${heights.map(h => `<div class="co-skel-card" style="height:${h}px;"></div>`).join("")}</div>`;
 }
 
-/* ---- スクリーン共通ヘッダー(HOME以外のタブ用の簡易見出し) ---- */
 function renderScreenTitle(title) {
   return `
     <div class="co-header" style="padding-bottom:8px;">
@@ -2027,7 +1788,124 @@ function renderDevProjectCard(p) {
         <span>現在: ${p.sprint} ・ 次: ${p.next}</span>
         ${icon("chevronRight")}
       </div>
+      ${renderGithubHistorySection(p)}
     </div>`;
+}
+
+/* ============================================================
+   4b-2. 【Sprint10.3】GitHub履歴 / 開発タイムライン コンポーネント
+   ------------------------------------------------------------
+   共通コンポーネントとして設計。renderGithubHistoryItem() は
+   どのリポジトリのイベントでも同じ形式(normalizeGithubEvent済み)
+   を受け取って描画するだけなので、REPO_CONFIGにリポジトリが
+   増えてもこちら側の変更は不要。
+   ============================================================ */
+const GITHUB_HISTORY_VISIBLE_COUNT = 5;
+
+/** dev-idカードの下に差し込む「GitHub履歴」セクション。クリックはbindProjectsEventsで委譲する。 */
+function renderGithubHistorySection(p) {
+  const events = p.githubHistory || [];
+  if (!events.length) {
+    return `
+      <div class="co-github-history">
+        <p class="co-github-history__label">${icon("github")}GitHub履歴</p>
+        <p class="co-github-history__empty">まだ更新履歴がありません。</p>
+      </div>`;
+  }
+  const visible = events.slice(0, GITHUB_HISTORY_VISIBLE_COUNT);
+  const rows = visible.map((e, idx) => renderGithubHistoryItem(e, p.id, idx)).join("");
+  return `
+    <div class="co-github-history">
+      <p class="co-github-history__label">${icon("github")}GitHub履歴</p>
+      ${rows}
+    </div>`;
+}
+
+/** 1件分のGitHub履歴行。data-github-project / data-github-idx で後からイベント本体を引ける。 */
+function renderGithubHistoryItem(e, projectId, idx) {
+  const progressChip = e.progressTag ? `<span class="co-github-item__tag">進捗 ${e.progressTag}%</span>` : "";
+  const releaseChip = e.releaseTag ? `<span class="co-github-item__tag">${e.releaseTag}</span>` : "";
+  return `
+    <div class="co-github-item" data-github-project="${projectId}" data-github-idx="${idx}">
+      <div class="co-github-item__top">
+        <span class="co-github-item__repo">${e.repoLabel}</span>
+        <span class="co-github-item__date">${e.date}</span>
+      </div>
+      <p class="co-github-item__title">${e.title}</p>
+      <div class="co-github-item__meta">
+        <span>${icon("github")}${e.commitCount}件</span>
+        <span>${icon("user")}${e.author}</span>
+        ${progressChip}${releaseChip}
+      </div>
+    </div>`;
+}
+
+/** GitHub履歴1件の詳細Modal(コミット一覧・変更ファイル数・GitHubリンク・更新内容)。 */
+function buildGithubEventDetailModal(e) {
+  const commitsHtml = e.commits.length
+    ? e.commits.map(c => `
+        <div class="co-modal-list-item">
+          <span style="flex:1;">${c.message}${c.author ? ` <span style="color:var(--c-text-300);">— ${c.author}</span>` : ""}</span>
+        </div>`).join("")
+    : `<p class="co-modal-empty-note">コミット詳細は記録されていません。</p>`;
+
+  const linkHtml = e.link
+    ? `<div class="co-modal-link-row">${icon("link")}<span>${e.link}</span><button class="co-modal-copy-btn" data-copy="${e.link}">コピー</button></div>`
+    : "";
+
+  return `
+    <div class="co-modal-head">
+      <div>
+        <p class="co-modal-title">${e.repoLabel}</p>
+        <p class="co-modal-subtitle">${e.date} ・ ${e.eventType === "release" ? "リリース" : "Push"} ・ ${e.author}</p>
+      </div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">更新内容</p>
+      <p>${e.title}</p>
+      ${e.progressTag ? `<div class="co-modal-chip-row" style="margin-top:8px;"><span class="co-modal-chip">進捗タグ ${e.progressTag}%</span></div>` : ""}
+      ${e.releaseTag ? `<div class="co-modal-chip-row" style="margin-top:8px;"><span class="co-modal-chip">${e.releaseTag}</span></div>` : ""}
+    </div>
+
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">${icon("files")}コミット一覧(${e.commitCount}件) ・ 変更ファイル ${e.filesChanged}件</p>
+      ${commitsHtml}
+    </div>
+
+    ${linkHtml ? `<div class="co-modal-section"><p class="co-modal-section__label">${icon("github")}GitHubリンク</p>${linkHtml}</div>` : ""}`;
+}
+
+/* ---- 【Sprint10.3】開発タイムライン(Projects画面の一番下) ---- */
+const TIMELINE_SOURCE_ICON = {
+  github: "github",
+  note: "note",
+  x: "sns",
+  tiktok: "video"
+};
+
+function renderTimelineSection(timeline) {
+  if (!timeline || !timeline.length) {
+    return `
+      <section class="co-section" data-component="dev-timeline" style="margin-bottom:8px;">
+        <div class="co-section__head"><p class="co-section__title">${icon("history")}開発タイムライン</p></div>
+        <div class="co-card"><p class="co-github-history__empty">まだ記録がありません。</p></div>
+      </section>`;
+  }
+  const rows = timeline.map(t => `
+    <div class="co-timeline2-item">
+      <div class="co-timeline2-item__dot">${icon(TIMELINE_SOURCE_ICON[t.source] || "sparkle")}</div>
+      <div class="co-timeline2-item__body">
+        <p class="co-timeline2-item__label">${t.label}</p>
+        <p class="co-timeline2-item__meta">${t.date}${t.target ? ` ・ ${t.target}` : ""}</p>
+      </div>
+    </div>`).join("");
+  return `
+    <section class="co-section" data-component="dev-timeline" style="margin-bottom:8px;">
+      <div class="co-section__head"><p class="co-section__title">${icon("history")}開発タイムライン</p></div>
+      <div class="co-card"><div class="co-timeline2">${rows}</div></div>
+    </section>`;
 }
 
 function renderPortfolioCard(p) {
@@ -2126,9 +2004,25 @@ function buildPortfolioDetailModal(p) {
 
 function bindProjectsEvents(container, data) {
   container.querySelectorAll("[data-dev-id]").forEach(el => {
-    el.addEventListener("click", () => {
+    el.addEventListener("click", (ev) => {
+      // GitHub履歴行のクリックはこちらのカード全体クリックとして扱わない
+      if (ev.target.closest("[data-github-idx]")) return;
       const p = data.dev.find(d => d.id === el.dataset.devId);
       openModal(buildDevDetailModal(p));
+    });
+  });
+  // 【Sprint10.3】GitHub履歴行のクリックで詳細Modalを開く(共通コンポーネント)
+  container.querySelectorAll("[data-github-idx]").forEach(el => {
+    el.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const projectId = el.dataset.githubProject;
+      const idx = Number(el.dataset.githubIdx);
+      const p = data.dev.find(d => d.id === projectId);
+      const event = p && p.githubHistory ? p.githubHistory[idx] : null;
+      if (!event) return;
+      openModal(buildGithubEventDetailModal(event));
+      const copyBtn = document.querySelector(".co-modal-sheet [data-copy]");
+      if (copyBtn) copyBtn.addEventListener("click", () => copyToClipboard(copyBtn.dataset.copy));
     });
   });
   container.querySelectorAll("[data-portfolio-id]").forEach(el => {
@@ -2156,11 +2050,12 @@ async function renderProjectsScreen() {
       <div class="co-section__head"><p class="co-section__title">${icon("code")}開発中</p></div>
       ${data.dev.map(renderDevProjectCard).join("")}
     </section>
-    <section class="co-section" data-component="portfolio" style="margin-bottom:8px;">
+    <section class="co-section" data-component="portfolio">
       <div class="co-section__head"><p class="co-section__title">${icon("star")}Portfolio(実績)</p></div>
       ${data.portfolio.map(renderPortfolioCard).join("")}
       <button class="co-card co-portfolio-add" data-action="add-portfolio">${icon("plus")}<span>今後追加する実績</span></button>
-    </section>`;
+    </section>
+    ${renderTimelineSection(data.timeline)}`;
 
   animateEntrance(target);
   bindProjectsEvents(target, data);
@@ -2226,7 +2121,6 @@ async function renderAiScreen() {
   const data = await Repository.getAiData();
   const templateChips = data.templates.map(t => `<button class="co-template-chip">${t}</button>`).join("");
 
-  // 【Sprint5 UI改善】依頼履歴は増え続けると縦に伸びるため、直近5件のみ初期表示し「もっと見る」で展開する
   const HISTORY_VISIBLE_COUNT = 5;
   const historyVisible = data.history.slice(0, HISTORY_VISIBLE_COUNT);
   const historyHidden = data.history.slice(HISTORY_VISIBLE_COUNT);
@@ -2263,7 +2157,6 @@ async function renderAiScreen() {
   animateEntrance(target);
   bindAiEvents(target, data);
 
-  // 【Sprint5 UI改善】もっと見る→残りを追加表示してボタンを消す
   const moreBtn = target.querySelector("#ai-history-more");
   if (moreBtn) {
     moreBtn.addEventListener("click", () => {
@@ -2355,7 +2248,6 @@ async function renderSnsScreen() {
    4e. Menu コンポーネント
    ============================================================ */
 function renderMenuRow(item) {
-  // 【Sprint5 UI改善】タップ後にModalが開く項目(kpi/revenue)は視覚的に区別する
   const hasDetail = item.key === "kpi" || item.key === "revenue";
   return `
     <div class="co-menu-row ${hasDetail ? "co-menu-row--has-detail" : ""}" data-menu-key="${item.key}">
@@ -2386,11 +2278,6 @@ function buildProfileModal(profile) {
     <p class="co-modal-empty-note">プロフィール編集はSprint5以降で対応予定です。</p>`;
 }
 
-/**
- * 【Sprint4】KPI一覧Modal(CEOダッシュボード)。
- * HOMEと同じ3軸(開発/発信/収益化)ごとにグルーピングし、週次推移を
- * スパークラインで見せる。既存のbuildSparkline()をそのまま再利用。
- */
 function buildKpiListModal(kpiList) {
   const axisOrder = ["開発", "発信", "収益化"];
   const axisColor = { "開発": "#14304F", "発信": "#FF6A2C", "収益化": "#1FA463" };
@@ -2421,10 +2308,6 @@ function buildKpiListModal(kpiList) {
     ${groups}`;
 }
 
-/**
- * 【Sprint4】収益管理Modal。
- * 開発仕様書 第7章 Revenue(日付/媒体/金額/カテゴリ/確定)に準拠した一覧表示。
- */
 function buildRevenueModal(revenue) {
   const rows = revenue.entries.map(e => `
     <div class="co-modal-list-item">
@@ -2454,7 +2337,6 @@ function bindMenuEvents(container, data) {
   container.querySelectorAll("[data-menu-key]").forEach(row => {
     row.addEventListener("click", () => {
       const key = row.dataset.menuKey;
-      // 【Sprint4】KPI一覧・収益管理はModalで詳細を見せる。他はまだ準備中。
       if (key === "kpi") {
         openModal(buildKpiListModal(data.kpi));
         return;
@@ -2577,7 +2459,6 @@ async function renderHomeScreen() {
     renderActivityCard(data.activity)
   ].join("");
 
-  // Canva背景の差し替えポイント(未設定なら現状のグラデーションのまま)
   const briefingBg = document.getElementById("briefing-bg");
   if (briefingBg) applyImageAsset(briefingBg, ASSETS.homeHeroBackground, null);
 
@@ -2590,7 +2471,6 @@ async function renderHomeScreen() {
   bindQuickActionEvents(contentEl.querySelector('[data-component="quick-actions"]'));
   bindKpiEvents(contentEl.querySelector('[data-component="kpi-card"]'));
 
-  // KPIカウントアップ & プロジェクト進捗バー
   contentEl.querySelectorAll("[data-count-to]").forEach(el => {
     animateCountUp(el, Number(el.dataset.countTo));
   });
@@ -2600,18 +2480,11 @@ async function renderHomeScreen() {
     });
   });
 
-  /*
-   * 【Sprint4】「昨日の成果が見える」体験。
-   * 日付が変わった直後の初回表示でのみ、前日の達成状況をToastで知らせる。
-   * sessionStorageで「今日はもう見せた」を管理し、同じ日に何度もHOMEへ
-   * 戻ってきてもToastが繰り返し出ないようにする(第10章のToast乱用禁止に配慮)。
-   */
   if (data.yesterdaySummary) {
     const shownKey = "ceoOS_v2_yesterday_summary_shown";
     const today = todayISO();
     if (sessionStorage.getItem(shownKey) !== today) {
       const { doneCount, total } = data.yesterdaySummary;
-      // 【Sprint5 UI改善】画面全体が見えてから成果を伝えたいので0.5秒遅らせて表示
       setTimeout(() => showToast(`昨日は${doneCount}/${total}ミッション達成でした`), 500);
       sessionStorage.setItem(shownKey, today);
     }
@@ -2629,14 +2502,6 @@ const NAV_ITEMS = [
   { key: "menu",     label: "Menu",     icon: "menu" }
 ];
 
-/*
- * 【Portfolio方針メモ】Projectsタブは「今動かしている開発」と「実績」を分けて扱う。
- *   ・開発中: CEO室OS / その他AI開発
- *   ・実績(Portfolio): AWK管理システム(完成・運用中) / TikTok運営 / note運営 / X運営
- * AWKは「会社の管理対象」ではなく「翔個人の実績・SNS発信の素材」として扱う。
- * (Sprint2でPortfolio詳細モーダルとして実装済み: 概要/使用技術/GitHub/Netlify/
- *  開発履歴/リリース履歴/修正履歴/成果/スクリーンショット)
- */
 const SCREEN_RENDERERS = {
   ai: renderAiScreen,
   projects: renderProjectsScreen,
