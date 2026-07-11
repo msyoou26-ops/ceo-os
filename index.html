@@ -1464,6 +1464,18 @@ function normalizeBadge(b) {
   };
 }
 
+function normalizeRecommendationItem(r) {
+  r = r || {};
+  return {
+    id: normalizeString(r.id),
+    title: normalizeString(r.title),
+    category: normalizeString(r.category),
+    contentType: normalizeString(r.contentType),
+    targetAudience: normalizeString(r.targetAudience),
+    priority: normalizeString(r.priority) || "normal"
+  };
+}
+
 function normalizeHomeData(raw) {
   raw = raw || {};
   return {
@@ -1477,7 +1489,8 @@ function normalizeHomeData(raw) {
     yesterdaySummary: raw.yesterdaySummary && typeof raw.yesterdaySummary === "object" ? raw.yesterdaySummary : null,
     player: normalizePlayer(raw.player),
     phase: normalizePhase(raw.phase),
-    aiAdvice: normalizeArray(raw.aiAdvice, (v) => normalizeString(v))
+    aiAdvice: normalizeArray(raw.aiAdvice, (v) => normalizeString(v)),
+    recommendations: normalizeArray(raw.recommendations, normalizeRecommendationItem)
   };
 }
 
