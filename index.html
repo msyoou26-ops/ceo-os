@@ -616,6 +616,65 @@ img{max-width:100%;display:block;}
 .co-status-badge[data-status="完了"]::before{ background:var(--c-green-500); }
 .co-status-badge[data-status="エラー"]{ background:var(--c-red-100); color:var(--c-red-500); }
 .co-status-badge[data-status="エラー"]::before{ background:var(--c-red-500); }
+/* 【Sprint14】Content Stock用ステータス色 */
+.co-status-badge[data-status="idea"]{ background:var(--c-surface); color:var(--c-text-500); }
+.co-status-badge[data-status="idea"]::before{ background:var(--c-text-300); }
+.co-status-badge[data-status="draft"]{ background:var(--c-orange-100); color:var(--c-orange-600); }
+.co-status-badge[data-status="draft"]::before{ background:var(--c-orange-500); }
+.co-status-badge[data-status="review"]{ background:rgba(20,48,79,0.08); color:var(--c-navy-700); }
+.co-status-badge[data-status="review"]::before{ background:var(--c-navy-700); }
+.co-status-badge[data-status="approved"]{ background:var(--c-green-100); color:var(--c-green-500); }
+.co-status-badge[data-status="approved"]::before{ background:var(--c-green-500); }
+.co-status-badge[data-status="posted"]{ background:var(--c-navy-900); color:#fff; }
+.co-status-badge[data-status="posted"]::before{ background:#fff; }
+
+/* 【Sprint14】Content Stock 一覧・フォーム */
+.co-cs-item{
+  padding:12px 4px;
+  border-bottom:1px solid var(--c-border);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.co-cs-item:last-child{ border-bottom:none; }
+.co-cs-item__top{ display:flex; align-items:center; gap:8px; }
+.co-cs-item__title{ font-size:14px; font-weight:800; flex:1; margin:0; }
+.co-cs-item__meta{ font-size:11px; color:var(--c-text-500); display:flex; gap:6px; flex-wrap:wrap; }
+.co-cs-item__idea{ font-size:12.5px; color:var(--c-text-500); margin:0; line-height:1.5; }
+.co-cs-item__controls{ display:flex; gap:8px; margin-top:2px; }
+.co-cs-select{
+  font-size:11.5px;
+  font-weight:700;
+  padding:5px 8px;
+  border-radius:8px;
+  border:1px solid var(--c-border);
+  background:#fff;
+  color:var(--c-text-700, var(--c-navy-900));
+}
+.co-cs-empty{ padding:24px 4px; text-align:center; color:var(--c-text-500); font-size:13px; }
+.co-cs-fab{
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  width:100%; padding:12px; border-radius:var(--r-card);
+  background:var(--c-orange-500); color:#fff; font-weight:800; font-size:13.5px;
+  border:none; margin-bottom:14px;
+}
+.co-cs-fab svg{ width:16px; height:16px; }
+.co-cs-form label{ display:block; font-size:12px; font-weight:700; color:var(--c-text-500); margin:14px 0 6px; }
+.co-cs-form input[type="text"],
+.co-cs-form select,
+.co-cs-form textarea{
+  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--c-border);
+  font-size:13.5px; font-family:inherit; background:#fff; box-sizing:border-box;
+}
+.co-cs-form textarea{ min-height:70px; resize:vertical; }
+.co-cs-form__submit{
+  width:100%; margin-top:18px; padding:13px; border:none; border-radius:var(--r-card);
+  background:var(--c-orange-500); color:#fff; font-weight:800; font-size:14px;
+}
+.co-cs-recommend-badge{
+  font-size:10px; font-weight:700; color:var(--c-orange-600); background:var(--c-orange-100);
+  padding:2px 7px; border-radius:var(--r-chip);
+}
 
 .co-template-row{ display:flex; gap:8px; overflow-x:auto; padding:2px 20px 4px; margin:0 -20px; scrollbar-width:none; }
 .co-template-row::-webkit-scrollbar{ display:none; }
@@ -895,7 +954,8 @@ const API_ENABLED_SCREENS = {
   projects: true,
   ai: false,
   sns: false,
-  menu: true
+  menu: true,
+  contentStock: true
 };
 
 function shouldUseApi(screen) {
@@ -1223,6 +1283,15 @@ const MENU_SEED = {
     { id: "sprint_complete",     label: "初Sprint完了",  icon: "star",   unlocked: false },
     { id: "note_100",            label: "note 100人",    icon: "note",   unlocked: false },
     { id: "tiktok_1000",         label: "TikTok 1000人", icon: "video",  unlocked: false }
+  ]
+};
+
+/** 【Sprint14】Content Stock ダミーデータ(DEV_MODE用) */
+const CONTENT_STOCK_SEED = {
+  items: [
+    { id: "seed-1", title: "新人教育あるある", contentType: "あるある", targetAudience: "製造業", category: "あるある", tags: "教育,新人", status: "idea", priority: "high", idea: "教えたはずなのに次の日にはできなくなってる新人あるある。", memo: "", photo: "", createdAt: "7/9", updatedAt: "7/9" },
+    { id: "seed-2", title: "改善提案した人だけ仕事が増える", contentType: "あるある", targetAudience: "工場勤務", category: "あるある", tags: "改善,QC", status: "idea", priority: "normal", idea: "QC活動で改善提案すると、その仕事がそのまま自分の担当になる現象。", memo: "", photo: "", createdAt: "7/10", updatedAt: "7/10" },
+    { id: "seed-3", title: "AIで現場改善", contentType: "AI活用", targetAudience: "AI初心者", category: "Claude活用", tags: "Claude,AI", status: "draft", priority: "normal", idea: "Claudeに図面の読み方を聞いたら理解が早まった話。", memo: "", photo: "", createdAt: "7/8", updatedAt: "7/10" }
   ]
 };
 
@@ -1676,6 +1745,53 @@ const DataLayer = {
       }
     }
     return new Promise((resolve) => setTimeout(() => resolve(MENU_SEED), 250)).then(normalizeMenuData);
+  },
+
+  /**
+   * ============================================================
+   * 【Sprint14】Content Stock(コンテンツストック)
+   * ------------------------------------------------------------
+   * 「1ネタ=1レコード」を起点にX/note/TikTok/画像/動画すべてが
+   * 派生していく設計。今回(①+③)はストック本体の作成・一覧・簡易編集
+   * (ステータス/優先度の変更)まで。生成導線(④)は次回以降。
+   * ============================================================ */
+  async getContentStockData() {
+    if (shouldUseApi("contentStock")) {
+      try {
+        return await apiRequest("getContentStockData");
+      } catch (e) {
+        Logger.error("[DataLayer] getContentStockData: API取得失敗。ダミーデータにフォールバックします。", e);
+        showToast("データ取得に失敗しました。オフラインデータを表示します");
+      }
+    }
+    return new Promise((resolve) => setTimeout(() => resolve(CONTENT_STOCK_SEED), 300));
+  },
+
+  async createContentStockItem(payload) {
+    if (shouldUseApi("contentStock")) {
+      try {
+        return await apiRequest("createContentStockItem", payload, "POST");
+      } catch (e) {
+        Logger.error("[DataLayer] createContentStockItem: 保存失敗", e);
+        showToast("保存に失敗しました");
+        throw e;
+      }
+    }
+    showToast("オフラインモードのため保存されません(開発用)");
+    return { success: true, id: "dummy-" + Date.now() };
+  },
+
+  async updateContentStockItem(payload) {
+    if (shouldUseApi("contentStock")) {
+      try {
+        return await apiRequest("updateContentStockItem", payload, "POST");
+      } catch (e) {
+        Logger.error("[DataLayer] updateContentStockItem: 更新失敗", e);
+        showToast("更新に失敗しました");
+        throw e;
+      }
+    }
+    return { success: true };
   }
 };
 
@@ -1726,7 +1842,20 @@ const Repository = {
     return result;
   },
   getSnsData: () => withCache("sns", () => DataLayer.getSnsData()),
-  getMenuData: () => withCache("menu", () => DataLayer.getMenuData())
+  getMenuData: () => withCache("menu", () => DataLayer.getMenuData()),
+  getContentStockData: () => withCache("contentStock", () => DataLayer.getContentStockData()),
+  createContentStockItem: async (payload) => {
+    const result = await DataLayer.createContentStockItem(payload);
+    CACHE_STRATEGY.clear("contentStock");
+    CACHE_STRATEGY.clear("home");
+    return result;
+  },
+  updateContentStockItem: async (payload) => {
+    const result = await DataLayer.updateContentStockItem(payload);
+    CACHE_STRATEGY.clear("contentStock");
+    CACHE_STRATEGY.clear("home");
+    return result;
+  }
 };
 
 /* ============================================================
@@ -2019,6 +2148,46 @@ function renderAiAdviceCard(lines) {
         ${rows}
       </div>
     </section>`;
+}
+
+/**
+ * 【Sprint14】今日のおすすめTOP3
+ * ------------------------------------------------------------
+ * コンテンツストックの status="idea" の中から、優先度(高→中→低)、
+ * 同優先度内は登録が古い順(GAS側computeTopRecommendations_で判定済み)
+ * に上位3件を表示。タップするとコンテンツストック一覧を開き、
+ * そのままステータスを進められる。
+ */
+function renderRecommendationsCard(recommendations) {
+  if (!recommendations || !recommendations.length) return "";
+  const rows = recommendations.map(r => {
+    const metaBits = [r.contentType, r.targetAudience].filter(Boolean).join(" ・ ");
+    return `
+      <div class="co-cs-item" data-action="open-recommendation" style="cursor:pointer;">
+        <div class="co-cs-item__top">
+          <p class="co-cs-item__title">${r.title}</p>
+          <span class="co-cs-recommend-badge">${CONTENT_PRIORITY_LABELS[r.priority] || "優先度:中"}</span>
+        </div>
+        ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
+      </div>`;
+  }).join("");
+  return `
+    <section class="co-section" data-component="recommendations-card">
+      <div class="co-card">
+        <div class="co-aiadvice__head">
+          <span class="co-aiadvice__avatar">${icon("sparkle")}</span>
+          <p class="co-aiadvice__title">今日のおすすめネタ TOP${recommendations.length}</p>
+        </div>
+        ${rows}
+      </div>
+    </section>`;
+}
+
+function bindRecommendationsEvents(container) {
+  if (!container) return;
+  container.querySelectorAll('[data-action="open-recommendation"]').forEach(el => {
+    el.addEventListener("click", () => openContentStockList());
+  });
 }
 
 function renderQuickActions() {
@@ -2608,7 +2777,11 @@ const SPRINT11_MENU_ITEMS = [
   { key: "investment", label: "投資管理",     icon: "briefcase" },
   { key: "badges",     label: "実績バッジ",   icon: "shield" }
 ];
-const MENU_KEYS_WITH_DETAIL = ["kpi", "revenue", "level", "phase", "investment", "badges"];
+/** 【Sprint14】Content Stock(コンテンツストック)へのメニュー導線 */
+const SPRINT14_MENU_ITEMS = [
+  { key: "content_stock", label: "コンテンツストック", icon: "database" }
+];
+const MENU_KEYS_WITH_DETAIL = ["kpi", "revenue", "level", "phase", "investment", "badges", "content_stock"];
 function renderMenuRow(item) {
   const hasDetail = MENU_KEYS_WITH_DETAIL.includes(item.key);
   return `
@@ -2799,6 +2972,10 @@ function bindMenuEvents(container, data) {
         openModal(buildBadgesModal(data.badges));
         return;
       }
+      if (key === "content_stock") {
+        openContentStockList();
+        return;
+      }
       showToast("この項目はSprint5以降で実装予定です");
     });
   });
@@ -2824,11 +3001,191 @@ async function renderMenuScreen() {
       </div>
     </section>
     <section class="co-section" data-component="menu-list" style="margin-bottom:8px;">
-      <div class="co-card">${data.items.map(renderMenuRow).join("")}${SPRINT11_MENU_ITEMS.map(renderMenuRow).join("")}</div>
+      <div class="co-card">${data.items.map(renderMenuRow).join("")}${SPRINT11_MENU_ITEMS.map(renderMenuRow).join("")}${SPRINT14_MENU_ITEMS.map(renderMenuRow).join("")}</div>
     </section>`;
 
   animateEntrance(target);
   bindMenuEvents(target, data);
+}
+
+/* ============================================================
+   4f. 【Sprint14】Content Stock コンポーネント
+   ------------------------------------------------------------
+   「1ネタ=1レコード」がX/note/TikTok/画像/動画すべての起点になる設計。
+   今回(①+③)はストック本体の作成・一覧・ステータス/優先度の簡易編集まで。
+   生成導線(X/note/TikTok12シーン等への遷移)は次回Sprintで追加する。
+   ============================================================ */
+const CONTENT_STATUS_LABELS = {
+  idea: "アイデア", draft: "下書き", review: "レビュー中", approved: "承認済み", posted: "投稿済み"
+};
+const CONTENT_STATUS_ORDER = ["idea", "draft", "review", "approved", "posted"];
+const CONTENT_PRIORITY_LABELS = { high: "優先度:高", normal: "優先度:中", low: "優先度:低" };
+const CONTENT_PRIORITY_ORDER = ["high", "normal", "low"];
+
+function contentStatusOptions_(selected) {
+  return CONTENT_STATUS_ORDER.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${CONTENT_STATUS_LABELS[s]}</option>`).join("");
+}
+function contentPriorityOptions_(selected) {
+  return CONTENT_PRIORITY_ORDER.map(p => `<option value="${p}" ${p === selected ? "selected" : ""}>${CONTENT_PRIORITY_LABELS[p]}</option>`).join("");
+}
+
+function renderContentStockItem_(item) {
+  const metaBits = [item.contentType, item.targetAudience, item.category].filter(Boolean).join(" ・ ");
+  return `
+    <div class="co-cs-item" data-cs-id="${item.id}">
+      <div class="co-cs-item__top">
+        <p class="co-cs-item__title">${item.title || "(無題)"}</p>
+        <span class="co-status-badge" data-status="${item.status}">${CONTENT_STATUS_LABELS[item.status] || item.status}</span>
+      </div>
+      ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
+      ${item.idea ? `<p class="co-cs-item__idea">${item.idea}</p>` : ""}
+      <div class="co-cs-item__controls">
+        <select class="co-cs-select" data-cs-field="status" data-cs-id="${item.id}">${contentStatusOptions_(item.status)}</select>
+        <select class="co-cs-select" data-cs-field="priority" data-cs-id="${item.id}">${contentPriorityOptions_(item.priority || "normal")}</select>
+      </div>
+    </div>`;
+}
+
+function buildContentStockListModal_(items) {
+  const body = items.length
+    ? items.map(renderContentStockItem_).join("")
+    : `<div class="co-cs-empty">まだネタが登録されていません。<br>「＋新しいネタ」から追加してください。</div>`;
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">コンテンツストック</p><p class="co-modal-subtitle">${items.length}件のネタ</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section">
+      <button class="co-cs-fab" data-action="cs-new">${icon("plus")}＋新しいネタ</button>
+      ${body}
+    </div>`;
+}
+
+async function openContentStockList() {
+  openModal(renderSkeletonBlock([60, 60, 60]));
+  let data;
+  try {
+    data = await Repository.getContentStockData();
+  } catch (e) {
+    closeModal();
+    showToast("コンテンツストックの取得に失敗しました");
+    return;
+  }
+  const items = (data && data.items) || [];
+  openModal(buildContentStockListModal_(items));
+  bindContentStockListEvents_();
+}
+
+function bindContentStockListEvents_() {
+  const sheet = document.querySelector(".co-modal-sheet");
+  if (!sheet) return;
+
+  const newBtn = sheet.querySelector('[data-action="cs-new"]');
+  if (newBtn) newBtn.addEventListener("click", openContentStockForm);
+
+  sheet.querySelectorAll("[data-cs-field]").forEach(select => {
+    select.addEventListener("change", async () => {
+      const id = select.dataset.csId;
+      const field = select.dataset.csField;
+      const value = select.value;
+      select.disabled = true;
+      try {
+        await Repository.updateContentStockItem({ id, [field]: value });
+        showToast("更新しました");
+        if (field === "status") {
+          const badge = sheet.querySelector(`.co-cs-item[data-cs-id="${id}"] .co-status-badge`);
+          if (badge) {
+            badge.dataset.status = value;
+            badge.textContent = CONTENT_STATUS_LABELS[value] || value;
+          }
+        }
+      } catch (e) {
+        showToast("更新に失敗しました");
+      } finally {
+        select.disabled = false;
+      }
+    });
+  });
+}
+
+const CONTENT_TYPE_OPTIONS = ["あるある", "AI活用", "実体験", "ニュース", "比較", "レビュー", "ノウハウ", "ストーリー"];
+const TARGET_AUDIENCE_OPTIONS = ["製造業", "工場勤務", "管理職", "新人", "AI初心者", "経営者"];
+
+function buildContentStockFormModal_() {
+  const typeOptions = CONTENT_TYPE_OPTIONS.map(t => `<option value="${t}">${t}</option>`).join("");
+  const audienceOptions = TARGET_AUDIENCE_OPTIONS.map(a => `<option value="${a}">${a}</option>`).join("");
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">新しいネタ</p><p class="co-modal-subtitle">現場で気づいたことを残しましょう</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section co-cs-form">
+      <label>タイトル</label>
+      <input type="text" id="cs-form-title" placeholder="例: 新人教育あるある">
+
+      <label>ネタ種別</label>
+      <select id="cs-form-content-type"><option value="">選択してください</option>${typeOptions}</select>
+
+      <label>想定読者</label>
+      <select id="cs-form-target-audience"><option value="">選択してください</option>${audienceOptions}</select>
+
+      <label>カテゴリ</label>
+      <input type="text" id="cs-form-category" placeholder="例: あるある / Claude活用 / 運用報告">
+
+      <label>タグ(カンマ区切り)</label>
+      <input type="text" id="cs-form-tags" placeholder="例: 教育,新人">
+
+      <label>優先度</label>
+      <select id="cs-form-priority">${contentPriorityOptions_("normal")}</select>
+
+      <label>現場であったこと</label>
+      <textarea id="cs-form-idea" placeholder="現場で気づいたこと・あったことを書いてください"></textarea>
+
+      <label>メモ</label>
+      <textarea id="cs-form-memo" placeholder="補足メモがあれば"></textarea>
+
+      <label>写真URL(任意)</label>
+      <input type="text" id="cs-form-photo" placeholder="参考写真のURL">
+
+      <button class="co-cs-form__submit" data-action="cs-save">保存</button>
+    </div>`;
+}
+
+function openContentStockForm() {
+  openModal(buildContentStockFormModal_());
+  const sheet = document.querySelector(".co-modal-sheet");
+  if (!sheet) return;
+  const saveBtn = sheet.querySelector('[data-action="cs-save"]');
+  if (!saveBtn) return;
+  saveBtn.addEventListener("click", async () => {
+    const title = sheet.querySelector("#cs-form-title").value.trim();
+    if (!title) {
+      showToast("タイトルを入力してください");
+      return;
+    }
+    const payload = {
+      title,
+      contentType: sheet.querySelector("#cs-form-content-type").value,
+      targetAudience: sheet.querySelector("#cs-form-target-audience").value,
+      category: sheet.querySelector("#cs-form-category").value.trim(),
+      tags: sheet.querySelector("#cs-form-tags").value.trim(),
+      priority: sheet.querySelector("#cs-form-priority").value,
+      idea: sheet.querySelector("#cs-form-idea").value.trim(),
+      memo: sheet.querySelector("#cs-form-memo").value.trim(),
+      photo: sheet.querySelector("#cs-form-photo").value.trim()
+    };
+    saveBtn.disabled = true;
+    saveBtn.textContent = "保存中...";
+    try {
+      await Repository.createContentStockItem(payload);
+      showToast("ネタを保存しました");
+      await openContentStockList();
+    } catch (e) {
+      showToast("保存に失敗しました");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "保存";
+    }
+  });
 }
 
 /* ============================================================
@@ -2906,6 +3263,7 @@ async function renderHomeScreen() {
     renderLevelBar(data.player),
     renderPhaseCard(data.phase),
     renderAiAdviceCard(data.aiAdvice),
+    renderRecommendationsCard(data.recommendations),
     renderMissionCard(data.missions),
     renderBriefingCard(data.briefing),
     renderQuickActions(),
@@ -2924,6 +3282,7 @@ async function renderHomeScreen() {
   animateEntrance(contentEl);
   bindHeaderEvents(contentEl);
   bindLevelPhaseEvents(contentEl, data);
+  bindRecommendationsEvents(contentEl.querySelector('[data-component="recommendations-card"]'));
   bindMissionEvents(contentEl.querySelector('[data-component="mission-card"]'), data);
   bindQuickActionEvents(contentEl.querySelector('[data-component="quick-actions"]'));
   bindKpiEvents(contentEl.querySelector('[data-component="kpi-card"]'));
