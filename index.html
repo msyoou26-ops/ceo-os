@@ -3372,9 +3372,37 @@ function bindMissionEvents(container, state) {
   });
 }
 
+/**
+ * 【Sprint14⑤】クイックアクションを実際の仕事に接続する。
+ * - ChatGPT/Claude: 各サービスを新しいタブで開く
+ * - 投稿追加: コンテンツストックの新規ネタ登録フォームを直接開く
+ * - 案件追加: AWK Factory OS(外部アプリ)を開く
+ * - 音声メモ: 実際の録音機能は未実装のため、代わりに新規ネタ登録
+ *   フォームを開き、思いついたことをすぐメモできるようにする
+ */
+const QUICK_ACTION_URLS_ = {
+  chatgpt: "https://chat.openai.com",
+  claude: "https://claude.ai",
+  project: "https://msyoou26-ops.github.io/awk-kanri-"
+};
+
 function bindQuickActionEvents(container) {
   container.querySelectorAll(".co-qa").forEach(btn => {
     btn.addEventListener("click", () => {
+      const key = btn.dataset.action;
+      if (key === "chatgpt" || key === "claude" || key === "project") {
+        window.open(QUICK_ACTION_URLS_[key], "_blank");
+        return;
+      }
+      if (key === "post") {
+        openContentStockForm();
+        return;
+      }
+      if (key === "voice") {
+        showToast("音声メモは今後対応予定です。まずはメモで残しましょう");
+        openContentStockForm();
+        return;
+      }
       showToast("この機能はSprint2以降で実装予定です");
     });
   });
