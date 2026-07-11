@@ -682,6 +682,14 @@ img{max-width:100%;display:block;}
 }
 .co-cs-detail-link svg{ width:16px; height:16px; flex-shrink:0; color:var(--c-text-300); }
 
+/* 【Sprint15】AIリサーチ候補: 採用/保留/却下ボタン */
+.co-rc-actions{ display:flex; gap:8px; margin-top:8px; }
+.co-rc-btn{ flex:1; padding:8px 6px; border-radius:10px; border:none; font-size:12px; font-weight:700; }
+.co-rc-btn[data-variant="approve"]{ background:var(--c-green-100); color:var(--c-green-500); }
+.co-rc-btn[data-variant="hold"]{ background:var(--c-surface); color:var(--c-text-500); }
+.co-rc-btn[data-variant="reject"]{ background:var(--c-red-100); color:var(--c-red-500); }
+.co-rc-btn:disabled{ opacity:0.5; }
+
 .co-template-row{ display:flex; gap:8px; overflow-x:auto; padding:2px 20px 4px; margin:0 -20px; scrollbar-width:none; }
 .co-template-row::-webkit-scrollbar{ display:none; }
 .co-template-chip{ flex:0 0 auto; font-size:12px; font-weight:700; background:var(--c-surface); border:none; color:var(--c-navy-900); padding:8px 13px; border-radius:var(--r-chip); cursor:pointer; }
@@ -961,7 +969,8 @@ const API_ENABLED_SCREENS = {
   ai: false,
   sns: false,
   menu: true,
-  contentStock: true
+  contentStock: true,
+  aiResearch: true
 };
 
 function shouldUseApi(screen) {
@@ -1301,6 +1310,14 @@ const CONTENT_STOCK_SEED = {
   ]
 };
 
+/** 【Sprint15】AIリサーチ候補 ダミーデータ(DEV_MODE用) */
+const RESEARCH_CANDIDATES_SEED = {
+  items: [
+    { id: "seed-rc-1", title: "新人がAIツールを覚えるスピードが速すぎる話", contentType: "あるある", targetAudience: "製造業", category: "あるある", tags: "新人,AI", trendScore: 82, reason: "AI活用×世代ギャップは反応が良い傾向", referenceUrl: "", createdAt: "7/11" },
+    { id: "seed-rc-2", title: "図面の見方をClaudeに聞いたら10分で理解できた", contentType: "AI活用", targetAudience: "AI初心者", category: "Claude活用", tags: "Claude,図面", trendScore: 76, reason: "実体験×AIは信頼性が高く伸びやすい", referenceUrl: "", createdAt: "7/11" }
+  ]
+};
+
 /* ============================================================
    2c. 正規化レイヤー
    ============================================================ */
@@ -1482,6 +1499,19 @@ function normalizeRecommendationItem(r) {
   };
 }
 
+function normalizeResearchRecommendationItem(r) {
+  r = r || {};
+  return {
+    id: normalizeString(r.id),
+    title: normalizeString(r.title),
+    category: normalizeString(r.category),
+    contentType: normalizeString(r.contentType),
+    targetAudience: normalizeString(r.targetAudience),
+    trendScore: normalizeNumber(r.trendScore),
+    reason: normalizeString(r.reason)
+  };
+}
+
 function normalizeHomeData(raw) {
   raw = raw || {};
   return {
@@ -1496,7 +1526,8 @@ function normalizeHomeData(raw) {
     player: normalizePlayer(raw.player),
     phase: normalizePhase(raw.phase),
     aiAdvice: normalizeArray(raw.aiAdvice, (v) => normalizeString(v)),
-    recommendations: normalizeArray(raw.recommendations, normalizeRecommendationItem)
+    recommendations: normalizeArray(raw.recommendations, normalizeRecommendationItem),
+    researchRecommendations: normalizeArray(raw.researchRecommendations, normalizeResearchRecommendationItem)
   };
 }
 
@@ -1811,6 +1842,48 @@ const DataLayer = {
       }
     }
     return { success: true };
+  },
+
+  /**
+   * ============================================================
+   * 【Sprint15】AIリサーチ候補(research_candidates)
+   * ============================================================ */
+  async getResearchCandidates() {
+    if (shouldUseApi("aiResearch")) {
+      try {
+        return await apiRequest("getResearchCandidates");
+      } catch (e) {
+        Logger.error("[DataLayer] getResearchCandidates: API取得失敗。ダミーデータにフォールバックします。", e);
+        showToast("データ取得に失敗しました。オフラインデータを表示します");
+      }
+    }
+    return new Promise((resolve) => setTimeout(() => resolve(RESEARCH_CANDIDATES_SEED), 300));
+  },
+
+  async approveResearchCandidate(payload) {
+    if (shouldUseApi("aiResearch")) {
+      try {
+        return await apiRequest("approveResearchCandidate", payload, "POST");
+      } catch (e) {
+        Logger.error("[DataLayer] approveResearchCandidate: 失敗", e);
+        showToast("採用処理に失敗しました");
+        throw e;
+      }
+    }
+    return { success: true };
+  },
+
+  async updateResearchCandidateStatus(payload) {
+    if (shouldUseApi("aiResearch")) {
+      try {
+        return await apiRequest("updateResearchCandidateStatus", payload, "POST");
+      } catch (e) {
+        Logger.error("[DataLayer] updateResearchCandidateStatus: 失敗", e);
+        showToast("更新に失敗しました");
+        throw e;
+      }
+    }
+    return { success: true };
   }
 };
 
@@ -1872,6 +1945,20 @@ const Repository = {
   updateContentStockItem: async (payload) => {
     const result = await DataLayer.updateContentStockItem(payload);
     CACHE_STRATEGY.clear("contentStock");
+    CACHE_STRATEGY.clear("home");
+    return result;
+  },
+  getResearchCandidates: () => withCache("aiResearch", () => DataLayer.getResearchCandidates()),
+  approveResearchCandidate: async (payload) => {
+    const result = await DataLayer.approveResearchCandidate(payload);
+    CACHE_STRATEGY.clear("aiResearch");
+    CACHE_STRATEGY.clear("contentStock");
+    CACHE_STRATEGY.clear("home");
+    return result;
+  },
+  updateResearchCandidateStatus: async (payload) => {
+    const result = await DataLayer.updateResearchCandidateStatus(payload);
+    CACHE_STRATEGY.clear("aiResearch");
     CACHE_STRATEGY.clear("home");
     return result;
   }
@@ -2800,7 +2887,11 @@ const SPRINT11_MENU_ITEMS = [
 const SPRINT14_MENU_ITEMS = [
   { key: "content_stock", label: "コンテンツストック", icon: "database" }
 ];
-const MENU_KEYS_WITH_DETAIL = ["kpi", "revenue", "level", "phase", "investment", "badges", "content_stock"];
+/** 【Sprint15】AIリサーチ画面へのメニュー導線 */
+const SPRINT15_MENU_ITEMS = [
+  { key: "ai_research", label: "AIリサーチ", icon: "sparkle" }
+];
+const MENU_KEYS_WITH_DETAIL = ["kpi", "revenue", "level", "phase", "investment", "badges", "content_stock", "ai_research"];
 function renderMenuRow(item) {
   const hasDetail = MENU_KEYS_WITH_DETAIL.includes(item.key);
   return `
@@ -2995,6 +3086,10 @@ function bindMenuEvents(container, data) {
         openContentStockList();
         return;
       }
+      if (key === "ai_research") {
+        openResearchCandidatesList();
+        return;
+      }
       showToast("この項目はSprint5以降で実装予定です");
     });
   });
@@ -3020,7 +3115,7 @@ async function renderMenuScreen() {
       </div>
     </section>
     <section class="co-section" data-component="menu-list" style="margin-bottom:8px;">
-      <div class="co-card">${data.items.map(renderMenuRow).join("")}${SPRINT11_MENU_ITEMS.map(renderMenuRow).join("")}${SPRINT14_MENU_ITEMS.map(renderMenuRow).join("")}</div>
+      <div class="co-card">${data.items.map(renderMenuRow).join("")}${SPRINT11_MENU_ITEMS.map(renderMenuRow).join("")}${SPRINT14_MENU_ITEMS.map(renderMenuRow).join("")}${SPRINT15_MENU_ITEMS.map(renderMenuRow).join("")}</div>
     </section>`;
 
   animateEntrance(target);
@@ -3339,6 +3434,139 @@ function openContentStockDetail(item) {
 }
 
 /* ============================================================
+   4g. 【Sprint15】AIリサーチ候補 コンポーネント
+   ------------------------------------------------------------
+   research_candidatesのstatus="candidate"を一覧表示し、
+   採用(→contentsへ登録)/保留/却下の3ボタンで管理する。
+   採用・保留・却下いずれも行を削除せず、statusだけ更新する。
+   ============================================================ */
+function renderResearchCandidateItem_(item) {
+  const metaBits = [item.contentType, item.targetAudience, item.category].filter(Boolean).join(" ・ ");
+  return `
+    <div class="co-cs-item" data-rc-id="${item.id}">
+      <div class="co-cs-item__top">
+        <p class="co-cs-item__title">${item.title || "(無題)"}</p>
+        <span class="co-cs-recommend-badge">話題度 ${item.trendScore}</span>
+      </div>
+      ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
+      ${item.reason ? `<p class="co-cs-item__idea">${item.reason}</p>` : ""}
+      <div class="co-rc-actions">
+        <button class="co-rc-btn" data-variant="approve" data-rc-action="approve" data-rc-id="${item.id}">採用</button>
+        <button class="co-rc-btn" data-variant="hold" data-rc-action="hold" data-rc-id="${item.id}">保留</button>
+        <button class="co-rc-btn" data-variant="reject" data-rc-action="reject" data-rc-id="${item.id}">却下</button>
+      </div>
+    </div>`;
+}
+
+function buildResearchCandidatesListModal_(items) {
+  const body = items.length
+    ? items.map(renderResearchCandidateItem_).join("")
+    : `<div class="co-cs-empty">今は候補がありません。<br>AIリサーチが新しいネタを見つけ次第ここに表示されます。</div>`;
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">AIリサーチ</p><p class="co-modal-subtitle">${items.length}件のおすすめネタ候補</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section">${body}</div>`;
+}
+
+async function openResearchCandidatesList() {
+  openModal(renderSkeletonBlock([60, 60, 60]));
+  let data;
+  try {
+    data = await Repository.getResearchCandidates();
+  } catch (e) {
+    closeModal();
+    showToast("AIリサーチ候補の取得に失敗しました");
+    return;
+  }
+  const items = (data && data.items) || [];
+  openModal(buildResearchCandidatesListModal_(items));
+  bindResearchCandidateActions_(document.querySelector(".co-modal-sheet"), {
+    onHandled: () => openResearchCandidatesList()
+  });
+}
+
+/**
+ * 採用/保留/却下ボタンの共通ハンドラ。HOME側のカードとAIリサーチ
+ * 一覧Modalの両方から呼ばれるため、対象コンテナとハンドル後の
+ * 挙動(onHandled)を引数で受け取る汎用実装にしている。
+ */
+function bindResearchCandidateActions_(container, opts) {
+  if (!container) return;
+  const onHandled = (opts && opts.onHandled) || (() => {});
+
+  container.querySelectorAll("[data-rc-action]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.rcId;
+      const action = btn.dataset.rcAction;
+      const row = container.querySelector(`[data-rc-id="${id}"]`);
+      const buttons = row ? row.querySelectorAll("[data-rc-action]") : [btn];
+      buttons.forEach(b => b.disabled = true);
+
+      try {
+        if (action === "approve") {
+          await Repository.approveResearchCandidate({ id });
+          showToast("採用しました。コンテンツストックに追加されました");
+        } else if (action === "hold") {
+          await Repository.updateResearchCandidateStatus({ id, status: "hold" });
+          showToast("保留にしました");
+        } else if (action === "reject") {
+          await Repository.updateResearchCandidateStatus({ id, status: "rejected" });
+          showToast("却下しました");
+        }
+        if (row) row.remove();
+        onHandled();
+      } catch (e) {
+        showToast("処理に失敗しました");
+        buttons.forEach(b => b.disabled = false);
+      }
+    });
+  });
+}
+
+/**
+ * 【Sprint15③】HOME「今日おすすめの新ネタ」カード。
+ * AI秘書カードの直下に配置(既存の「今日のおすすめネタ」= コンテンツ
+ * ストックのidea一覧とは別枠。こちらはAIリサーチが見つけた新規候補)。
+ */
+function renderResearchRecommendationsCard(items) {
+  if (!items || !items.length) return "";
+  const rows = items.map(item => {
+    const metaBits = [item.contentType, item.targetAudience].filter(Boolean).join(" ・ ");
+    return `
+      <div class="co-cs-item" data-rc-id="${item.id}">
+        <div class="co-cs-item__top">
+          <p class="co-cs-item__title">${item.title}</p>
+          <span class="co-cs-recommend-badge">話題度 ${item.trendScore}</span>
+        </div>
+        ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
+        ${item.reason ? `<p class="co-cs-item__idea">${item.reason}</p>` : ""}
+        <div class="co-rc-actions">
+          <button class="co-rc-btn" data-variant="approve" data-rc-action="approve" data-rc-id="${item.id}">採用</button>
+          <button class="co-rc-btn" data-variant="hold" data-rc-action="hold" data-rc-id="${item.id}">保留</button>
+          <button class="co-rc-btn" data-variant="reject" data-rc-action="reject" data-rc-id="${item.id}">却下</button>
+        </div>
+      </div>`;
+  }).join("");
+  return `
+    <section class="co-section" data-component="research-recommendations-card">
+      <div class="co-card">
+        <div class="co-aiadvice__head">
+          <span class="co-aiadvice__avatar">${icon("sparkle")}</span>
+          <p class="co-aiadvice__title">今日おすすめの新ネタ</p>
+        </div>
+        ${rows}
+      </div>
+    </section>`;
+}
+
+function bindResearchRecommendationsEvents(container) {
+  if (!container) return;
+  bindResearchCandidateActions_(container, { onHandled: () => {} });
+}
+
+/* ============================================================
    5. HOME SCREEN 組み立て
    ============================================================ */
 function buildHomeSkeleton() {
@@ -3441,6 +3669,7 @@ async function renderHomeScreen() {
     renderLevelBar(data.player),
     renderPhaseCard(data.phase),
     renderAiAdviceCard(data.aiAdvice),
+    renderResearchRecommendationsCard(data.researchRecommendations),
     renderRecommendationsCard(data.recommendations),
     renderMissionCard(data.missions),
     renderBriefingCard(data.briefing),
@@ -3460,6 +3689,7 @@ async function renderHomeScreen() {
   animateEntrance(contentEl);
   bindHeaderEvents(contentEl);
   bindLevelPhaseEvents(contentEl, data);
+  bindResearchRecommendationsEvents(contentEl.querySelector('[data-component="research-recommendations-card"]'));
   bindRecommendationsEvents(contentEl.querySelector('[data-component="recommendations-card"]'));
   bindMissionEvents(contentEl.querySelector('[data-component="mission-card"]'), data);
   bindQuickActionEvents(contentEl.querySelector('[data-component="quick-actions"]'));
