@@ -168,6 +168,21 @@ img{max-width:100%;display:block;}
 .co-section{
   padding:10px var(--sp-screen) 0;
 }
+
+/* 【Sprint13】前回データ表示バナー */
+.co-stalebanner{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 14px;
+  border-radius:var(--r-card);
+  background:var(--c-orange-100);
+  color:var(--c-orange-600);
+  font-size:12.5px;
+  font-weight:600;
+  line-height:1.4;
+}
+.co-stalebanner svg{ width:16px; height:16px; flex-shrink:0; }
 .co-section__head{
   display:flex;
   align-items:center;
@@ -901,7 +916,7 @@ function buildAuthHeaders() {
 
 const SUPPORTED_VERSION = "1.0";
 
-const API_TIMEOUT_MS = 20000 ;
+const API_TIMEOUT_MS = 20000;
 
 async function apiRequest(action, params = {}, method = "GET") {
   const controller = new AbortController();
@@ -993,6 +1008,47 @@ function icon(name){ return ICONS[name] || ""; }
    2. DATA LAYER
    ============================================================ */
 const STORAGE_KEY = "ceoOS_v2_home_state";
+
+/**
+ * ============================================================
+ * 【Sprint13】HOMEスナップショット(前回正常取得データの保存)
+ * ------------------------------------------------------------
+ * API取得が成功するたびに正規化済みデータをLocalStorageへ保存する。
+ * 次回以降、API取得に失敗した場合はこのスナップショットを表示し、
+ * 「前回データを表示しています」と分かるバナーを出す(黒画面・
+ * いきなりダミー表示になる事態を避けるための保険)。
+ * ============================================================ */
+const HOME_SNAPSHOT_KEY = "ceoOS_v2_home_snapshot";
+
+function saveHomeSnapshot_(data) {
+  try {
+    localStorage.setItem(HOME_SNAPSHOT_KEY, JSON.stringify({ data, fetchedAt: new Date().toISOString() }));
+  } catch (e) {
+    Logger.warn("[Snapshot] 保存に失敗しました", e);
+  }
+}
+
+function loadHomeSnapshot_() {
+  try {
+    const raw = localStorage.getItem(HOME_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.data || !parsed.fetchedAt) return null;
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+}
+
+/** 最終正常取得日時を人が読める形式に整える(例: 7/11 15:57)。バナー表示用。 */
+function formatStaleTimestamp_(iso) {
+  try {
+    const d = new Date(iso);
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  } catch (e) {
+    return "";
+  }
+}
 
 const DUMMY_SEED = {
   streakDays: 87,
@@ -1474,9 +1530,16 @@ const DataLayer = {
   async getHomeData() {
     if (shouldUseApi("home")) {
       try {
-        return normalizeHomeData(await apiRequest("getHomeData"));
+        const normalized = normalizeHomeData(await apiRequest("getHomeData"));
+        saveHomeSnapshot_(normalized);
+        return normalized;
       } catch (e) {
-        Logger.error("[DataLayer] getHomeData: API取得失敗。ダミーデータにフォールバックします。", e);
+        Logger.error("[DataLayer] getHomeData: API取得失敗。前回データへのフォールバックを試みます。", e);
+        const snapshot = loadHomeSnapshot_();
+        if (snapshot) {
+          showToast("通信が不安定です。前回のデータを表示しています");
+          return { ...snapshot.data, _isStale: true, _staleFetchedAt: snapshot.fetchedAt };
+        }
         showToast("データ取得に失敗しました。オフラインデータを表示します");
       }
     }
@@ -1771,6 +1834,23 @@ function buildSparkline(values, color) {
 /* ============================================================
    4. COMPONENTS
    ============================================================ */
+
+/**
+ * 【Sprint13】通信失敗時に前回データを表示していることを示すバナー。
+ * data._isStale が true のときだけ表示。トースト(数秒で消える)とは違い、
+ * 画面に残り続けるので「今見ているのは最新ではない」ことがずっと分かる。
+ */
+function renderStaleBanner(data) {
+  if (!data || !data._isStale) return "";
+  const timeLabel = formatStaleTimestamp_(data._staleFetchedAt);
+  return `
+    <div class="co-section" data-component="stale-banner" style="padding-top:calc(env(safe-area-inset-top) + 10px);">
+      <div class="co-stalebanner">
+        ${icon("clock")}
+        <span>通信が不安定です。前回データ(${timeLabel}時点)を表示しています</span>
+      </div>
+    </div>`;
+}
 
 function renderHeader(state) {
   return `
@@ -2821,6 +2901,7 @@ async function renderHomeScreen() {
   const data = await Repository.getHomeData();
 
   contentEl.innerHTML = [
+    renderStaleBanner(data),
     renderHeader(data),
     renderLevelBar(data.player),
     renderPhaseCard(data.phase),
