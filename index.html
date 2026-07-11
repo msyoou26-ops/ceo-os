@@ -675,6 +675,12 @@ img{max-width:100%;display:block;}
   font-size:10px; font-weight:700; color:var(--c-orange-600); background:var(--c-orange-100);
   padding:2px 7px; border-radius:var(--r-chip);
 }
+.co-cs-detail-link{
+  display:flex; align-items:center; justify-content:space-between; gap:6px;
+  width:100%; margin-top:4px; padding:9px 2px; border:none; background:none;
+  font-size:12px; font-weight:700; color:var(--c-navy-700); text-align:left;
+}
+.co-cs-detail-link svg{ width:16px; height:16px; flex-shrink:0; color:var(--c-text-300); }
 
 .co-template-row{ display:flex; gap:8px; overflow-x:auto; padding:2px 20px 4px; margin:0 -20px; scrollbar-width:none; }
 .co-template-row::-webkit-scrollbar{ display:none; }
@@ -3056,6 +3062,9 @@ function renderContentStockItem_(item) {
         <select class="co-cs-select" data-cs-field="status" data-cs-id="${item.id}">${contentStatusOptions_(item.status)}</select>
         <select class="co-cs-select" data-cs-field="priority" data-cs-id="${item.id}">${contentPriorityOptions_(item.priority || "normal")}</select>
       </div>
+      <button class="co-cs-detail-link" data-action="cs-open-detail" data-cs-id="${item.id}">
+        生成コンテンツを編集(X・note・TikTok)${icon("chevronRight")}
+      </button>
     </div>`;
 }
 
@@ -3086,10 +3095,10 @@ async function openContentStockList() {
   }
   const items = (data && data.items) || [];
   openModal(buildContentStockListModal_(items));
-  bindContentStockListEvents_();
+  bindContentStockListEvents_(items);
 }
 
-function bindContentStockListEvents_() {
+function bindContentStockListEvents_(items) {
   const sheet = document.querySelector(".co-modal-sheet");
   if (!sheet) return;
 
@@ -3117,6 +3126,13 @@ function bindContentStockListEvents_() {
       } finally {
         select.disabled = false;
       }
+    });
+  });
+
+  sheet.querySelectorAll('[data-action="cs-open-detail"]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      const item = items.find(i => i.id === btn.dataset.csId);
+      if (item) openContentStockDetail(item);
     });
   });
 }
@@ -3193,6 +3209,127 @@ function openContentStockForm() {
       await Repository.createContentStockItem(payload);
       showToast("ネタを保存しました");
       await openContentStockList();
+    } catch (e) {
+      showToast("保存に失敗しました");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "保存";
+    }
+  });
+}
+
+/**
+ * ============================================================
+ * 【Sprint14④】投稿生成導線(構造のみ・API接続なし)
+ * ------------------------------------------------------------
+ * X/note/TikTok台本/TikTok12シーンを、それぞれ編集できる詳細画面。
+ * 実際の文章生成はまだ行わない(AI API未接続のため)。ChatGPT/Claude
+ * とのチャットで作った文章をここに貼り付けて保存する運用を想定。
+ * 画像生成・動画生成・自動投稿はまだ実装しない(次Sprint以降)。
+ * ============================================================ */
+const GEN_STATUS_OPTIONS = ["未着手", "下書き", "投稿済み"];
+const TIKTOK_SCENE_TEMPLATE = [
+  "①フック(最初の3秒)", "②現場紹介", "③問題発生", "④困る", "⑤原因判明",
+  "⑥さらに悪化", "⑦Claude登場", "⑧AI提案", "⑨改善開始", "⑩成功", "⑪ビフォーアフター", "⑫オチ・フォローCTA"
+];
+
+function genStatusOptions_(selected) {
+  return GEN_STATUS_OPTIONS.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${s}</option>`).join("");
+}
+
+/** tiktokScenesJsonを12要素の配列に正規化する(未生成なら空文字で埋める)。 */
+function parseTiktokScenes_(json) {
+  let parsed = [];
+  try { parsed = JSON.parse(json || "[]"); } catch (e) { parsed = []; }
+  if (!Array.isArray(parsed)) parsed = [];
+  return TIKTOK_SCENE_TEMPLATE.map((_, i) => (parsed[i] || ""));
+}
+
+function buildContentStockDetailModal_(item) {
+  const scenes = parseTiktokScenes_(item.tiktokScenesJson);
+  const sceneFields = TIKTOK_SCENE_TEMPLATE.map((label, i) => `
+    <label>${label}</label>
+    <textarea class="cs-detail-scene" data-scene-index="${i}" placeholder="このシーンの内容を書く、またはChatGPT/Claudeの提案を貼り付け">${scenes[i]}</textarea>
+  `).join("");
+
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">${item.title || "(無題)"}</p><p class="co-modal-subtitle">生成コンテンツの編集</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">現場であったこと</p>
+      <p style="font-size:13px; color:var(--c-text-500); line-height:1.6;">${item.idea || "(未入力)"}</p>
+    </div>
+
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">X投稿</p>
+      <label>ステータス</label>
+      <select id="cs-detail-x-status">${genStatusOptions_(item.xStatus || "未着手")}</select>
+      <label>本文</label>
+      <textarea id="cs-detail-x-text" placeholder="ChatGPT/Claudeで作ったX投稿文をここに貼り付け">${item.xText || ""}</textarea>
+    </div>
+
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">note記事</p>
+      <label>ステータス</label>
+      <select id="cs-detail-note-status">${genStatusOptions_(item.noteStatus || "未着手")}</select>
+      <label>本文</label>
+      <textarea id="cs-detail-note-text" placeholder="note記事の本文をここに貼り付け" style="min-height:120px;">${item.noteText || ""}</textarea>
+    </div>
+
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">TikTok台本</p>
+      <label>ステータス</label>
+      <select id="cs-detail-tiktok-status">${genStatusOptions_(item.tiktokStatus || "未着手")}</select>
+      <label>全体の台本メモ</label>
+      <textarea id="cs-detail-tiktok-script" placeholder="12シーン全体のナレーション・セリフ案など">${item.tiktokScript || ""}</textarea>
+    </div>
+
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">TikTok 12シーン絵コンテ</p>
+      ${sceneFields}
+    </div>
+
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">画像生成・動画生成</p>
+      <p class="co-modal-empty-note">画像生成・動画生成・自動投稿は次Sprint以降で対応予定です。</p>
+    </div>
+
+    <div class="co-modal-section">
+      <button class="co-cs-form__submit" data-action="cs-detail-save">保存</button>
+    </div>`;
+}
+
+function openContentStockDetail(item) {
+  openModal(buildContentStockDetailModal_(item));
+  const sheet = document.querySelector(".co-modal-sheet");
+  if (!sheet) return;
+  const saveBtn = sheet.querySelector('[data-action="cs-detail-save"]');
+  if (!saveBtn) return;
+
+  saveBtn.addEventListener("click", async () => {
+    const scenes = Array.from(sheet.querySelectorAll(".cs-detail-scene"))
+      .sort((a, b) => Number(a.dataset.sceneIndex) - Number(b.dataset.sceneIndex))
+      .map(el => el.value.trim());
+
+    const payload = {
+      id: item.id,
+      xStatus: sheet.querySelector("#cs-detail-x-status").value,
+      xText: sheet.querySelector("#cs-detail-x-text").value.trim(),
+      noteStatus: sheet.querySelector("#cs-detail-note-status").value,
+      noteText: sheet.querySelector("#cs-detail-note-text").value.trim(),
+      tiktokStatus: sheet.querySelector("#cs-detail-tiktok-status").value,
+      tiktokScript: sheet.querySelector("#cs-detail-tiktok-script").value.trim(),
+      tiktokScenesJson: JSON.stringify(scenes)
+    };
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = "保存中...";
+    try {
+      await Repository.updateContentStockItem(payload);
+      showToast("生成コンテンツを保存しました");
+      closeModal();
     } catch (e) {
       showToast("保存に失敗しました");
       saveBtn.disabled = false;
