@@ -3625,6 +3625,57 @@ function renderCommentsSection_(item) {
     </div>`;
 }
 
+/**
+ * 【Sprint20①】AI社員へ渡す基本情報をまとめてコピーする
+ * title/idea/category/targetAudience/purposeを1テキストにまとめ、
+ * プロンプト集の{{}}へそのまま貼り付けられる形にする。
+ */
+function buildAiHandoffText_(item) {
+  const purposeLabel = CONTENT_PURPOSE_LABELS[item.purpose] || "未設定";
+  return [
+    `タイトル: ${item.title || ""}`,
+    `現場であったこと: ${item.idea || ""}`,
+    `カテゴリ: ${item.category || ""}`,
+    `想定読者: ${item.targetAudience || ""}`,
+    `目的(purpose): ${item.purpose || ""}(${purposeLabel})`
+  ].join("\n");
+}
+
+/**
+ * 【Sprint20③】8ステップの進捗チェックリスト
+ * ①AIリサーチ→②X→③note→④TikTok→⑤画像→⑥品質→⑦承認→⑧投稿
+ * 一目でどこまで進んだかを俯瞰できるようにする。
+ */
+function computeProgressSteps_(item) {
+  const anyPosted = item.xStatus === "投稿済み" || item.noteStatus === "投稿済み" || item.tiktokStatus === "投稿済み";
+  return [
+    { label: "①リサーチ", done: item.researchStatus === "完了" },
+    { label: "②X", done: !!(item.xText && item.xText.trim()) },
+    { label: "③note", done: !!(item.noteText && item.noteText.trim()) },
+    { label: "④TikTok", done: !!(item.tiktokScript && item.tiktokScript.trim()) },
+    { label: "⑤画像", done: item.imageStatus === "完了" },
+    { label: "⑥品質", done: item.qualityStatus === "完了" },
+    { label: "⑦承認", done: item.approvalStatus === "approved" },
+    { label: "⑧投稿", done: anyPosted }
+  ];
+}
+
+function renderProgressChecklist_(item) {
+  const steps = computeProgressSteps_(item);
+  const doneCount = steps.filter(s => s.done).length;
+  const chips = steps.map(s => `
+    <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:999px; font-size:12px; margin:2px;
+      background:${s.done ? "var(--c-primary, #FF6A2C)" : "var(--c-surface-200, #eee)"};
+      color:${s.done ? "#fff" : "var(--c-text-500, #888)"};">
+      ${s.done ? "✓" : "・"}${s.label}
+    </span>`).join("");
+  return `
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">進捗チェックリスト(${doneCount}/8完了)</p>
+      <div>${chips}</div>
+    </div>`;
+}
+
 function buildContentStockDetailModal_(item) {
   const scenes = parseTiktokScenes_(item.tiktokScenesJson);
   const sceneFields = TIKTOK_SCENE_TEMPLATE.map((label, i) => `
@@ -3638,9 +3689,14 @@ function buildContentStockDetailModal_(item) {
       <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
     </div>
 
+    ${renderProgressChecklist_(item)}
+
     <div class="co-modal-section">
       <p class="co-modal-section__label">現場であったこと</p>
       <p style="font-size:13px; color:var(--c-text-500); line-height:1.6;">${item.idea || "(未入力)"}</p>
+      <button class="co-cs-detail-link" data-action="cs-copy-handoff" style="margin-top:8px;">
+        ${icon("chevronRight")}AI社員へ渡す情報をコピー(title/idea/purpose等)
+      </button>
     </div>
 
     <div class="co-modal-section co-cs-form">
@@ -3698,6 +3754,14 @@ function openContentStockDetail(item) {
   openModal(buildContentStockDetailModal_(item));
   const sheet = document.querySelector(".co-modal-sheet");
   if (!sheet) return;
+
+  /** 【Sprint20①】AI社員へ渡す基本情報をコピー */
+  const copyHandoffBtn = sheet.querySelector('[data-action="cs-copy-handoff"]');
+  if (copyHandoffBtn) {
+    copyHandoffBtn.addEventListener("click", () => {
+      copyToClipboard(buildAiHandoffText_(item));
+    });
+  }
 
   const saveBtn = sheet.querySelector('[data-action="cs-detail-save"]');
   if (saveBtn) {
