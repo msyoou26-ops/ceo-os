@@ -1514,6 +1514,18 @@ function normalizeResearchRecommendationItem(r) {
   };
 }
 
+/** 【Sprint19】AI編集部ダッシュボード(HOME画面) */
+function normalizeAiEditorial(raw) {
+  raw = raw || {};
+  return {
+    activeAiToday: normalizeArray(raw.activeAiToday, (v) => normalizeString(v)),
+    generatedToday: normalizeNumber(raw.generatedToday),
+    pendingApproval: normalizeNumber(raw.pendingApproval),
+    awaitingPost: normalizeNumber(raw.awaitingPost),
+    scheduledThisWeek: normalizeNumber(raw.scheduledThisWeek)
+  };
+}
+
 function normalizeHomeData(raw) {
   raw = raw || {};
   return {
@@ -1529,7 +1541,8 @@ function normalizeHomeData(raw) {
     phase: normalizePhase(raw.phase),
     aiAdvice: normalizeArray(raw.aiAdvice, (v) => normalizeString(v)),
     recommendations: normalizeArray(raw.recommendations, normalizeRecommendationItem),
-    researchRecommendations: normalizeArray(raw.researchRecommendations, normalizeResearchRecommendationItem)
+    researchRecommendations: normalizeArray(raw.researchRecommendations, normalizeResearchRecommendationItem),
+    aiEditorial: normalizeAiEditorial(raw.aiEditorial)
   };
 }
 
@@ -2315,6 +2328,45 @@ function renderAiAdviceCard(lines) {
           <p class="co-aiadvice__title">AI秘書からの提案</p>
         </div>
         ${rows}
+      </div>
+    </section>`;
+}
+
+/**
+ * ============================================================
+ * 【Sprint19】AI編集部ダッシュボード
+ * ------------------------------------------------------------
+ * ①AIリサーチ〜⑧SNS分析までの8人が今どれだけ動いているかを
+ * HOME画面を開いた瞬間に一覧できるカード。データはGAS側
+ * computeAiEditorialDashboard_()で集計済みのものをそのまま表示する。
+ * ============================================================ */
+function renderAiEditorialDashboardCard(aiEditorial) {
+  if (!aiEditorial) return "";
+  const activeAiText = aiEditorial.activeAiToday.length
+    ? aiEditorial.activeAiToday.join("・")
+    : "まだ稼働なし";
+  const stats = [
+    { label: "生成コンテンツ", value: aiEditorial.generatedToday, unit: "件" },
+    { label: "承認待ち", value: aiEditorial.pendingApproval, unit: "件" },
+    { label: "投稿待ち", value: aiEditorial.awaitingPost, unit: "件" },
+    { label: "今週投稿予定", value: aiEditorial.scheduledThisWeek, unit: "件" }
+  ];
+  const statRows = stats.map(s => `
+    <div class="co-cs-item" style="text-align:center; padding:10px 4px;">
+      <p style="font-size:20px; font-weight:700; color:var(--c-primary, #FF6A2C);">${s.value}<span style="font-size:12px; font-weight:400;">${s.unit}</span></p>
+      <p class="co-cs-item__meta" style="margin:0;">${s.label}</p>
+    </div>`).join("");
+  return `
+    <section class="co-section" data-component="ai-editorial-dashboard">
+      <div class="co-card">
+        <div class="co-aiadvice__head">
+          <span class="co-aiadvice__avatar">${icon("ai")}</span>
+          <p class="co-aiadvice__title">AI編集部ダッシュボード</p>
+        </div>
+        <p class="co-cs-item__meta">今日動いたAI社員: ${activeAiText}</p>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; margin-top:8px;">
+          ${statRows}
+        </div>
       </div>
     </section>`;
 }
@@ -4002,6 +4054,7 @@ async function renderHomeScreen() {
     renderLevelBar(data.player),
     renderPhaseCard(data.phase),
     renderAiAdviceCard(data.aiAdvice),
+    renderAiEditorialDashboardCard(data.aiEditorial),
     renderResearchRecommendationsCard(data.researchRecommendations),
     renderRecommendationsCard(data.recommendations),
     renderMissionCard(data.missions),
