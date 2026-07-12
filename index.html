@@ -1304,9 +1304,9 @@ const MENU_SEED = {
 /** 【Sprint14】Content Stock ダミーデータ(DEV_MODE用) */
 const CONTENT_STOCK_SEED = {
   items: [
-    { id: "seed-1", title: "新人教育あるある", contentType: "あるある", targetAudience: "製造業", category: "あるある", tags: "教育,新人", status: "idea", priority: "high", idea: "教えたはずなのに次の日にはできなくなってる新人あるある。", memo: "", photo: "", createdAt: "7/9", updatedAt: "7/9" },
-    { id: "seed-2", title: "改善提案した人だけ仕事が増える", contentType: "あるある", targetAudience: "工場勤務", category: "あるある", tags: "改善,QC", status: "idea", priority: "normal", idea: "QC活動で改善提案すると、その仕事がそのまま自分の担当になる現象。", memo: "", photo: "", createdAt: "7/10", updatedAt: "7/10" },
-    { id: "seed-3", title: "AIで現場改善", contentType: "AI活用", targetAudience: "AI初心者", category: "Claude活用", tags: "Claude,AI", status: "draft", priority: "normal", idea: "Claudeに図面の読み方を聞いたら理解が早まった話。", memo: "", photo: "", createdAt: "7/8", updatedAt: "7/10" }
+    { id: "seed-1", title: "新人教育あるある", contentType: "あるある", targetAudience: "製造業", category: "あるある", tags: "教育,新人", status: "idea", priority: "high", purpose: "follower", idea: "教えたはずなのに次の日にはできなくなってる新人あるある。", memo: "", photo: "", createdAt: "7/9", updatedAt: "7/9" },
+    { id: "seed-2", title: "改善提案した人だけ仕事が増える", contentType: "あるある", targetAudience: "工場勤務", category: "あるある", tags: "改善,QC", status: "idea", priority: "normal", purpose: "engagement", idea: "QC活動で改善提案すると、その仕事がそのまま自分の担当になる現象。", memo: "", photo: "", createdAt: "7/10", updatedAt: "7/10" },
+    { id: "seed-3", title: "AIで現場改善", contentType: "AI活用", targetAudience: "AI初心者", category: "Claude活用", tags: "Claude,AI", status: "draft", priority: "normal", purpose: "note", idea: "Claudeに図面の読み方を聞いたら理解が早まった話。", memo: "", photo: "", createdAt: "7/8", updatedAt: "7/10" }
   ]
 };
 
@@ -1495,7 +1495,9 @@ function normalizeRecommendationItem(r) {
     category: normalizeString(r.category),
     contentType: normalizeString(r.contentType),
     targetAudience: normalizeString(r.targetAudience),
-    priority: normalizeString(r.priority) || "normal"
+    priority: normalizeString(r.priority) || "normal",
+    /** 【Sprint16②】ネタの目的(follower/engagement/note/paid/product/branding) */
+    purpose: normalizeString(r.purpose)
   };
 }
 
@@ -2268,13 +2270,14 @@ function renderRecommendationsCard(recommendations) {
   if (!recommendations || !recommendations.length) return "";
   const rows = recommendations.map(r => {
     const metaBits = [r.contentType, r.targetAudience].filter(Boolean).join(" ・ ");
+    const purposeLabel = CONTENT_PURPOSE_LABELS[r.purpose] || "";
     return `
       <div class="co-cs-item" data-action="open-recommendation" style="cursor:pointer;">
         <div class="co-cs-item__top">
           <p class="co-cs-item__title">${r.title}</p>
           <span class="co-cs-recommend-badge">${CONTENT_PRIORITY_LABELS[r.priority] || "優先度:中"}</span>
         </div>
-        ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
+        ${metaBits ? `<p class="co-cs-item__meta">${metaBits}${purposeLabel ? ` ・ ${purposeLabel}` : ""}</p>` : (purposeLabel ? `<p class="co-cs-item__meta">${purposeLabel}</p>` : "")}
       </div>`;
   }).join("");
   return `
@@ -3136,15 +3139,35 @@ const CONTENT_STATUS_ORDER = ["idea", "draft", "review", "approved", "posted"];
 const CONTENT_PRIORITY_LABELS = { high: "優先度:高", normal: "優先度:中", low: "優先度:低" };
 const CONTENT_PRIORITY_ORDER = ["high", "normal", "low"];
 
+/**
+ * 【Sprint16①】ネタの目的(purpose)
+ * follower:フォロワー獲得 / engagement:保存・コメント狙い / note:note誘導
+ * paid:有料記事 / product:商品・システム紹介 / branding:ブランディング
+ */
+const CONTENT_PURPOSE_LABELS = {
+  follower: "🎯フォロワー獲得",
+  engagement: "💬保存・コメント",
+  note: "📝note誘導",
+  paid: "💰有料記事",
+  product: "🛠商品紹介",
+  branding: "🏷ブランディング"
+};
+const CONTENT_PURPOSE_ORDER = ["follower", "engagement", "note", "paid", "product", "branding"];
+
 function contentStatusOptions_(selected) {
   return CONTENT_STATUS_ORDER.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${CONTENT_STATUS_LABELS[s]}</option>`).join("");
 }
 function contentPriorityOptions_(selected) {
   return CONTENT_PRIORITY_ORDER.map(p => `<option value="${p}" ${p === selected ? "selected" : ""}>${CONTENT_PRIORITY_LABELS[p]}</option>`).join("");
 }
+function contentPurposeOptions_(selected) {
+  const blank = `<option value="" ${!selected ? "selected" : ""}>未設定</option>`;
+  return blank + CONTENT_PURPOSE_ORDER.map(p => `<option value="${p}" ${p === selected ? "selected" : ""}>${CONTENT_PURPOSE_LABELS[p]}</option>`).join("");
+}
 
 function renderContentStockItem_(item) {
   const metaBits = [item.contentType, item.targetAudience, item.category].filter(Boolean).join(" ・ ");
+  const purposeLabel = CONTENT_PURPOSE_LABELS[item.purpose] || "";
   return `
     <div class="co-cs-item" data-cs-id="${item.id}">
       <div class="co-cs-item__top">
@@ -3152,6 +3175,7 @@ function renderContentStockItem_(item) {
         <span class="co-status-badge" data-status="${item.status}">${CONTENT_STATUS_LABELS[item.status] || item.status}</span>
       </div>
       ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
+      ${purposeLabel ? `<p class="co-cs-item__meta">${purposeLabel}</p>` : ""}
       ${item.idea ? `<p class="co-cs-item__idea">${item.idea}</p>` : ""}
       <div class="co-cs-item__controls">
         <select class="co-cs-select" data-cs-field="status" data-cs-id="${item.id}">${contentStatusOptions_(item.status)}</select>
@@ -3262,6 +3286,9 @@ function buildContentStockFormModal_() {
       <label>優先度</label>
       <select id="cs-form-priority">${contentPriorityOptions_("normal")}</select>
 
+      <label>目的(purpose)</label>
+      <select id="cs-form-purpose">${contentPurposeOptions_("")}</select>
+
       <label>現場であったこと</label>
       <textarea id="cs-form-idea" placeholder="現場で気づいたこと・あったことを書いてください"></textarea>
 
@@ -3294,6 +3321,7 @@ function openContentStockForm() {
       category: sheet.querySelector("#cs-form-category").value.trim(),
       tags: sheet.querySelector("#cs-form-tags").value.trim(),
       priority: sheet.querySelector("#cs-form-priority").value,
+      purpose: sheet.querySelector("#cs-form-purpose").value,
       idea: sheet.querySelector("#cs-form-idea").value.trim(),
       memo: sheet.querySelector("#cs-form-memo").value.trim(),
       photo: sheet.querySelector("#cs-form-photo").value.trim()
@@ -3358,6 +3386,12 @@ function buildContentStockDetailModal_(item) {
     </div>
 
     <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">目的(purpose)</p>
+      <label>このネタの目的</label>
+      <select id="cs-detail-purpose">${contentPurposeOptions_(item.purpose || "")}</select>
+    </div>
+
+    <div class="co-modal-section co-cs-form">
       <p class="co-modal-section__label">X投稿</p>
       <label>ステータス</label>
       <select id="cs-detail-x-status">${genStatusOptions_(item.xStatus || "未着手")}</select>
@@ -3410,6 +3444,7 @@ function openContentStockDetail(item) {
 
     const payload = {
       id: item.id,
+      purpose: sheet.querySelector("#cs-detail-purpose").value,
       xStatus: sheet.querySelector("#cs-detail-x-status").value,
       xText: sheet.querySelector("#cs-detail-x-text").value.trim(),
       noteStatus: sheet.querySelector("#cs-detail-note-status").value,
