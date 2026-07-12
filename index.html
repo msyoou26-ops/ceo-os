@@ -1848,6 +1848,49 @@ const DataLayer = {
 
   /**
    * ============================================================
+   * 【Sprint18】AI編集部: 出力履歴・コメント・承認フロー
+   * ============================================================ */
+  async appendContentHistory(payload) {
+    if (shouldUseApi("contentStock")) {
+      try {
+        return await apiRequest("appendContentHistory", payload, "POST");
+      } catch (e) {
+        Logger.error("[DataLayer] appendContentHistory: 保存失敗", e);
+        showToast("履歴の保存に失敗しました");
+        throw e;
+      }
+    }
+    return { success: true, version: 1 };
+  },
+
+  async appendContentComment(payload) {
+    if (shouldUseApi("contentStock")) {
+      try {
+        return await apiRequest("appendContentComment", payload, "POST");
+      } catch (e) {
+        Logger.error("[DataLayer] appendContentComment: 保存失敗", e);
+        showToast("コメントの保存に失敗しました");
+        throw e;
+      }
+    }
+    return { success: true };
+  },
+
+  async updateApprovalStatus(payload) {
+    if (shouldUseApi("contentStock")) {
+      try {
+        return await apiRequest("updateApprovalStatus", payload, "POST");
+      } catch (e) {
+        Logger.error("[DataLayer] updateApprovalStatus: 更新失敗", e);
+        showToast("承認ステータスの更新に失敗しました");
+        throw e;
+      }
+    }
+    return { success: true };
+  },
+
+  /**
+   * ============================================================
    * 【Sprint15】AIリサーチ候補(research_candidates)
    * ============================================================ */
   async getResearchCandidates() {
@@ -1946,6 +1989,24 @@ const Repository = {
   },
   updateContentStockItem: async (payload) => {
     const result = await DataLayer.updateContentStockItem(payload);
+    CACHE_STRATEGY.clear("contentStock");
+    CACHE_STRATEGY.clear("home");
+    return result;
+  },
+  appendContentHistory: async (payload) => {
+    const result = await DataLayer.appendContentHistory(payload);
+    CACHE_STRATEGY.clear("contentStock");
+    CACHE_STRATEGY.clear("home");
+    return result;
+  },
+  appendContentComment: async (payload) => {
+    const result = await DataLayer.appendContentComment(payload);
+    CACHE_STRATEGY.clear("contentStock");
+    CACHE_STRATEGY.clear("home");
+    return result;
+  },
+  updateApprovalStatus: async (payload) => {
+    const result = await DataLayer.updateApprovalStatus(payload);
     CACHE_STRATEGY.clear("contentStock");
     CACHE_STRATEGY.clear("home");
     return result;
@@ -3154,6 +3215,48 @@ const CONTENT_PURPOSE_LABELS = {
 };
 const CONTENT_PURPOSE_ORDER = ["follower", "engagement", "note", "paid", "product", "branding"];
 
+/**
+ * 【Sprint18③】承認フロー
+ * 通常投稿: draft → pending → approved
+ * 有料note: draft → pending(一次承認) → content_approved(二次承認待ち) → approved
+ */
+const APPROVAL_STATUS_LABELS = {
+  draft: "未提出", pending: "承認待ち", content_approved: "二次承認待ち(価格/公開範囲)", approved: "承認済み"
+};
+
+/** 【Sprint18①】AI社員別ステータス */
+const AI_STAFF_STATUS_OPTIONS = ["未実行", "完了"];
+const AI_STAFF_FIELDS = [
+  { field: "researchStatus", label: "AIリサーチ" },
+  { field: "imageStatus", label: "画像クリエイター" },
+  { field: "qualityStatus", label: "品質管理" },
+  { field: "analyticsStatus", label: "SNS分析" }
+];
+
+/** 【Sprint18②④】履歴・コメントの発言者(AI社員)候補 */
+const AI_STAFF_NAMES = ["AIリサーチ", "X編集", "note編集", "TikTokディレクター", "画像クリエイター", "品質管理", "SNS分析", "投稿マネージャー", "オーナー"];
+
+function aiStaffStatusOptions_(selected) {
+  return AI_STAFF_STATUS_OPTIONS.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${s}</option>`).join("");
+}
+function aiStaffNameOptions_() {
+  return AI_STAFF_NAMES.map(n => `<option value="${n}">${n}</option>`).join("");
+}
+/** 履歴・コメントのISO日時を "7/12 23:40" のような表示用文字列に変換 */
+function formatHistoryDateTime_(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
+}
+/** GAS側todayDateString_と同じ "M/D" 形式(承認日のローカル即時反映用) */
+function todayShortDate_() {
+  const d = new Date();
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
 function contentStatusOptions_(selected) {
   return CONTENT_STATUS_ORDER.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${CONTENT_STATUS_LABELS[s]}</option>`).join("");
 }
@@ -3168,6 +3271,8 @@ function contentPurposeOptions_(selected) {
 function renderContentStockItem_(item) {
   const metaBits = [item.contentType, item.targetAudience, item.category].filter(Boolean).join(" ・ ");
   const purposeLabel = CONTENT_PURPOSE_LABELS[item.purpose] || "";
+  const approvalLabel = APPROVAL_STATUS_LABELS[item.approvalStatus] || "未提出";
+  const doneCount = AI_STAFF_FIELDS.filter(f => item[f.field] === "完了").length;
   return `
     <div class="co-cs-item" data-cs-id="${item.id}">
       <div class="co-cs-item__top">
@@ -3176,6 +3281,7 @@ function renderContentStockItem_(item) {
       </div>
       ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
       ${purposeLabel ? `<p class="co-cs-item__meta">${purposeLabel}</p>` : ""}
+      <p class="co-cs-item__meta">🗂${approvalLabel} ・ 🤖AI社員${doneCount}/4完了</p>
       ${item.idea ? `<p class="co-cs-item__idea">${item.idea}</p>` : ""}
       <div class="co-cs-item__controls">
         <select class="co-cs-select" data-cs-field="status" data-cs-id="${item.id}">${contentStatusOptions_(item.status)}</select>
@@ -3367,6 +3473,106 @@ function parseTiktokScenes_(json) {
   return TIKTOK_SCENE_TEMPLATE.map((_, i) => (parsed[i] || ""));
 }
 
+/**
+ * 【Sprint18③】承認フローの次アクションを判定する。
+ * 通常投稿: draft→pending→approved
+ * 有料note(purpose=paid): draft→pending(一次)→content_approved(二次待ち)→approved
+ */
+function nextApprovalAction_(item) {
+  const isPaid = item.purpose === "paid";
+  const s = item.approvalStatus || "draft";
+  if (s === "draft") return { label: "承認待ちに提出する", target: "pending", needsApprovedBy: false };
+  if (s === "pending" && isPaid) return { label: "一次承認する(内容・価値・SEO)", target: "content_approved", needsApprovedBy: false };
+  if (s === "pending") return { label: "承認する", target: "approved", needsApprovedBy: true };
+  if (s === "content_approved") return { label: "最終承認する(価格・公開範囲・購入導線)", target: "approved", needsApprovedBy: true };
+  return null; // approved済み: 次アクションなし
+}
+
+function renderApprovalSection_(item) {
+  const label = APPROVAL_STATUS_LABELS[item.approvalStatus] || "未提出";
+  const action = nextApprovalAction_(item);
+  const approvedInfo = item.approvalStatus === "approved"
+    ? `<p class="co-modal-empty-note">承認者: ${item.approvedBy || "(未記録)"} / 承認日: ${item.approvedAt || "-"}</p>`
+    : "";
+  return `
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">承認フロー</p>
+      <p style="font-size:14px; font-weight:600;">現在のステータス: ${label}</p>
+      ${approvedInfo}
+      ${action ? `
+        ${action.needsApprovedBy ? `<label>承認者名</label><input type="text" id="cs-detail-approved-by" placeholder="例: 森下">` : ""}
+        <button class="co-cs-form__submit" data-action="cs-approval-advance" data-target="${action.target}" style="margin-top:8px;">${action.label}</button>
+      ` : `<p class="co-modal-empty-note">このネタは承認済みです。</p>`}
+      ${item.approvalStatus !== "draft" ? `<button class="co-cs-detail-link" data-action="cs-approval-reset" style="margin-top:8px;">下書きに戻す</button>` : ""}
+    </div>`;
+}
+
+function renderAiStaffStatusSection_(item) {
+  const rows = AI_STAFF_FIELDS.map(f => `
+    <label>${f.label}</label>
+    <select id="cs-detail-${f.field}">${aiStaffStatusOptions_(item[f.field] || "未実行")}</select>
+  `).join("");
+  return `
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">AI社員ステータス</p>
+      ${rows}
+    </div>`;
+}
+
+function renderHistorySection_(item) {
+  const history = Array.isArray(item.history) ? item.history.slice().reverse() : [];
+  const rows = history.length
+    ? history.map(h => `
+        <div class="co-cs-item" style="margin-bottom:8px;">
+          <div class="co-cs-item__top">
+            <p class="co-cs-item__title">Ver${h.version} ・ ${h.ai || "不明"}</p>
+            <span class="co-status-badge" data-status="${h.status}">${h.status || "draft"}</span>
+          </div>
+          <p class="co-cs-item__meta">${formatHistoryDateTime_(h.createdAt)}</p>
+          <p class="co-cs-item__idea">${(h.text || "").slice(0, 200)}</p>
+        </div>`).join("")
+    : `<p class="co-modal-empty-note">まだ履歴はありません。</p>`;
+  return `
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">出力履歴(Ver管理)</p>
+      ${rows}
+      <label>追加する担当AI</label>
+      <select id="cs-history-ai">${aiStaffNameOptions_()}</select>
+      <label>本文</label>
+      <textarea id="cs-history-text" placeholder="新しいバージョンの本文を貼り付け"></textarea>
+      <label>ステータス</label>
+      <select id="cs-history-status">
+        <option value="draft">draft(下書き)</option>
+        <option value="approved">approved(採用)</option>
+      </select>
+      <button class="co-cs-form__submit" data-action="cs-history-add" style="margin-top:8px;">履歴に追加</button>
+    </div>`;
+}
+
+function renderCommentsSection_(item) {
+  const comments = Array.isArray(item.comments) ? item.comments.slice().reverse() : [];
+  const rows = comments.length
+    ? comments.map(c => `
+        <div class="co-cs-item" style="margin-bottom:8px;">
+          <div class="co-cs-item__top">
+            <p class="co-cs-item__title">${c.ai || "不明"}</p>
+            <span class="co-cs-item__meta">${formatHistoryDateTime_(c.time)}</span>
+          </div>
+          <p class="co-cs-item__idea">${c.comment || ""}</p>
+        </div>`).join("")
+    : `<p class="co-modal-empty-note">まだコメントはありません。</p>`;
+  return `
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">AI社員コメント</p>
+      ${rows}
+      <label>発言者</label>
+      <select id="cs-comment-ai">${aiStaffNameOptions_()}</select>
+      <label>コメント</label>
+      <textarea id="cs-comment-text" placeholder="例: 話題度84。今週向きです。"></textarea>
+      <button class="co-cs-form__submit" data-action="cs-comment-add" style="margin-top:8px;">コメントを追加</button>
+    </div>`;
+}
+
 function buildContentStockDetailModal_(item) {
   const scenes = parseTiktokScenes_(item.tiktokScenesJson);
   const sceneFields = TIKTOK_SCENE_TEMPLATE.map((label, i) => `
@@ -3390,6 +3596,8 @@ function buildContentStockDetailModal_(item) {
       <label>このネタの目的</label>
       <select id="cs-detail-purpose">${contentPurposeOptions_(item.purpose || "")}</select>
     </div>
+
+    ${renderAiStaffStatusSection_(item)}
 
     <div class="co-modal-section co-cs-form">
       <p class="co-modal-section__label">X投稿</p>
@@ -3425,6 +3633,10 @@ function buildContentStockDetailModal_(item) {
       <p class="co-modal-empty-note">画像生成・動画生成・自動投稿は次Sprint以降で対応予定です。</p>
     </div>
 
+    ${renderApprovalSection_(item)}
+    ${renderHistorySection_(item)}
+    ${renderCommentsSection_(item)}
+
     <div class="co-modal-section">
       <button class="co-cs-form__submit" data-action="cs-detail-save">保存</button>
     </div>`;
@@ -3434,38 +3646,124 @@ function openContentStockDetail(item) {
   openModal(buildContentStockDetailModal_(item));
   const sheet = document.querySelector(".co-modal-sheet");
   if (!sheet) return;
+
   const saveBtn = sheet.querySelector('[data-action="cs-detail-save"]');
-  if (!saveBtn) return;
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      const scenes = Array.from(sheet.querySelectorAll(".cs-detail-scene"))
+        .sort((a, b) => Number(a.dataset.sceneIndex) - Number(b.dataset.sceneIndex))
+        .map(el => el.value.trim());
 
-  saveBtn.addEventListener("click", async () => {
-    const scenes = Array.from(sheet.querySelectorAll(".cs-detail-scene"))
-      .sort((a, b) => Number(a.dataset.sceneIndex) - Number(b.dataset.sceneIndex))
-      .map(el => el.value.trim());
+      const payload = {
+        id: item.id,
+        purpose: sheet.querySelector("#cs-detail-purpose").value,
+        xStatus: sheet.querySelector("#cs-detail-x-status").value,
+        xText: sheet.querySelector("#cs-detail-x-text").value.trim(),
+        noteStatus: sheet.querySelector("#cs-detail-note-status").value,
+        noteText: sheet.querySelector("#cs-detail-note-text").value.trim(),
+        tiktokStatus: sheet.querySelector("#cs-detail-tiktok-status").value,
+        tiktokScript: sheet.querySelector("#cs-detail-tiktok-script").value.trim(),
+        tiktokScenesJson: JSON.stringify(scenes)
+      };
+      AI_STAFF_FIELDS.forEach(f => {
+        const el = sheet.querySelector(`#cs-detail-${f.field}`);
+        if (el) payload[f.field] = el.value;
+      });
 
-    const payload = {
-      id: item.id,
-      purpose: sheet.querySelector("#cs-detail-purpose").value,
-      xStatus: sheet.querySelector("#cs-detail-x-status").value,
-      xText: sheet.querySelector("#cs-detail-x-text").value.trim(),
-      noteStatus: sheet.querySelector("#cs-detail-note-status").value,
-      noteText: sheet.querySelector("#cs-detail-note-text").value.trim(),
-      tiktokStatus: sheet.querySelector("#cs-detail-tiktok-status").value,
-      tiktokScript: sheet.querySelector("#cs-detail-tiktok-script").value.trim(),
-      tiktokScenesJson: JSON.stringify(scenes)
-    };
+      saveBtn.disabled = true;
+      saveBtn.textContent = "保存中...";
+      try {
+        await Repository.updateContentStockItem(payload);
+        Object.assign(item, payload);
+        showToast("生成コンテンツを保存しました");
+        closeModal();
+      } catch (e) {
+        showToast("保存に失敗しました");
+        saveBtn.disabled = false;
+        saveBtn.textContent = "保存";
+      }
+    });
+  }
 
-    saveBtn.disabled = true;
-    saveBtn.textContent = "保存中...";
-    try {
-      await Repository.updateContentStockItem(payload);
-      showToast("生成コンテンツを保存しました");
-      closeModal();
-    } catch (e) {
-      showToast("保存に失敗しました");
-      saveBtn.disabled = false;
-      saveBtn.textContent = "保存";
-    }
-  });
+  /** 【Sprint18③】承認フロー: ステータスを進める */
+  const approvalBtn = sheet.querySelector('[data-action="cs-approval-advance"]');
+  if (approvalBtn) {
+    approvalBtn.addEventListener("click", async () => {
+      const target = approvalBtn.dataset.target;
+      const approvedByEl = sheet.querySelector("#cs-detail-approved-by");
+      const approvedBy = approvedByEl ? approvedByEl.value.trim() : "";
+      approvalBtn.disabled = true;
+      try {
+        await Repository.updateApprovalStatus({ id: item.id, approvalStatus: target, approvedBy });
+        item.approvalStatus = target;
+        if (target === "approved") {
+          item.approvedBy = approvedBy;
+          item.approvedAt = todayShortDate_();
+        }
+        showToast("承認ステータスを更新しました");
+        openContentStockDetail(item);
+      } catch (e) {
+        showToast("更新に失敗しました");
+        approvalBtn.disabled = false;
+      }
+    });
+  }
+  const approvalResetBtn = sheet.querySelector('[data-action="cs-approval-reset"]');
+  if (approvalResetBtn) {
+    approvalResetBtn.addEventListener("click", async () => {
+      try {
+        await Repository.updateApprovalStatus({ id: item.id, approvalStatus: "draft" });
+        item.approvalStatus = "draft";
+        showToast("下書きに戻しました");
+        openContentStockDetail(item);
+      } catch (e) {
+        showToast("更新に失敗しました");
+      }
+    });
+  }
+
+  /** 【Sprint18②】出力履歴を追加 */
+  const historyAddBtn = sheet.querySelector('[data-action="cs-history-add"]');
+  if (historyAddBtn) {
+    historyAddBtn.addEventListener("click", async () => {
+      const text = sheet.querySelector("#cs-history-text").value.trim();
+      if (!text) { showToast("本文を入力してください"); return; }
+      const ai = sheet.querySelector("#cs-history-ai").value;
+      const status = sheet.querySelector("#cs-history-status").value;
+      historyAddBtn.disabled = true;
+      try {
+        const result = await Repository.appendContentHistory({ id: item.id, ai, text, status });
+        item.history = Array.isArray(item.history) ? item.history : [];
+        item.history.push({ version: result.version || (item.history.length + 1), ai, text, status, createdAt: new Date().toISOString() });
+        showToast("履歴に追加しました");
+        openContentStockDetail(item);
+      } catch (e) {
+        showToast("追加に失敗しました");
+        historyAddBtn.disabled = false;
+      }
+    });
+  }
+
+  /** 【Sprint18④】AI社員コメントを追加 */
+  const commentAddBtn = sheet.querySelector('[data-action="cs-comment-add"]');
+  if (commentAddBtn) {
+    commentAddBtn.addEventListener("click", async () => {
+      const comment = sheet.querySelector("#cs-comment-text").value.trim();
+      if (!comment) { showToast("コメントを入力してください"); return; }
+      const ai = sheet.querySelector("#cs-comment-ai").value;
+      commentAddBtn.disabled = true;
+      try {
+        await Repository.appendContentComment({ id: item.id, ai, comment });
+        item.comments = Array.isArray(item.comments) ? item.comments : [];
+        item.comments.push({ ai, comment, time: new Date().toISOString() });
+        showToast("コメントを追加しました");
+        openContentStockDetail(item);
+      } catch (e) {
+        showToast("追加に失敗しました");
+        commentAddBtn.disabled = false;
+      }
+    });
+  }
 }
 
 /* ============================================================
