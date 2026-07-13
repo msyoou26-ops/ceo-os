@@ -3746,8 +3746,62 @@ function buildContentStockDetailModal_(item) {
     ${renderCommentsSection_(item)}
 
     <div class="co-modal-section">
+      <p id="cs-autosave-indicator" class="co-modal-empty-note">入力後、自動的に下書き保存されます</p>
       <button class="co-cs-form__submit" data-action="cs-detail-save">保存</button>
     </div>`;
+}
+
+/**
+ * 【Sprint21バグ修正】フォームの現在値を1つのpayloadにまとめて取得する。
+ * 保存ボタン・自動保存・承認/履歴/コメント操作の前フラッシュ、全てここを共有する。
+ */
+function collectContentFormValues_(sheet) {
+  const scenes = Array.from(sheet.querySelectorAll(".cs-detail-scene"))
+    .sort((a, b) => Number(a.dataset.sceneIndex) - Number(b.dataset.sceneIndex))
+    .map(el => el.value.trim());
+
+  const getVal = (id) => {
+    const el = sheet.querySelector(id);
+    return el ? el.value.trim() : undefined;
+  };
+
+  const payload = {
+    purpose: getVal("#cs-detail-purpose"),
+    xStatus: getVal("#cs-detail-x-status"),
+    xText: getVal("#cs-detail-x-text"),
+    noteStatus: getVal("#cs-detail-note-status"),
+    noteText: getVal("#cs-detail-note-text"),
+    tiktokStatus: getVal("#cs-detail-tiktok-status"),
+    tiktokScript: getVal("#cs-detail-tiktok-script"),
+    tiktokScenesJson: JSON.stringify(scenes)
+  };
+  AI_STAFF_FIELDS.forEach(f => {
+    const el = sheet.querySelector(`#cs-detail-${f.field}`);
+    if (el) payload[f.field] = el.value;
+  });
+  return payload;
+}
+
+/**
+ * 【Sprint21バグ修正】現在のフォーム内容をitemへ反映しつつサーバへ保存する。
+ * 承認ボタンなど、フォームの中身と無関係な操作の直前に必ず呼ぶことで、
+ * 「未保存のまま別ボタンを押すと入力が消える」問題を防ぐ。
+ */
+async function flushContentForm_(sheet, item) {
+  const payload = collectContentFormValues_(sheet);
+  payload.id = item.id;
+  try {
+    await Repository.updateContentStockItem(payload);
+    Object.assign(item, payload);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function setAutosaveIndicator_(sheet, text) {
+  const el = sheet.querySelector("#cs-autosave-indicator");
+  if (el) el.textContent = text;
 }
 
 function openContentStockDetail(item) {
@@ -3763,37 +3817,42 @@ function openContentStockDetail(item) {
     });
   }
 
+  /**
+   * 【Sprint21バグ修正】自動保存(入力停止から500ms後)
+   * textarea/selectの変更を検知し、デバウンスしてflushContentForm_を呼ぶ。
+   * 履歴・コメントの追加フォームは対象外(専用ボタンで明示的に追加するため)。
+   */
+  let autosaveTimer_ = null;
+  const autosaveTargets = sheet.querySelectorAll(
+    "#cs-detail-purpose, #cs-detail-x-status, #cs-detail-x-text, " +
+    "#cs-detail-note-status, #cs-detail-note-text, " +
+    "#cs-detail-tiktok-status, #cs-detail-tiktok-script, .cs-detail-scene, " +
+    AI_STAFF_FIELDS.map(f => `#cs-detail-${f.field}`).join(", ")
+  );
+  autosaveTargets.forEach(el => {
+    const evt = (el.tagName === "SELECT") ? "change" : "input";
+    el.addEventListener(evt, () => {
+      setAutosaveIndicator_(sheet, "保存中...");
+      if (autosaveTimer_) clearTimeout(autosaveTimer_);
+      autosaveTimer_ = setTimeout(async () => {
+        const ok = await flushContentForm_(sheet, item);
+        const now = new Date();
+        const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+        setAutosaveIndicator_(sheet, ok ? `自動保存済み ${hhmm}` : "自動保存に失敗しました(手動で保存してください)");
+      }, 500);
+    });
+  });
+
   const saveBtn = sheet.querySelector('[data-action="cs-detail-save"]');
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
-      const scenes = Array.from(sheet.querySelectorAll(".cs-detail-scene"))
-        .sort((a, b) => Number(a.dataset.sceneIndex) - Number(b.dataset.sceneIndex))
-        .map(el => el.value.trim());
-
-      const payload = {
-        id: item.id,
-        purpose: sheet.querySelector("#cs-detail-purpose").value,
-        xStatus: sheet.querySelector("#cs-detail-x-status").value,
-        xText: sheet.querySelector("#cs-detail-x-text").value.trim(),
-        noteStatus: sheet.querySelector("#cs-detail-note-status").value,
-        noteText: sheet.querySelector("#cs-detail-note-text").value.trim(),
-        tiktokStatus: sheet.querySelector("#cs-detail-tiktok-status").value,
-        tiktokScript: sheet.querySelector("#cs-detail-tiktok-script").value.trim(),
-        tiktokScenesJson: JSON.stringify(scenes)
-      };
-      AI_STAFF_FIELDS.forEach(f => {
-        const el = sheet.querySelector(`#cs-detail-${f.field}`);
-        if (el) payload[f.field] = el.value;
-      });
-
       saveBtn.disabled = true;
       saveBtn.textContent = "保存中...";
-      try {
-        await Repository.updateContentStockItem(payload);
-        Object.assign(item, payload);
+      const ok = await flushContentForm_(sheet, item);
+      if (ok) {
         showToast("生成コンテンツを保存しました");
         closeModal();
-      } catch (e) {
+      } else {
         showToast("保存に失敗しました");
         saveBtn.disabled = false;
         saveBtn.textContent = "保存";
@@ -3801,7 +3860,11 @@ function openContentStockDetail(item) {
     });
   }
 
-  /** 【Sprint18③】承認フロー: ステータスを進める */
+  /**
+   * 【Sprint18③・Sprint21バグ修正】承認フロー: ステータスを進める
+   * 承認操作の前に必ずflushContentForm_でフォーム内容を保存してから
+   * ステータス更新→再描画する(入力内容が消えるバグの修正)。
+   */
   const approvalBtn = sheet.querySelector('[data-action="cs-approval-advance"]');
   if (approvalBtn) {
     approvalBtn.addEventListener("click", async () => {
@@ -3809,18 +3872,21 @@ function openContentStockDetail(item) {
       const approvedByEl = sheet.querySelector("#cs-detail-approved-by");
       const approvedBy = approvedByEl ? approvedByEl.value.trim() : "";
       approvalBtn.disabled = true;
+      approvalBtn.textContent = "保存中...";
       try {
+        await flushContentForm_(sheet, item);
         await Repository.updateApprovalStatus({ id: item.id, approvalStatus: target, approvedBy });
         item.approvalStatus = target;
         if (target === "approved") {
           item.approvedBy = approvedBy;
           item.approvedAt = todayShortDate_();
         }
-        showToast("承認ステータスを更新しました");
+        showToast("入力内容を保存し、承認ステータスを更新しました");
         openContentStockDetail(item);
       } catch (e) {
         showToast("更新に失敗しました");
         approvalBtn.disabled = false;
+        approvalBtn.textContent = nextApprovalAction_(item) ? nextApprovalAction_(item).label : "更新";
       }
     });
   }
@@ -3828,6 +3894,7 @@ function openContentStockDetail(item) {
   if (approvalResetBtn) {
     approvalResetBtn.addEventListener("click", async () => {
       try {
+        await flushContentForm_(sheet, item);
         await Repository.updateApprovalStatus({ id: item.id, approvalStatus: "draft" });
         item.approvalStatus = "draft";
         showToast("下書きに戻しました");
@@ -3838,7 +3905,10 @@ function openContentStockDetail(item) {
     });
   }
 
-  /** 【Sprint18②】出力履歴を追加 */
+  /**
+   * 【Sprint18②・Sprint21バグ修正】出力履歴を追加
+   * 追加前にflushContentForm_でフォーム内容を保存してから再描画する。
+   */
   const historyAddBtn = sheet.querySelector('[data-action="cs-history-add"]');
   if (historyAddBtn) {
     historyAddBtn.addEventListener("click", async () => {
@@ -3848,6 +3918,7 @@ function openContentStockDetail(item) {
       const status = sheet.querySelector("#cs-history-status").value;
       historyAddBtn.disabled = true;
       try {
+        await flushContentForm_(sheet, item);
         const result = await Repository.appendContentHistory({ id: item.id, ai, text, status });
         item.history = Array.isArray(item.history) ? item.history : [];
         item.history.push({ version: result.version || (item.history.length + 1), ai, text, status, createdAt: new Date().toISOString() });
@@ -3860,7 +3931,7 @@ function openContentStockDetail(item) {
     });
   }
 
-  /** 【Sprint18④】AI社員コメントを追加 */
+  /** 【Sprint18④・Sprint21バグ修正】AI社員コメントを追加 */
   const commentAddBtn = sheet.querySelector('[data-action="cs-comment-add"]');
   if (commentAddBtn) {
     commentAddBtn.addEventListener("click", async () => {
@@ -3869,6 +3940,7 @@ function openContentStockDetail(item) {
       const ai = sheet.querySelector("#cs-comment-ai").value;
       commentAddBtn.disabled = true;
       try {
+        await flushContentForm_(sheet, item);
         await Repository.appendContentComment({ id: item.id, ai, comment });
         item.comments = Array.isArray(item.comments) ? item.comments : [];
         item.comments.push({ ai, comment, time: new Date().toISOString() });
