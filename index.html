@@ -3476,6 +3476,7 @@ function buildContentStockFormModal_() {
       <label>写真URL(任意)</label>
       <input type="text" id="cs-form-photo" placeholder="参考写真のURL">
 
+      <p id="cs-form-status" class="co-modal-empty-note" style="display:none;"></p>
       <button class="co-cs-form__submit" data-action="cs-save">保存</button>
     </div>`;
 }
@@ -3486,7 +3487,13 @@ function openContentStockForm() {
   if (!sheet) return;
   const saveBtn = sheet.querySelector('[data-action="cs-save"]');
   if (!saveBtn) return;
+  const statusEl = sheet.querySelector("#cs-form-status");
+
+  let isSaving = false;
   saveBtn.addEventListener("click", async () => {
+    /** 【Sprint22バグ修正】連打による二重登録を確実に防ぐガード */
+    if (isSaving) return;
+
     const title = sheet.querySelector("#cs-form-title").value.trim();
     if (!title) {
       showToast("タイトルを入力してください");
@@ -3504,16 +3511,38 @@ function openContentStockForm() {
       memo: sheet.querySelector("#cs-form-memo").value.trim(),
       photo: sheet.querySelector("#cs-form-photo").value.trim()
     };
+
+    isSaving = true;
     saveBtn.disabled = true;
     saveBtn.textContent = "保存中...";
+    if (statusEl) {
+      statusEl.style.display = "none";
+      statusEl.style.color = "";
+    }
+
     try {
       await Repository.createContentStockItem(payload);
+      /** 【Sprint22バグ修正】成功をはっきり表示してから一覧へ切り替える */
+      saveBtn.textContent = "✓ 保存しました";
+      if (statusEl) {
+        statusEl.style.display = "block";
+        statusEl.style.color = "#1E9E5A";
+        statusEl.textContent = "保存が完了しました。一覧に戻ります…";
+      }
       showToast("ネタを保存しました");
+      await new Promise(resolve => setTimeout(resolve, 600));
       await openContentStockList();
     } catch (e) {
+      /** 【Sprint22バグ修正】失敗時は赤字で残す(一瞬のトーストだけに頼らない) */
       showToast("保存に失敗しました");
+      if (statusEl) {
+        statusEl.style.display = "block";
+        statusEl.style.color = "#D0342C";
+        statusEl.textContent = "保存に失敗しました。もう一度「保存」を押してください。";
+      }
       saveBtn.disabled = false;
       saveBtn.textContent = "保存";
+      isSaving = false;
     }
   });
 }
