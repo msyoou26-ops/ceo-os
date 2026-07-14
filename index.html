@@ -1859,6 +1859,20 @@ const DataLayer = {
     return { success: true };
   },
 
+  /** 【Sprint21】コンテンツストックからネタを削除する(主にテストデータ整理用) */
+  async deleteContentStockItem(payload) {
+    if (shouldUseApi("contentStock")) {
+      try {
+        return await apiRequest("deleteContentStockItem", payload, "POST");
+      } catch (e) {
+        Logger.error("[DataLayer] deleteContentStockItem: 削除失敗", e);
+        showToast("削除に失敗しました");
+        throw e;
+      }
+    }
+    return { success: true };
+  },
+
   /**
    * ============================================================
    * 【Sprint18】AI編集部: 出力履歴・コメント・承認フロー
@@ -2002,6 +2016,12 @@ const Repository = {
   },
   updateContentStockItem: async (payload) => {
     const result = await DataLayer.updateContentStockItem(payload);
+    CACHE_STRATEGY.clear("contentStock");
+    CACHE_STRATEGY.clear("home");
+    return result;
+  },
+  deleteContentStockItem: async (payload) => {
+    const result = await DataLayer.deleteContentStockItem(payload);
     CACHE_STRATEGY.clear("contentStock");
     CACHE_STRATEGY.clear("home");
     return result;
@@ -3748,6 +3768,12 @@ function buildContentStockDetailModal_(item) {
     <div class="co-modal-section">
       <p id="cs-autosave-indicator" class="co-modal-empty-note">入力後、自動的に下書き保存されます</p>
       <button class="co-cs-form__submit" data-action="cs-detail-save">保存</button>
+    </div>
+
+    <div class="co-modal-section">
+      <button class="co-cs-detail-link" data-action="cs-detail-delete" style="color:#D0342C;">
+        このネタを削除する(テストデータ整理用・元に戻せません)
+      </button>
     </div>`;
 }
 
@@ -3949,6 +3975,27 @@ function openContentStockDetail(item) {
       } catch (e) {
         showToast("追加に失敗しました");
         commentAddBtn.disabled = false;
+      }
+    });
+  }
+
+  /** 【Sprint21】ネタを削除する(主にテストデータ整理用) */
+  const deleteBtn = sheet.querySelector('[data-action="cs-detail-delete"]');
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", async () => {
+      const confirmed = window.confirm(`「${item.title || "(無題)"}」を削除します。元に戻せませんが、よろしいですか?`);
+      if (!confirmed) return;
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = "削除中...";
+      try {
+        await Repository.deleteContentStockItem({ id: item.id });
+        showToast("ネタを削除しました");
+        closeModal();
+        openContentStockList();
+      } catch (e) {
+        showToast("削除に失敗しました");
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = "このネタを削除する(テストデータ整理用・元に戻せません)";
       }
     });
   }
