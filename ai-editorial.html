@@ -380,9 +380,18 @@ const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLe
 function loadJobs(){
   const listEl = document.getElementById('jobList');
 
+  document.getElementById('statApprove').textContent = '···';
+  document.getElementById('statProgress').textContent = '···';
+  document.getElementById('statDone').textContent = '···';
+  listEl.innerHTML = `
+    <div class="empty">
+      <div class="icon">⏳</div>
+      <div class="msg">データを取得しています…</div>
+    </div>`;
+
   fetch(GAS_WEB_APP_URL + '?action=getPipelineJobList')
     .then(function(res){
-      if(!res.ok) throw new Error('HTTP ' + res.status);
+      if(!res.ok) throw new Error('HTTPエラー: ' + res.status);
       return res.json();
     })
     .then(function(res){
@@ -395,10 +404,14 @@ function loadJobs(){
     })
     .catch(function(err){
       console.error('getPipelineJobList failed', err);
+      document.getElementById('statApprove').textContent = '-';
+      document.getElementById('statProgress').textContent = '-';
+      document.getElementById('statDone').textContent = '-';
       listEl.innerHTML = `
         <div class="empty">
           <div class="icon">⚠️</div>
-          <div class="msg">データの取得に失敗しました。<br>電波状況を確認して、もう一度開いてみてください。</div>
+          <div class="msg">データの取得に失敗しました。<br><span class="mono" style="font-size:11px;color:var(--text-3);word-break:break-all;">${escapeHTML(err.message || String(err))}</span></div>
+          <button class="cta" onclick="loadJobs()">もう一度読み込む</button>
         </div>`;
     });
 }
