@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>AI編集部</title>
+<style>
+  :root{
+    --bg-deep:#0d1420;
+    --bg-card:#16213a;
+    --bg-card-active:#1c2b4a;
+    --accent:#ff8c42;
+    --accent-dim:rgba(255,140,66,0.14);
+    --done:#34d399;
+    --done-dim:rgba(52,211,153,0.14);
+    --waiting:#3d4a63;
+    --notstarted:#5b6c8c;
+    --text-1:#f3f1ea;
+    --text-2:#aebcd6;
+    --text-3:#7c8db0;
+    --border:rgba(255,255,255,0.07);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    background:var(--bg-deep);
+    color:var(--text-1);
+    font-family:'Noto Sans CJK JP','Hiragino Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{ font-family:inherit; border:none; background:none; color:inherit; cursor:pointer; }
+  .mono{ font-family:'Noto Sans Mono','SF Mono',monospace; }
+
+  .topbar{
+    position:sticky; top:0; z-index:10;
+    background:linear-gradient(180deg, var(--bg-deep) 70%, rgba(13,20,32,0.85));
+    padding:20px 18px 14px;
+    border-bottom:1px solid var(--border);
+  }
+  .topbar-row{ display:flex; align-items:center; justify-content:space-between; }
+  .topbar-title{
+    font-weight:900; font-size:22px; letter-spacing:0.5px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .topbar-title .dot{
+    width:8px; height:8px; border-radius:50%; background:var(--accent);
+    box-shadow:0 0 8px var(--accent);
+  }
+  .topbar-date{
+    font-size:12px; color:var(--text-3); margin-top:2px;
+    font-family:'Noto Sans Mono',monospace; letter-spacing:1px;
+  }
+  .newjob-btn{
+    width:38px; height:38px; border-radius:11px;
+    background:var(--accent-dim); border:1px solid rgba(255,140,66,0.35);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--accent); font-size:20px; font-weight:700;
+  }
+  .newjob-btn:active{ background:rgba(255,140,66,0.28); }
+
+  .stats{
+    display:flex; gap:10px; margin-top:16px;
+    overflow-x:auto; padding-bottom:2px;
+  }
+  .stat-chip{
+    flex:1; min-width:0;
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:14px; padding:12px 14px;
+  }
+  .stat-chip .num{
+    font-family:'Noto Sans Mono',monospace;
+    font-size:22px; font-weight:700; line-height:1;
+  }
+  .stat-chip .label{ font-size:11px; color:var(--text-2); margin-top:5px; }
+  .stat-chip.approve .num{ color:var(--accent); }
+  .stat-chip.progress .num{ color:#7dd3fc; }
+  .stat-chip.done .num{ color:var(--done); }
+
+  .list{ padding:16px 14px 100px; display:flex; flex-direction:column; gap:12px; }
+
+  .job-card{
+    background:var(--bg-card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:16px 16px 14px;
+    position:relative;
+    overflow:hidden;
+    text-align:left;
+    width:100%;
+    display:block;
+  }
+  .job-card:active{ background:var(--bg-card-active); }
+  .job-card.is-attention::before{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--accent);
+  }
+  .job-card.is-approved::before{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--done);
+  }
+
+  .job-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .job-title{ font-size:15.5px; font-weight:700; line-height:1.45; flex:1; }
+  .job-meta{ font-size:11px; color:var(--text-3); margin-top:4px; font-family:'Noto Sans Mono',monospace; }
+
+  .badge{
+    font-size:11px; font-weight:700; padding:4px 9px; border-radius:20px;
+    white-space:nowrap; flex-shrink:0;
+  }
+  .badge.making{ background:rgba(125,211,252,0.14); color:#7dd3fc; }
+  .badge.unapproved{ background:var(--accent-dim); color:var(--accent); }
+  .badge.approved{ background:var(--done-dim); color:var(--done); }
+  .badge.published{ background:rgba(159,176,204,0.12); color:var(--text-2); }
+
+  .stage-now{
+    margin-top:10px; font-size:13px; color:var(--text-2);
+    display:flex; align-items:center; gap:6px;
+  }
+  .stage-now b{ color:var(--text-1); font-weight:700; }
+  .stage-now .pulse{
+    width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0;
+    animation:pulse 1.4s infinite;
+  }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 0 rgba(255,140,66,0.5); }
+    70%{ box-shadow:0 0 0 6px rgba(255,140,66,0); }
+    100%{ box-shadow:0 0 0 0 rgba(255,140,66,0); }
+  }
+
+  .flow{ margin-top:12px; }
+  .flow-row{ display:flex; gap:4px; margin-top:4px; }
+  .flow-row:first-child{ margin-top:0; }
+  .flow-seg{
+    flex:1; height:6px; border-radius:4px; background:var(--waiting);
+    position:relative; overflow:hidden;
+  }
+  .flow-seg.spacer{ background:transparent; }
+  .flow-seg.notstarted{ background:rgba(91,108,140,0.35); }
+  .flow-seg.inprogress{ background:var(--accent); }
+  .flow-seg.inprogress::after{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+    animation:sweep 1.3s infinite;
+  }
+  @keyframes sweep{
+    0%{ transform:translateX(-100%); }
+    100%{ transform:translateX(100%); }
+  }
+  .flow-seg.done{ background:var(--done); }
+
+  .flow-labels{ display:flex; gap:4px; margin-top:5px; }
+  .flow-labels span{
+    flex:1; text-align:center;
+    font-size:11px; color:var(--text-3); font-family:'Noto Sans Mono',monospace;
+  }
+  .flow-tier-tag{
+    font-size:10px; color:var(--text-3); margin-top:8px;
+    letter-spacing:1px;
+  }
+
+  .job-bottom{
+    display:flex; justify-content:space-between; align-items:center; margin-top:10px;
+  }
+  .progress-frac{
+    font-family:'Noto Sans Mono',monospace; font-size:12px; color:var(--text-2);
+  }
+  .progress-frac b{ color:var(--text-1); }
+
+  .empty{
+    margin:60px 24px 0; text-align:center; color:var(--text-2);
+  }
+  .empty .icon{ font-size:34px; margin-bottom:14px; }
+  .empty .msg{ font-size:14px; line-height:1.7; }
+  .empty .cta{
+    margin-top:20px; display:inline-block;
+    background:var(--accent-dim); color:var(--accent);
+    border:1px solid rgba(255,140,66,0.35);
+    padding:10px 20px; border-radius:12px; font-size:13px; font-weight:700;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <div>
+      <div class="topbar-title"><span class="dot"></span>AI編集部</div>
+      <div class="topbar-date mono" id="todayLabel"></div>
+    </div>
+    <button class="newjob-btn" id="newJobBtn" aria-label="新しい依頼を作成">＋</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat-chip approve">
+      <div class="num" id="statApprove">-</div>
+      <div class="label">承認待ち</div>
+    </div>
+    <div class="stat-chip progress">
+      <div class="num" id="statProgress">-</div>
+      <div class="label">進行中</div>
+    </div>
+    <div class="stat-chip done">
+      <div class="num" id="statDone">-</div>
+      <div class="label">本日完了</div>
+    </div>
+  </div>
+</div>
+
+<div class="list" id="jobList"></div>
+
+<script>
+const ROLE_ORDER = ['research','x','note','tiktok','image','quality','publish'];
+const ROLE_LABELS = {
+  research:'リサーチ', x:'X', note:'note', tiktok:'TikTok',
+  image:'画像', quality:'品質', publish:'投稿'
+};
+const FLOW_TIERS = [ ['research'], ['x','note','tiktok'], ['image'], ['quality','publish'] ];
+
+function escapeHTML(str){
+  if(str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function statusClass(status){
+  if(status === '完了') return 'done';
+  if(status === '実行中') return 'inprogress';
+  if(status === '未実行') return 'notstarted';
+  return 'waiting';
+}
+
+function isAllRolesDone(job){
+  return ROLE_ORDER.every(r => job[r+'Status'] === '完了');
+}
+
+function progressCount(job){
+  const done = ROLE_ORDER.filter(r => job[r+'Status'] === '完了').length;
+  return { done, total: ROLE_ORDER.length };
+}
+
+function jobPhase(job){
+  if(job.approvalStatus === '投稿済み') return 'published';
+  if(job.approvalStatus === '承認済み') return 'approved';
+  if(isAllRolesDone(job)) return 'pending_approval';
+  return 'making';
+}
+
+function approvalBadge(job){
+  const phase = jobPhase(job);
+  if(phase === 'published') return '<span class="badge published">投稿済み</span>';
+  if(phase === 'approved') return '<span class="badge approved">承認済み</span>';
+  if(phase === 'pending_approval') return '<span class="badge unapproved">承認待ち</span>';
+  return '<span class="badge making">制作中</span>';
+}
+
+function stageStatusLine(job){
+  const inProgress = ROLE_ORDER.filter(r => job[r+'Status'] === '実行中');
+  const notStarted = ROLE_ORDER.filter(r => job[r+'Status'] === '未実行');
+
+  if(inProgress.length > 0){
+    const names = inProgress.map(r => ROLE_LABELS[r]);
+    const text = inProgress.length <= 2
+      ? `${names.join('・')}が対応中`
+      : `${names.join('・')}の${inProgress.length}件が対応中`;
+    return `<div class="stage-now"><span class="pulse"></span>今 <b>${text}</b></div>`;
+  }
+  if(notStarted.length > 0){
+    const names = notStarted.map(r => ROLE_LABELS[r]);
+    const text = notStarted.length <= 2
+      ? `次は <b>${names.join('・')}</b> が実行可能`
+      : `次工程が <b>${notStarted.length}件</b> あります（${names.join('・')}）`;
+    return `<div class="stage-now">${text}</div>`;
+  }
+  const phase = jobPhase(job);
+  if(phase === 'pending_approval') return `<div class="stage-now">全AI社員の作業が完了 → <b>承認待ち</b></div>`;
+  if(phase === 'approved') return `<div class="stage-now">承認済み・投稿を待っています</div>`;
+  if(phase === 'published') return `<div class="stage-now">対応完了</div>`;
+  return '';
+}
+
+function formatRelativeTime(iso){
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diffMs / 3600000);
+  if(h < 1) return '1時間以内';
+  if(h < 24) return h + '時間前';
+  return Math.floor(h/24) + '日前';
+}
+
+function renderFlow(job){
+  return FLOW_TIERS.map(tier => {
+    const segs = tier.map(r => `<div class="flow-seg ${statusClass(job[r+'Status'])}"></div>`).join('');
+    const labels = tier.map(r => `<span>${ROLE_LABELS[r]}</span>`).join('');
+    return `<div class="flow-row">${segs}</div><div class="flow-labels">${labels}</div>`;
+  }).join('');
+}
+
+function renderJobCard(job){
+  const { done, total } = progressCount(job);
+  const phase = jobPhase(job);
+  const cardStateClass = phase === 'pending_approval' ? 'is-attention'
+    : (phase === 'approved' || phase === 'published') ? 'is-approved' : '';
+
+  const safeTitle = escapeHTML(job.title);
+  const safeJobId = escapeHTML(job.jobId);
+
+  return `
+    <button class="job-card ${cardStateClass}" data-jobid="${safeJobId}" onclick="onJobCardClick('${safeJobId}')">
+      <div class="job-top">
+        <div>
+          <div class="job-title">${safeTitle}</div>
+          <div class="job-meta">${safeJobId} ・ ${formatRelativeTime(job.createdAt)}</div>
+        </div>
+        ${approvalBadge(job)}
+      </div>
+
+      ${stageStatusLine(job)}
+
+      <div class="flow">${renderFlow(job)}</div>
+
+      <div class="job-bottom">
+        <div class="progress-frac"><b>${done}</b> / ${total} 工程完了</div>
+      </div>
+    </button>
+  `;
+}
+
+function isToday(iso){
+  if(!iso) return false;
+  return new Date(iso).toDateString() === new Date().toDateString();
+}
+
+function renderStats(jobs){
+  const approve = jobs.filter(j => jobPhase(j) === 'pending_approval').length;
+  const progress = jobs.filter(j => jobPhase(j) === 'making').length;
+  const doneToday = jobs.filter(j =>
+    isToday(j.publishedAt) || isToday(j.approvedAt) || isToday(j.completedAt)
+  ).length;
+
+  document.getElementById('statApprove').textContent = approve;
+  document.getElementById('statProgress').textContent = progress;
+  document.getElementById('statDone').textContent = doneToday;
+}
+
+function renderList(jobs){
+  const listEl = document.getElementById('jobList');
+  if(!jobs || jobs.length === 0){
+    listEl.innerHTML = `
+      <div class="empty">
+        <div class="icon">🌱</div>
+        <div class="msg">まだ依頼中の案件がありません。<br>Content Stockからネタを選んで<br>AI編集部へ依頼してみましょう。</div>
+        <button class="cta" onclick="onNewJobClick()">AI編集部へ依頼する</button>
+      </div>`;
+    return;
+  }
+  listEl.innerHTML = jobs.map(renderJobCard).join('');
+}
+
+function onNewJobClick(){
+  if(window.CEOOS && typeof window.CEOOS.navigateTo === 'function'){
+    window.CEOOS.navigateTo('contentStockSelect');
+    return;
+  }
+  console.log('[nav] Content Stock選択画面へ遷移（要:実装差し替え）');
+}
+
+function onJobCardClick(jobId){
+  if(window.CEOOS && typeof window.CEOOS.navigateTo === 'function'){
+    window.CEOOS.navigateTo('jobDetail', { jobId: jobId });
+    return;
+  }
+  console.log('[nav] 案件詳細画面へ遷移（要:実装差し替え） jobId=', jobId);
+}
+document.getElementById('newJobBtn').addEventListener('click', onNewJobClick);
+
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLeDSFLxLGtCsX7O79MAdy0YDnvbE2tLl51Yyl1DTf-rXxK2JXhpCuJiA/exec';
+
+function loadJobs(){
+  const listEl = document.getElementById('jobList');
+
+  fetch(GAS_WEB_APP_URL + '?action=getPipelineJobList')
+    .then(function(res){
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function(res){
+      if(!res.success){
+        throw new Error(res.error || '取得に失敗しました');
+      }
+      const jobs = res.data || [];
+      renderStats(jobs);
+      renderList(jobs);
+    })
+    .catch(function(err){
+      console.error('getPipelineJobList failed', err);
+      listEl.innerHTML = `
+        <div class="empty">
+          <div class="icon">⚠️</div>
+          <div class="msg">データの取得に失敗しました。<br>電波状況を確認して、もう一度開いてみてください。</div>
+        </div>`;
+    });
+}
+
+document.getElementById('todayLabel').textContent =
+  new Intl.DateTimeFormat('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'short' }).format(new Date());
+
+loadJobs();
+</script>
+</body>
+</html>
