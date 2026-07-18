@@ -9,20 +9,6 @@
   ============================================================
   CEO室OS Ver.2 — Sprint 8
   ============================================================
-  実装範囲:
-  ・HOME / AI秘書 / Projects / Portfolio / SNS / Menu (Sprint1-7から継続、UI変更なし)
-  ・【Sprint7】HOMEをGoogle Spreadsheet + GAS Web Appに実接続(API_URL/DEV_MODE=false)
-  ・【Sprint8追加】API_ENABLED_SCREENSを新設し、画面ごとに段階的にAPI接続を有効化できる
-    構造に変更。Sprint8時点では home と projects のみ true(AI/SNS/Menuはまだダミー)
-  ・【Sprint8追加】Projects/Portfolio画面をSpreadsheet接続(projects/portfolio/
-    portfolio_history/portfolio_releases/portfolio_fixesシートを使用)
-  ※接続前にrender側/normalize側/Code.gs側のフィールド名を4点照合済み(不整合なし)。
-  ※Spreadsheet側にportfolio関連4シートの追加作成が必要(翔側の作業)。
-  設計方針: 開発仕様書 v1.0 第1〜12章に準拠
-    - 1機能=1コンポーネント、カードは独立
-    - Canva素材は差し替え可能(ASSETS)。無くても崩れないUI
-    - Data Layerを経由(将来GAS API化を見据え、関数はPromiseで統一)
-  ============================================================
 -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,11 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
 
 <style>
-/* ============================================================
-   1. DESIGN TOKENS (開発仕様書 第3章・第10章)
-   ============================================================ */
 :root{
-  /* Color */
   --c-navy-900:#0A1B33;
   --c-navy-700:#14304F;
   --c-navy-500:#3A5C82;
@@ -51,32 +33,23 @@
   --c-text-900:#10151F;
   --c-text-500:#6B7280;
   --c-text-300:#A7ACB6;
-
-  /* Radius (第10章-5) */
   --r-card:16px;
   --r-btn:12px;
   --r-input:12px;
   --r-modal:20px;
   --r-chip:999px;
-
-  /* Spacing (第10章-4) */
   --sp-screen:20px;
   --sp-card-gap:16px;
   --sp-card-pad:18px;
   --sp-title-gap:8px;
   --sp-btn-gap:12px;
-
-  /* Shadow (第10章-6: 弱い影のみ) */
   --shadow-sm:0 1px 2px rgba(16,21,31,0.05), 0 1px 1px rgba(16,21,31,0.03);
   --shadow-md:0 6px 20px rgba(10,27,51,0.07);
-
-  /* Motion (第10章-11: 150〜250ms) */
   --dur-fast:150ms;
   --dur-base:200ms;
   --dur-slow:260ms;
   --ease:cubic-bezier(.4,0,.2,1);
 }
-
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
@@ -88,17 +61,10 @@ body{
 }
 button{font-family:inherit;}
 img{max-width:100%;display:block;}
-
-/* prefers-reduced-motion対応 */
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
 }
-
 .tabular-num{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; }
-
-/* ============================================================
-   2. APP SHELL
-   ============================================================ */
 #app{
   max-width:520px;
   margin:0 auto;
@@ -106,8 +72,6 @@ img{max-width:100%;display:block;}
   padding-bottom:calc(84px + env(safe-area-inset-bottom));
   position:relative;
 }
-
-/* ---- Header (第4章-3 / 第12章-3) ---- */
 .co-header{
   padding:calc(env(safe-area-inset-top) + 18px) var(--sp-screen) 4px;
   display:flex;
@@ -115,391 +79,159 @@ img{max-width:100%;display:block;}
   justify-content:space-between;
   gap:12px;
 }
-.co-header__greeting-eyebrow{
-  font-size:12px;
-  color:var(--c-text-500);
-  margin:0 0 4px;
-  letter-spacing:.02em;
-}
-.co-header__greeting{
-  font-size:20px;
-  font-weight:700;
-  margin:0 0 6px;
-  line-height:1.3;
-}
+.co-header__greeting-eyebrow{ font-size:12px; color:var(--c-text-500); margin:0 0 4px; letter-spacing:.02em; }
+.co-header__greeting{ font-size:20px; font-weight:700; margin:0 0 6px; line-height:1.3; }
 .co-header__streak{
-  display:inline-flex;
-  align-items:center;
-  gap:5px;
-  font-size:12px;
-  font-weight:700;
-  color:var(--c-orange-600);
-  background:var(--c-orange-100);
-  padding:4px 10px 4px 8px;
-  border-radius:var(--r-chip);
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:12px; font-weight:700; color:var(--c-orange-600);
+  background:var(--c-orange-100); padding:4px 10px 4px 8px; border-radius:var(--r-chip);
 }
 .co-header__streak svg{width:13px;height:13px;}
-.co-header__actions{
-  display:flex;
-  gap:8px;
-  flex-shrink:0;
-}
+.co-header__actions{ display:flex; gap:8px; flex-shrink:0; }
 .co-icon-btn{
-  width:38px;height:38px;
-  border-radius:11px;
-  border:1px solid var(--c-border);
-  background:var(--c-bg);
-  display:flex;align-items:center;justify-content:center;
-  color:var(--c-navy-900);
-  cursor:pointer;
+  width:38px;height:38px; border-radius:11px; border:1px solid var(--c-border);
+  background:var(--c-bg); display:flex;align-items:center;justify-content:center;
+  color:var(--c-navy-900); cursor:pointer;
   transition:transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
   position:relative;
 }
 .co-icon-btn:active{transform:scale(0.92); background:var(--c-surface);}
-.co-icon-btn svg{width:19px;height:19px;}
+.co-icon-btn svg{ width:19px;height:19px; }
 .co-icon-btn__dot{
-  position:absolute; top:8px; right:8px;
-  width:7px;height:7px;border-radius:50%;
-  background:var(--c-orange-500);
-  border:1.5px solid var(--c-bg);
+  position:absolute; top:8px; right:8px; width:7px;height:7px;border-radius:50%;
+  background:var(--c-orange-500); border:1.5px solid var(--c-bg);
 }
-
-/* ---- Section shell ---- */
-.co-section{
-  padding:10px var(--sp-screen) 0;
-}
-
-/* 【Sprint13】前回データ表示バナー */
+.co-section{ padding:10px var(--sp-screen) 0; }
 .co-stalebanner{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:10px 14px;
-  border-radius:var(--r-card);
-  background:var(--c-orange-100);
-  color:var(--c-orange-600);
-  font-size:12.5px;
-  font-weight:600;
-  line-height:1.4;
+  display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:var(--r-card);
+  background:var(--c-orange-100); color:var(--c-orange-600); font-size:12.5px; font-weight:600; line-height:1.4;
 }
 .co-stalebanner svg{ width:16px; height:16px; flex-shrink:0; }
-.co-section__head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:var(--sp-title-gap);
-  padding:0 2px;
-}
-.co-section__title{
-  font-size:14px;
-  font-weight:700;
-  color:var(--c-text-900);
-  margin:0;
-  display:flex;
-  align-items:center;
-  gap:6px;
-}
-.co-section__link{
-  font-size:12px;
-  color:var(--c-text-500);
-  background:none;border:none;
-  cursor:pointer;
-  padding:4px;
-}
-
-/* ---- Generic Card (第10章-9 / 第12章-5) ---- */
+.co-section__head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--sp-title-gap); padding:0 2px; }
+.co-section__title{ font-size:14px; font-weight:700; color:var(--c-text-900); margin:0; display:flex; align-items:center; gap:6px; }
+.co-section__link{ font-size:12px; color:var(--c-text-500); background:none;border:none; cursor:pointer; padding:4px; }
 .co-card{
-  background:var(--c-bg);
-  border:1px solid var(--c-border);
-  border-radius:var(--r-card);
-  box-shadow:var(--shadow-sm);
-  padding:var(--sp-card-pad);
-  margin-bottom:var(--sp-card-gap);
-  /* Canva背景差し替えポイント: background-image は JS(applyImageAsset)で付与 */
-  background-size:cover;
-  background-position:center;
-  position:relative;
-  overflow:hidden;
-  opacity:0;
-  transform:translateY(10px);
-  animation:coCardEnter var(--dur-slow) var(--ease) forwards;
+  background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--r-card);
+  box-shadow:var(--shadow-sm); padding:var(--sp-card-pad); margin-bottom:var(--sp-card-gap);
+  background-size:cover; background-position:center; position:relative; overflow:hidden;
+  opacity:0; transform:translateY(10px); animation:coCardEnter var(--dur-slow) var(--ease) forwards;
 }
-@keyframes coCardEnter{
-  to{opacity:1; transform:translateY(0);}
-}
-
-/* ============================================================
-   3. SKELETON LOADING (第10章-12: スピナー禁止, Skeleton基本)
-   ============================================================ */
+@keyframes coCardEnter{ to{opacity:1; transform:translateY(0);} }
 .co-skel-card{
-  height:88px;
-  border-radius:var(--r-card);
-  background:var(--c-surface);
-  margin-bottom:var(--sp-card-gap);
-  position:relative;
-  overflow:hidden;
+  height:88px; border-radius:var(--r-card); background:var(--c-surface); margin-bottom:var(--sp-card-gap);
+  position:relative; overflow:hidden;
 }
 .co-skel-card::after{
-  content:"";
-  position:absolute; inset:0;
+  content:""; position:absolute; inset:0;
   background:linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
-  transform:translateX(-100%);
-  animation:coShimmer 1.3s infinite;
+  transform:translateX(-100%); animation:coShimmer 1.3s infinite;
 }
 @keyframes coShimmer{ to{ transform:translateX(100%); } }
-
-/* ============================================================
-   4. ミッションカード (第4章-4 / 第12章-17)
-   ============================================================ */
-.co-mission{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:11px 4px;
-  border-bottom:1px solid var(--c-border);
-}
+.co-mission{ display:flex; align-items:center; gap:12px; padding:11px 4px; border-bottom:1px solid var(--c-border); }
 .co-mission:last-child{border-bottom:none;}
 .co-mission__check{
-  width:26px;height:26px;
-  border-radius:9px;
-  border:1.6px solid var(--c-border);
-  flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;
-  background:var(--c-bg);
+  width:26px;height:26px; border-radius:9px; border:1.6px solid var(--c-border); flex-shrink:0;
+  display:flex;align-items:center;justify-content:center; cursor:pointer; background:var(--c-bg);
   transition:all var(--dur-base) var(--ease);
 }
-.co-mission__check svg{
-  width:15px;height:15px;
-  opacity:0;
-  transform:scale(0.5);
-  transition:all var(--dur-base) var(--ease);
-  color:#fff;
-}
-.co-mission.is-done .co-mission__check{
-  background:var(--c-orange-500);
-  border-color:var(--c-orange-500);
-}
+.co-mission__check svg{ width:15px;height:15px; opacity:0; transform:scale(0.5); transition:all var(--dur-base) var(--ease); color:#fff; }
+.co-mission.is-done .co-mission__check{ background:var(--c-orange-500); border-color:var(--c-orange-500); }
 .co-mission.is-done .co-mission__check svg{ opacity:1; transform:scale(1); }
 .co-mission__body{flex:1; min-width:0;}
-.co-mission__title{
-  font-size:14.5px; font-weight:700; margin:0;
-  transition:color var(--dur-base) var(--ease);
-}
+.co-mission__title{ font-size:14.5px; font-weight:700; margin:0; transition:color var(--dur-base) var(--ease); }
 .co-mission.is-done .co-mission__title{ color:var(--c-text-300); text-decoration:line-through; }
 .co-mission__meta{ font-size:11.5px; color:var(--c-text-500); margin-top:2px; font-weight:700; }
 .co-mission__meta[data-axis="開発"]{ color:var(--c-navy-700); }
 .co-mission__meta[data-axis="発信"]{ color:var(--c-orange-600); }
 .co-mission__meta[data-axis="収益化"]{ color:var(--c-green-500); }
-.co-mission__priority{
-  font-size:10.5px;
-  font-weight:700;
-  padding:3px 8px;
-  border-radius:var(--r-chip);
-  flex-shrink:0;
-}
+.co-mission__priority{ font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:var(--r-chip); flex-shrink:0; }
 .co-mission__priority[data-level="high"]{ background:var(--c-red-100); color:var(--c-red-500); }
 .co-mission__priority[data-level="normal"]{ background:var(--c-surface); color:var(--c-text-500); }
-
 .co-xp-pop{
-  position:fixed;
-  font-size:13px; font-weight:700;
-  color:var(--c-orange-600);
-  pointer-events:none;
-  z-index:80;
-  animation:coXpPop 900ms var(--ease) forwards;
+  position:fixed; font-size:13px; font-weight:700; color:var(--c-orange-600); pointer-events:none;
+  z-index:80; animation:coXpPop 900ms var(--ease) forwards;
 }
 @keyframes coXpPop{
   0%{ opacity:0; transform:translateY(0) scale(0.8); }
   20%{ opacity:1; transform:translateY(-6px) scale(1); }
   100%{ opacity:0; transform:translateY(-34px) scale(1); }
 }
-
-/* ============================================================
-   5. AIブリーフィング (第4章-5)
-   ============================================================ */
-.co-briefing{
-  background:linear-gradient(135deg, var(--c-navy-900), var(--c-navy-700));
-  color:#fff;
-  border:none;
-}
-.co-briefing__label{
-  display:flex; align-items:center; gap:6px;
-  font-size:11.5px; font-weight:700;
-  color:rgba(255,255,255,0.65);
-  margin-bottom:10px;
-}
+.co-briefing{ background:linear-gradient(135deg, var(--c-navy-900), var(--c-navy-700)); color:#fff; border:none; }
+.co-briefing__label{ display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:rgba(255,255,255,0.65); margin-bottom:10px; }
 .co-briefing__label svg{ width:13px;height:13px; color:var(--c-orange-500); }
-.co-briefing__item{
-  display:flex; gap:8px;
-  font-size:13.5px;
-  line-height:1.6;
-  padding:6px 0;
-  color:rgba(255,255,255,0.94);
-}
+.co-briefing__item{ display:flex; gap:8px; font-size:13.5px; line-height:1.6; padding:6px 0; color:rgba(255,255,255,0.94); }
 .co-briefing__item + .co-briefing__item{ border-top:1px solid rgba(255,255,255,0.1); }
-.co-briefing__dot{
-  width:5px;height:5px;border-radius:50%;
-  background:var(--c-orange-500);
-  margin-top:8px; flex-shrink:0;
-}
-
-/* ============================================================
-   6. Quick Actions (第4章-12 / 第9章-6)
-   ============================================================ */
-.co-qa-row{
-  display:flex; gap:10px;
-  overflow-x:auto;
-  padding:2px 20px 6px;
-  margin:0 -20px;
-  scrollbar-width:none;
-}
+.co-briefing__dot{ width:5px;height:5px;border-radius:50%; background:var(--c-orange-500); margin-top:8px; flex-shrink:0; }
+.co-qa-row{ display:flex; gap:10px; overflow-x:auto; padding:2px 20px 6px; margin:0 -20px; scrollbar-width:none; }
 .co-qa-row::-webkit-scrollbar{display:none;}
-.co-qa{
-  flex:0 0 auto;
-  width:74px;
-  display:flex; flex-direction:column; align-items:center; gap:7px;
-  background:none; border:none; cursor:pointer;
-  padding:2px 0;
-}
+.co-qa{ flex:0 0 auto; width:74px; display:flex; flex-direction:column; align-items:center; gap:7px; background:none; border:none; cursor:pointer; padding:2px 0; }
 .co-qa__icon{
-  width:50px;height:50px;
-  border-radius:15px;
-  background:var(--c-surface);
-  display:flex;align-items:center;justify-content:center;
-  color:var(--c-navy-900);
+  width:50px;height:50px; border-radius:15px; background:var(--c-surface);
+  display:flex;align-items:center;justify-content:center; color:var(--c-navy-900);
   transition:transform var(--dur-fast) var(--ease);
 }
 .co-qa:active .co-qa__icon{ transform:scale(0.9); }
 .co-qa__icon svg{ width:21px;height:21px; }
 .co-qa__label{ font-size:11px; color:var(--c-text-500); font-weight:500; text-align:center; }
-
-/* ============================================================
-   7. KPI (第4章-7 / 第12章-18)
-   ============================================================ */
-.co-kpi-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:var(--sp-card-gap);
-}
+.co-kpi-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-card-gap); }
 .co-kpi{ margin-bottom:0; cursor:pointer; }
 .co-kpi__title{ font-size:12px; color:var(--c-text-500); margin:0 0 8px; font-weight:500; display:flex; align-items:center; gap:6px; }
-.co-kpi__axis{
-  font-size:9.5px; font-weight:700;
-  padding:2px 6px; border-radius:var(--r-chip);
-}
+.co-kpi__axis{ font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:var(--r-chip); }
 .co-kpi__axis[data-axis="開発"]{ background:rgba(20,48,79,0.08); color:var(--c-navy-700); }
 .co-kpi__axis[data-axis="発信"]{ background:var(--c-orange-100); color:var(--c-orange-600); }
 .co-kpi__axis[data-axis="収益化"]{ background:var(--c-green-100); color:var(--c-green-500); }
 .co-kpi__value{ font-size:23px; font-weight:900; letter-spacing:-.01em; }
 .co-kpi__unit{ font-size:12px; font-weight:700; color:var(--c-text-500); margin-left:1px; }
-.co-kpi__delta{
-  display:inline-flex; align-items:center; gap:3px;
-  font-size:11px; font-weight:700; margin-top:6px;
-}
+.co-kpi__delta{ display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:700; margin-top:6px; }
 .co-kpi__delta svg{ width:11px;height:11px; }
 .co-kpi__delta[data-dir="up"]{ color:var(--c-green-500); }
 .co-kpi__delta[data-dir="down"]{ color:var(--c-red-500); }
 .co-kpi__delta[data-dir="flat"]{ color:var(--c-text-300); }
-
-/* ============================================================
-   8. Project / Progress (第4章-8)
-   ============================================================ */
 .co-project{ display:flex; flex-direction:column; gap:2px; padding:10px 2px; }
 .co-project + .co-project{ border-top:1px solid var(--c-border); }
 .co-project__top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
 .co-project__name{ font-size:14px; font-weight:700; display:flex; align-items:center; gap:7px;}
 .co-project__dot{ width:7px;height:7px;border-radius:50%; flex-shrink:0; }
 .co-project__pct{ font-size:12.5px; font-weight:700; color:var(--c-text-500); }
-.co-progress{
-  height:6px; border-radius:99px; background:var(--c-surface); overflow:hidden;
-}
-.co-progress__bar{
-  height:100%; border-radius:99px;
-  background:var(--c-orange-500);
-  width:0%;
-  transition:width 900ms var(--ease);
-}
+.co-progress{ height:6px; border-radius:99px; background:var(--c-surface); overflow:hidden; }
+.co-progress__bar{ height:100%; border-radius:99px; background:var(--c-orange-500); width:0%; transition:width 900ms var(--ease); }
 .co-project__meta{ font-size:11px; color:var(--c-text-500); margin-top:6px; }
-
-/* ============================================================
-   9. SNS状況 (第4章-9)
-   ============================================================ */
 .co-sns-row{ display:flex; gap:10px; }
-.co-sns{
-  flex:1;
-  background:var(--c-surface);
-  border-radius:12px;
-  padding:12px 10px;
-  text-align:center;
-}
-.co-sns__badge{
-  width:28px;height:28px;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  margin:0 auto 8px;
-  font-size:11px;font-weight:900;color:#fff;
-}
+.co-sns{ flex:1; background:var(--c-surface); border-radius:12px; padding:12px 10px; text-align:center; }
+.co-sns__badge{ width:28px;height:28px;border-radius:8px; display:flex;align-items:center;justify-content:center; margin:0 auto 8px; font-size:11px;font-weight:900;color:#fff; }
 .co-sns__value{ font-size:16px; font-weight:900; }
 .co-sns__label{ font-size:10.5px; color:var(--c-text-500); margin-top:2px; }
-
-/* ============================================================
-   10. Recent Activity (第4章-11)
-   ============================================================ */
 .co-timeline__item{ display:flex; gap:12px; padding:9px 2px; }
 .co-timeline__item + .co-timeline__item{ border-top:1px solid var(--c-border); }
 .co-timeline__icon{
-  width:30px;height:30px;border-radius:9px;
-  background:var(--c-surface);
-  display:flex;align-items:center;justify-content:center;
+  width:30px;height:30px;border-radius:9px; background:var(--c-surface); display:flex;align-items:center;justify-content:center;
   flex-shrink:0; color:var(--c-navy-900);
 }
 .co-timeline__icon svg{ width:15px;height:15px; }
 .co-timeline__title{ font-size:13.5px; font-weight:700; margin:0; }
 .co-timeline__time{ font-size:11px; color:var(--c-text-500); margin-top:1px; }
-
-/* ============================================================
-   11. Empty State (第10章-13)
-   ============================================================ */
-.co-empty{
-  text-align:center;
-  padding:56px 24px 40px;
-}
+.co-empty{ text-align:center; padding:56px 24px 40px; }
 .co-empty__icon{
-  width:52px;height:52px;border-radius:16px;
-  background:var(--c-surface);
-  display:flex;align-items:center;justify-content:center;
+  width:52px;height:52px;border-radius:16px; background:var(--c-surface); display:flex;align-items:center;justify-content:center;
   margin:0 auto 16px; color:var(--c-text-300);
 }
 .co-empty__icon svg{ width:24px;height:24px; }
 .co-empty__title{ font-size:15px; font-weight:700; margin:0 0 6px; }
 .co-empty__desc{ font-size:13px; color:var(--c-text-500); margin:0 0 18px; line-height:1.6; }
 .co-empty__btn{
-  display:inline-flex; align-items:center; gap:6px;
-  background:var(--c-navy-900); color:#fff;
-  border:none; border-radius:var(--r-btn);
-  padding:11px 18px; font-size:13px; font-weight:700;
-  cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px; background:var(--c-navy-900); color:#fff; border:none; border-radius:var(--r-btn);
+  padding:11px 18px; font-size:13px; font-weight:700; cursor:pointer;
 }
-
-/* ============================================================
-   11b. Modal (第10章-15 / 第12章-10)
-   ============================================================ */
 .co-modal-backdrop{
-  position:fixed; inset:0; z-index:120;
-  background:rgba(10,16,26,0.42);
-  display:flex; align-items:flex-end; justify-content:center;
-  opacity:0; pointer-events:none;
+  position:fixed; inset:0; z-index:120; background:rgba(10,16,26,0.42);
+  display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none;
   transition:opacity var(--dur-base) var(--ease);
 }
 .co-modal-backdrop.is-open{ opacity:1; pointer-events:auto; }
 .co-modal-sheet{
-  width:100%; max-width:520px; max-height:86vh;
-  overflow-y:auto;
-  background:var(--c-bg);
-  border-radius:var(--r-modal) var(--r-modal) 0 0;
-  padding:14px 20px calc(20px + env(safe-area-inset-bottom));
-  transform:translateY(100%);
-  transition:transform var(--dur-slow) var(--ease);
+  width:100%; max-width:520px; max-height:86vh; overflow-y:auto; background:var(--c-bg);
+  border-radius:var(--r-modal) var(--r-modal) 0 0; padding:14px 20px calc(20px + env(safe-area-inset-bottom));
+  transform:translateY(100%); transition:transform var(--dur-slow) var(--ease);
 }
 .co-modal-backdrop.is-open .co-modal-sheet{ transform:translateY(0); }
 .co-modal-handle{ width:36px;height:4px;border-radius:99px;background:var(--c-border); margin:0 auto 16px; }
@@ -507,10 +239,8 @@ img{max-width:100%;display:block;}
 .co-modal-title{ font-size:17px; font-weight:900; margin:0; line-height:1.3; }
 .co-modal-subtitle{ font-size:12px; color:var(--c-text-500); margin:4px 0 0; }
 .co-modal-close{
-  width:32px;height:32px;border-radius:10px;border:none;
-  background:var(--c-surface); color:var(--c-text-500);
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0; cursor:pointer;
+  width:32px;height:32px;border-radius:10px;border:none; background:var(--c-surface); color:var(--c-text-500);
+  display:flex;align-items:center;justify-content:center; flex-shrink:0; cursor:pointer;
 }
 .co-modal-close svg{ width:16px;height:16px; }
 .co-modal-section{ margin-bottom:16px; }
@@ -526,27 +256,19 @@ img{max-width:100%;display:block;}
 .co-modal-list-item + .co-modal-list-item{ border-top:1px solid var(--c-border); }
 .co-modal-list-item__date{ color:var(--c-text-300); font-size:11.5px; flex-shrink:0; width:38px; }
 .co-modal-shot{
-  width:100%; aspect-ratio:16/9; border-radius:12px;
-  background:linear-gradient(135deg, var(--c-surface), #eef0f3);
-  display:flex; align-items:center; justify-content:center;
-  color:var(--c-text-300);
+  width:100%; aspect-ratio:16/9; border-radius:12px; background:linear-gradient(135deg, var(--c-surface), #eef0f3);
+  display:flex; align-items:center; justify-content:center; color:var(--c-text-300);
   background-size:cover; background-position:center;
 }
 .co-modal-shot svg{ width:26px;height:26px; }
 .co-modal-empty-note{ font-size:12.5px; color:var(--c-text-300); }
-
-/* ============================================================
-   11c. Projects / Portfolio
-   ============================================================ */
 .co-devcard{ cursor:pointer; }
 .co-devcard__meta-row{ display:flex; align-items:center; justify-content:space-between; font-size:11.5px; color:var(--c-text-500); margin-top:8px; }
 .co-devcard__meta-row svg{ width:14px;height:14px; color:var(--c-text-300); }
-
 .co-portfolio-card{ display:flex; flex-direction:column; gap:10px; cursor:pointer; }
 .co-portfolio-card__top{ display:flex; align-items:center; gap:12px; }
 .co-portfolio-card__badge{
-  width:40px;height:40px;border-radius:12px;
-  display:flex;align-items:center;justify-content:center;
+  width:40px;height:40px;border-radius:12px; display:flex;align-items:center;justify-content:center;
   color:#fff; font-size:12px; font-weight:900; flex-shrink:0;
 }
 .co-portfolio-card__name{ font-size:14.5px; font-weight:800; margin:0; }
@@ -555,22 +277,10 @@ img{max-width:100%;display:block;}
 .co-portfolio-card__chevron svg{ width:18px;height:18px; }
 .co-portfolio-card__summary{ font-size:12.5px; color:var(--c-text-500); line-height:1.6; margin:0; }
 .co-portfolio-add{
-  width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
-  border:1.5px dashed var(--c-border); background:none;
-  color:var(--c-text-500); font-size:13px; font-weight:700;
-  cursor:pointer;
+  width:100%; display:flex; align-items:center; justify-content:center; gap:8px; border:1.5px dashed var(--c-border); background:none;
+  color:var(--c-text-500); font-size:13px; font-weight:700; cursor:pointer;
 }
 .co-portfolio-add svg{ width:17px;height:17px; }
-
-/* ============================================================
-   11c-2. GitHub履歴 / 開発タイムライン (Sprint10.3)
-   ------------------------------------------------------------
-   ・GitHub履歴は各開発中プロジェクトカードの直下に表示する共通コンポーネント。
-     将来リポジトリが増えても renderGithubHistoryItem() が同じ形で使い回せる。
-   ・開発タイムラインはProjects画面の一番下に表示し、Sprintの区切りなど
-     「今日何を進めたか」を時系列で見せる。将来note/X/TikTokの発信履歴も
-     同じ構造(source違い)で合流させる想定(#co-timeline-source-*)。
-   ============================================================ */
 .co-github-history{ margin-top:10px; padding-top:10px; border-top:1px solid var(--c-border); }
 .co-github-history__label{ font-size:11px; font-weight:700; color:var(--c-text-500); margin:0 0 8px; display:flex; align-items:center; gap:5px; }
 .co-github-history__label svg{ width:13px;height:13px; }
@@ -586,7 +296,6 @@ img{max-width:100%;display:block;}
 .co-github-item__meta svg{ width:11px;height:11px; }
 .co-github-item__tag{ font-size:9.5px; font-weight:700; color:var(--c-orange-600); background:var(--c-orange-100); padding:1px 7px; border-radius:var(--r-chip); }
 .co-github-history__empty{ font-size:11.5px; color:var(--c-text-300); padding:6px 2px; }
-
 .co-timeline2{ display:flex; flex-direction:column; }
 .co-timeline2-item{ display:flex; gap:12px; padding:11px 2px; position:relative; }
 .co-timeline2-item + .co-timeline2-item{ border-top:1px solid var(--c-border); }
@@ -595,10 +304,6 @@ img{max-width:100%;display:block;}
 .co-timeline2-item__body{ flex:1; min-width:0; }
 .co-timeline2-item__label{ font-size:13.5px; font-weight:700; margin:0; }
 .co-timeline2-item__meta{ font-size:11px; color:var(--c-text-500); margin-top:2px; }
-
-/* ============================================================
-   11d. AI秘書
-   ============================================================ */
 .co-agent-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-card-gap); }
 .co-agent{ display:flex; flex-direction:column; gap:8px; }
 .co-agent__avatar{ width:36px;height:36px;border-radius:11px; display:flex;align-items:center;justify-content:center; color:#fff; font-weight:900; font-size:13px; }
@@ -616,7 +321,6 @@ img{max-width:100%;display:block;}
 .co-status-badge[data-status="完了"]::before{ background:var(--c-green-500); }
 .co-status-badge[data-status="エラー"]{ background:var(--c-red-100); color:var(--c-red-500); }
 .co-status-badge[data-status="エラー"]::before{ background:var(--c-red-500); }
-/* 【Sprint14】Content Stock用ステータス色 */
 .co-status-badge[data-status="idea"]{ background:var(--c-surface); color:var(--c-text-500); }
 .co-status-badge[data-status="idea"]::before{ background:var(--c-text-300); }
 .co-status-badge[data-status="draft"]{ background:var(--c-orange-100); color:var(--c-orange-600); }
@@ -627,15 +331,7 @@ img{max-width:100%;display:block;}
 .co-status-badge[data-status="approved"]::before{ background:var(--c-green-500); }
 .co-status-badge[data-status="posted"]{ background:var(--c-navy-900); color:#fff; }
 .co-status-badge[data-status="posted"]::before{ background:#fff; }
-
-/* 【Sprint14】Content Stock 一覧・フォーム */
-.co-cs-item{
-  padding:12px 4px;
-  border-bottom:1px solid var(--c-border);
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
+.co-cs-item{ padding:12px 4px; border-bottom:1px solid var(--c-border); display:flex; flex-direction:column; gap:6px; }
 .co-cs-item:last-child{ border-bottom:none; }
 .co-cs-item__top{ display:flex; align-items:center; gap:8px; }
 .co-cs-item__title{ font-size:14px; font-weight:800; flex:1; margin:0; }
@@ -643,86 +339,66 @@ img{max-width:100%;display:block;}
 .co-cs-item__idea{ font-size:12.5px; color:var(--c-text-500); margin:0; line-height:1.5; }
 .co-cs-item__controls{ display:flex; gap:8px; margin-top:2px; }
 .co-cs-select{
-  font-size:11.5px;
-  font-weight:700;
-  padding:5px 8px;
-  border-radius:8px;
-  border:1px solid var(--c-border);
-  background:#fff;
+  font-size:11.5px; font-weight:700; padding:5px 8px; border-radius:8px; border:1px solid var(--c-border); background:#fff;
   color:var(--c-text-700, var(--c-navy-900));
 }
 .co-cs-empty{ padding:24px 4px; text-align:center; color:var(--c-text-500); font-size:13px; }
 .co-cs-fab{
-  display:flex; align-items:center; justify-content:center; gap:6px;
-  width:100%; padding:12px; border-radius:var(--r-card);
-  background:var(--c-orange-500); color:#fff; font-weight:800; font-size:13.5px;
-  border:none; margin-bottom:14px;
+  display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:12px; border-radius:var(--r-card);
+  background:var(--c-orange-500); color:#fff; font-weight:800; font-size:13.5px; border:none; margin-bottom:14px;
 }
 .co-cs-fab svg{ width:16px; height:16px; }
 .co-cs-form label{ display:block; font-size:12px; font-weight:700; color:var(--c-text-500); margin:14px 0 6px; }
 .co-cs-form input[type="text"],
 .co-cs-form select,
 .co-cs-form textarea{
-  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--c-border);
-  font-size:13.5px; font-family:inherit; background:#fff; box-sizing:border-box;
+  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--c-border); font-size:13.5px; font-family:inherit;
+  background:#fff; box-sizing:border-box;
 }
 .co-cs-form textarea{ min-height:70px; resize:vertical; }
 .co-cs-form__submit{
-  width:100%; margin-top:18px; padding:13px; border:none; border-radius:var(--r-card);
-  background:var(--c-orange-500); color:#fff; font-weight:800; font-size:14px;
+  width:100%; margin-top:18px; padding:13px; border:none; border-radius:var(--r-card); background:var(--c-orange-500); color:#fff;
+  font-weight:800; font-size:14px;
 }
 .co-cs-recommend-badge{
-  font-size:10px; font-weight:700; color:var(--c-orange-600); background:var(--c-orange-100);
-  padding:2px 7px; border-radius:var(--r-chip);
+  font-size:10px; font-weight:700; color:var(--c-orange-600); background:var(--c-orange-100); padding:2px 7px; border-radius:var(--r-chip);
 }
 .co-cs-detail-link{
-  display:flex; align-items:center; justify-content:space-between; gap:6px;
-  width:100%; margin-top:4px; padding:9px 2px; border:none; background:none;
-  font-size:12px; font-weight:700; color:var(--c-navy-700); text-align:left;
+  display:flex; align-items:center; justify-content:space-between; gap:6px; width:100%; margin-top:4px; padding:9px 2px; border:none;
+  background:none; font-size:12px; font-weight:700; color:var(--c-navy-700); text-align:left;
 }
 .co-cs-detail-link svg{ width:16px; height:16px; flex-shrink:0; color:var(--c-text-300); }
-
-/* 【Sprint15】AIリサーチ候補: 採用/保留/却下ボタン */
 .co-rc-actions{ display:flex; gap:8px; margin-top:8px; }
 .co-rc-btn{ flex:1; padding:8px 6px; border-radius:10px; border:none; font-size:12px; font-weight:700; }
 .co-rc-btn[data-variant="approve"]{ background:var(--c-green-100); color:var(--c-green-500); }
 .co-rc-btn[data-variant="hold"]{ background:var(--c-surface); color:var(--c-text-500); }
 .co-rc-btn[data-variant="reject"]{ background:var(--c-red-100); color:var(--c-red-500); }
 .co-rc-btn:disabled{ opacity:0.5; }
-
 .co-template-row{ display:flex; gap:8px; overflow-x:auto; padding:2px 20px 4px; margin:0 -20px; scrollbar-width:none; }
 .co-template-row::-webkit-scrollbar{ display:none; }
 .co-template-chip{ flex:0 0 auto; font-size:12px; font-weight:700; background:var(--c-surface); border:none; color:var(--c-navy-900); padding:8px 13px; border-radius:var(--r-chip); cursor:pointer; }
-
 .co-composer{ display:flex; flex-direction:column; gap:10px; }
 .co-composer textarea{
-  width:100%; border:1px solid var(--c-border); border-radius:var(--r-input);
-  padding:11px 12px; font-size:13.5px; font-family:inherit; resize:none;
-  background:var(--c-surface); color:var(--c-text-900); min-height:64px;
+  width:100%; border:1px solid var(--c-border); border-radius:var(--r-input); padding:11px 12px; font-size:13.5px; font-family:inherit;
+  resize:none; background:var(--c-surface); color:var(--c-text-900); min-height:64px;
 }
 .co-composer textarea:focus{ outline:2px solid var(--c-orange-500); outline-offset:1px; }
 .co-composer__row{ display:flex; gap:8px; }
 .co-btn-primary{
-  flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
-  background:var(--c-navy-900); color:#fff; border:none; border-radius:var(--r-btn);
-  padding:11px 14px; font-size:13px; font-weight:700; cursor:pointer;
+  flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:var(--c-navy-900); color:#fff; border:none;
+  border-radius:var(--r-btn); padding:11px 14px; font-size:13px; font-weight:700; cursor:pointer;
 }
 .co-btn-primary svg{ width:15px;height:15px; }
 .co-btn-ghost{
-  width:44px; display:flex; align-items:center; justify-content:center;
-  background:var(--c-surface); border:none; border-radius:var(--r-btn); color:var(--c-navy-900); cursor:pointer;
+  width:44px; display:flex; align-items:center; justify-content:center; background:var(--c-surface); border:none; border-radius:var(--r-btn);
+  color:var(--c-navy-900); cursor:pointer;
 }
 .co-btn-ghost svg{ width:17px;height:17px; }
-
 .co-request-item{ display:flex; align-items:center; gap:10px; padding:9px 2px; }
 .co-request-item + .co-request-item{ border-top:1px solid var(--c-border); }
 .co-request-item__ai{ width:28px;height:28px;border-radius:9px; display:flex;align-items:center;justify-content:center; color:#fff; font-size:10px; font-weight:900; flex-shrink:0; }
 .co-request-item__text{ flex:1; font-size:13px; font-weight:600; }
 .co-request-item__date{ font-size:11px; color:var(--c-text-300); flex-shrink:0; }
-
-/* ============================================================
-   11e. SNS
-   ============================================================ */
 .co-platform-card{ margin-bottom:var(--sp-card-gap); cursor:pointer; }
 .co-platform-card__top{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
 .co-platform-card__badge{ width:32px;height:32px;border-radius:10px; display:flex;align-items:center;justify-content:center; color:#fff; font-size:11px; font-weight:900; flex-shrink:0; }
@@ -734,10 +410,6 @@ img{max-width:100%;display:block;}
 .co-platform-card__stat span{ font-size:10.5px; color:var(--c-text-500); }
 .co-platform-card__next{ background:var(--c-surface); border-radius:11px; padding:10px 12px; font-size:12px; color:var(--c-text-900); }
 .co-platform-card__next b{ font-weight:800; }
-
-/* ============================================================
-   11f. Menu
-   ============================================================ */
 .co-menu-profile{ display:flex; align-items:center; gap:14px; }
 .co-menu-avatar{ width:52px;height:52px;border-radius:16px; background:linear-gradient(135deg, var(--c-navy-900), var(--c-navy-700)); color:#fff; font-size:18px; font-weight:900; display:flex;align-items:center;justify-content:center; flex-shrink:0; }
 .co-menu-profile__name{ font-size:16px; font-weight:800; margin:0; }
@@ -749,29 +421,15 @@ img{max-width:100%;display:block;}
 .co-menu-row__label{ flex:1; font-size:14px; font-weight:700; }
 .co-menu-row__chevron{ color:var(--c-text-300); flex-shrink:0; }
 .co-menu-row__chevron svg{ width:16px;height:16px; }
-/* 【Sprint5 UI改善】タップ後にModalが開く項目だけchevronをアクセントカラーにして区別する */
 .co-menu-row--has-detail .co-menu-row__chevron{ color:var(--c-orange-500); }
 .co-detail-badge{
-  font-size:10px; font-weight:700; color:var(--c-orange-600);
-  background:var(--c-orange-100); padding:3px 8px; border-radius:var(--r-chip);
+  font-size:10px; font-weight:700; color:var(--c-orange-600); background:var(--c-orange-100); padding:3px 8px; border-radius:var(--r-chip);
   flex-shrink:0;
 }
-
-/* ============================================================
-   11g. 【Sprint11】CEOレベル / フェーズ / 投資管理 / 実績バッジ
-   ------------------------------------------------------------
-   HOMEは軽さ優先: レベルバー1本+フェーズカード1枚のみ。
-   詳細(投資明細・バッジ一覧・レベル詳細)はMenuのModalへ逃がす。
-   ============================================================ */
-.co-levelbar{
-  display:flex; align-items:center; gap:12px;
-  cursor:pointer;
-}
+.co-levelbar{ display:flex; align-items:center; gap:12px; cursor:pointer; }
 .co-levelbar__badge{
-  width:38px;height:38px;border-radius:11px;
-  background:linear-gradient(135deg, var(--c-navy-900), var(--c-navy-700));
-  color:#fff; display:flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:900; flex-shrink:0;
+  width:38px;height:38px;border-radius:11px; background:linear-gradient(135deg, var(--c-navy-900), var(--c-navy-700)); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; flex-shrink:0;
 }
 .co-levelbar__body{ flex:1; min-width:0; }
 .co-levelbar__top{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:5px; }
@@ -779,7 +437,6 @@ img{max-width:100%;display:block;}
 .co-levelbar__xp{ font-size:10.5px; color:var(--c-text-500); font-weight:700; }
 .co-levelbar__track{ height:6px; border-radius:99px; background:var(--c-surface); overflow:hidden; }
 .co-levelbar__fill{ height:100%; border-radius:99px; background:linear-gradient(90deg, var(--c-orange-500), var(--c-orange-600)); width:0%; transition:width 900ms var(--ease); }
-
 .co-phasecard{ cursor:pointer; }
 .co-phasecard__top{ display:flex; align-items:center; gap:12px; }
 .co-phasecard__emoji{ font-size:26px; line-height:1; flex-shrink:0; }
@@ -788,7 +445,6 @@ img{max-width:100%;display:block;}
 .co-phasecard__desc{ font-size:12.5px; color:var(--c-text-500); margin:10px 0 0; line-height:1.6; }
 .co-phasecard__chevron{ margin-left:auto; color:var(--c-text-300); flex-shrink:0; }
 .co-phasecard__chevron svg{ width:18px;height:18px; }
-
 .co-phase-journey{ display:flex; flex-direction:column; }
 .co-phase-journey-item{ display:flex; gap:12px; padding:10px 0; }
 .co-phase-journey-item + .co-phase-journey-item{ border-top:1px solid var(--c-border); }
@@ -798,7 +454,6 @@ img{max-width:100%;display:block;}
 .co-phase-journey-item__label{ font-size:13.5px; font-weight:700; color:var(--c-text-300); margin:0; }
 .co-phase-journey-item.is-current .co-phase-journey-item__label{ color:var(--c-text-900); }
 .co-phase-journey-item__now{ font-size:10px; font-weight:700; color:var(--c-orange-600); background:var(--c-orange-100); padding:2px 8px; border-radius:var(--r-chip); margin-left:6px; }
-
 .co-invest-hero{ text-align:center; padding:6px 0 4px; }
 .co-invest-hero__value{ font-size:28px; font-weight:900; }
 .co-invest-hero__label{ font-size:11.5px; color:var(--c-text-500); margin-top:4px; }
@@ -810,7 +465,6 @@ img{max-width:100%;display:block;}
 .co-invest-item__name{ font-size:13.5px; font-weight:700; }
 .co-invest-item__amount{ font-size:13px; font-weight:800; color:var(--c-text-500); }
 .co-invest-message{ font-size:12.5px; color:var(--c-text-500); line-height:1.7; margin:0 0 6px; }
-
 .co-badge-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .co-badge{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px 8px; border-radius:14px; background:var(--c-surface); text-align:center; }
 .co-badge__icon{ width:42px;height:42px;border-radius:13px; display:flex; align-items:center; justify-content:center; background:var(--c-bg); color:var(--c-text-300); }
@@ -818,13 +472,6 @@ img{max-width:100%;display:block;}
 .co-badge.is-unlocked .co-badge__icon{ background:linear-gradient(135deg, var(--c-orange-500), var(--c-orange-600)); color:#fff; }
 .co-badge__label{ font-size:11.5px; font-weight:700; color:var(--c-text-300); line-height:1.4; }
 .co-badge.is-unlocked .co-badge__label{ color:var(--c-text-900); }
-
-/* ============================================================
-   11h. 【Sprint12】ルールベースAI秘書カード
-   ------------------------------------------------------------
-   AIブリーフィング(既存, ネイビー背景)とは視覚的に区別するため、
-   白背景+オレンジのAIアバターで軽く見せる。最大3行のみ。
-   ============================================================ */
 .co-aiadvice__head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
 .co-aiadvice__avatar{ width:30px;height:30px;border-radius:10px; background:linear-gradient(135deg, var(--c-orange-500), var(--c-orange-600)); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .co-aiadvice__avatar svg{ width:15px;height:15px; }
@@ -832,60 +479,32 @@ img{max-width:100%;display:block;}
 .co-aiadvice__item{ display:flex; gap:8px; font-size:13.5px; line-height:1.6; padding:6px 0; }
 .co-aiadvice__item + .co-aiadvice__item{ border-top:1px solid var(--c-border); }
 .co-aiadvice__dot{ width:5px;height:5px;border-radius:50%; background:var(--c-orange-500); margin-top:8px; flex-shrink:0; }
-
-/* ============================================================
-   12. Bottom Navigation (第9章-12 / 第12章-4)
-   ============================================================ */
 .co-bottomnav{
-  position:fixed; left:0; right:0; bottom:0;
-  max-width:520px; margin:0 auto;
-  background:rgba(255,255,255,0.92);
-  backdrop-filter:blur(14px);
-  -webkit-backdrop-filter:blur(14px);
-  border-top:1px solid var(--c-border);
-  display:flex;
-  padding:8px 6px calc(6px + env(safe-area-inset-bottom));
-  z-index:60;
+  position:fixed; left:0; right:0; bottom:0; max-width:520px; margin:0 auto; background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--c-border); display:flex;
+  padding:8px 6px calc(6px + env(safe-area-inset-bottom)); z-index:60;
 }
 .co-navitem{
-  flex:1;
-  display:flex; flex-direction:column; align-items:center; gap:3px;
-  background:none; border:none; cursor:pointer;
-  padding:6px 0;
-  color:var(--c-text-300);
-  transition:color var(--dur-fast) var(--ease);
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none; cursor:pointer;
+  padding:6px 0; color:var(--c-text-300); transition:color var(--dur-fast) var(--ease);
 }
 .co-navitem svg{ width:22px;height:22px; transition:transform var(--dur-fast) var(--ease); }
 .co-navitem span{ font-size:10px; font-weight:700; }
 .co-navitem.is-active{ color:var(--c-navy-900); }
 .co-navitem.is-active svg{ color:var(--c-orange-500); transform:translateY(-1px); }
 .co-navitem:active svg{ transform:scale(0.88); }
-
-/* ============================================================
-   13. Toast (第10章-14)
-   ============================================================ */
 .co-toast-wrap{
-  position:fixed; left:0; right:0; bottom:calc(90px + env(safe-area-inset-bottom));
-  display:flex; justify-content:center;
+  position:fixed; left:0; right:0; bottom:calc(90px + env(safe-area-inset-bottom)); display:flex; justify-content:center;
   z-index:100; pointer-events:none;
 }
 .co-toast{
-  background:var(--c-navy-900); color:#fff;
-  font-size:12.5px; font-weight:500;
-  padding:11px 18px; border-radius:var(--r-chip);
-  box-shadow:var(--shadow-md);
-  display:flex; align-items:center; gap:8px;
-  opacity:0; transform:translateY(8px);
-  animation:coToastIn var(--dur-base) var(--ease) forwards;
-  max-width:82%;
+  background:var(--c-navy-900); color:#fff; font-size:12.5px; font-weight:500; padding:11px 18px; border-radius:var(--r-chip);
+  box-shadow:var(--shadow-md); display:flex; align-items:center; gap:8px; opacity:0; transform:translateY(8px);
+  animation:coToastIn var(--dur-base) var(--ease) forwards; max-width:82%;
 }
 .co-toast.is-leaving{ animation:coToastOut var(--dur-base) var(--ease) forwards; }
 @keyframes coToastIn{ to{opacity:1; transform:translateY(0);} }
 @keyframes coToastOut{ to{opacity:0; transform:translateY(8px);} }
-
-/* ============================================================
-   14. その他タブ用ダミー画面
-   ============================================================ */
 .co-screen{ display:none; }
 .co-screen.is-active{ display:block; }
 </style>
@@ -893,104 +512,51 @@ img{max-width:100%;display:block;}
 <body>
 
 <div id="app">
-
-  <!-- ================= HOME ================= -->
   <div class="co-screen is-active" data-screen="home" id="screen-home">
     <div id="home-skeleton"></div>
     <div id="home-content" style="display:none;"></div>
   </div>
-
-  <!-- ================= ダミー画面(AI / Projects / SNS / Menu) ================= -->
   <div class="co-screen" data-screen="ai" id="screen-ai"></div>
   <div class="co-screen" data-screen="projects" id="screen-projects"></div>
   <div class="co-screen" data-screen="sns" id="screen-sns"></div>
   <div class="co-screen" data-screen="menu" id="screen-menu"></div>
-
-  <!-- ================= Bottom Navigation ================= -->
   <nav class="co-bottomnav" id="bottom-nav"></nav>
-
-  <!-- ================= Toast ================= -->
   <div class="co-toast-wrap" id="toast-wrap"></div>
-
-  <!-- ================= Modal ================= -->
   <div class="co-modal-backdrop" id="modal-backdrop">
     <div class="co-modal-sheet"></div>
   </div>
-
 </div>
 
 <script>
 "use strict";
 
-/* ============================================================
-   0. ASSETS CONFIG — Canva素材の差し替えポイント
-   ------------------------------------------------------------
-   ここにCanvaで書き出したURL(またはbase64/相対パス)を入れるだけで
-   ロゴ・背景・カード装飾に反映される。空(null)なら自動でCSSの
-   フォールバック(グラデーション/アイコン)が使われるため、
-   素材が無い状態でもUIは崩れない。
-   ============================================================ */
 const ASSETS = {
-  logo: null,              // 例: "assets/images/logo.png"
-  homeHeroBackground: null,// 例: "assets/images/hero-bg.jpg" (AIブリーフィングカード背景に合成)
+  logo: null,
+  homeHeroBackground: null,
   missionCardDecoration: null,
-  achievementBadge: {      // 実績バッジ(将来のレベルシステムで使用予定)
-    bronze: null,
-    silver: null,
-    gold: null
-  }
+  achievementBadge: { bronze: null, silver: null, gold: null }
 };
 
-/**
- * 画像アセットを要素へ安全に適用する。
- * 読み込みに失敗/未設定の場合はfallbackClassのCSSに任せて崩れないようにする。
- */
 function applyImageAsset(el, url, fallbackClass) {
-  if (!url) {
-    if (fallbackClass) el.classList.add(fallbackClass);
-    return;
-  }
+  if (!url) { if (fallbackClass) el.classList.add(fallbackClass); return; }
   const probe = new Image();
   probe.onload = () => { el.style.backgroundImage = `url("${url}")`; };
   probe.onerror = () => { if (fallbackClass) el.classList.add(fallbackClass); };
   probe.src = url;
 }
 
-/* ============================================================
-   0b. 【Sprint3】API接続設定 — Google Spreadsheet / GAS連携の土台
-   ============================================================ */
 const API_URL = "https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLeDSFLxLGtCsX7O79MAdy0YDnvbE2tLl51Yyl1DTf-rXxK2JXhpCuJiA/exec";
-
 const DEV_MODE = false;
-
-const API_ENABLED_SCREENS = {
-  home: true,
-  projects: true,
-  ai: false,
-  sns: false,
-  menu: true,
-  contentStock: true,
-  aiResearch: true
-};
-
-function shouldUseApi(screen) {
-  return !DEV_MODE && !!API_URL && !!API_ENABLED_SCREENS[screen];
-}
-
+const API_ENABLED_SCREENS = { home: true, projects: true, ai: false, sns: false, menu: true, contentStock: true, aiResearch: true };
+function shouldUseApi(screen) { return !DEV_MODE && !!API_URL && !!API_ENABLED_SCREENS[screen]; }
 const Logger = {
   info(...args) { if (DEV_MODE) console.log("[INFO]", ...args); },
   warn(...args) { if (DEV_MODE) console.warn("[WARN]", ...args); },
   error(...args) { if (DEV_MODE) console.error("[ERROR]", ...args); }
 };
-
 const AUTH_TOKEN = null;
-
-function buildAuthHeaders() {
-  return AUTH_TOKEN ? { Authorization: AUTH_TOKEN } : {};
-}
-
+function buildAuthHeaders() { return AUTH_TOKEN ? { Authorization: AUTH_TOKEN } : {}; }
 const SUPPORTED_VERSION = "1.0";
-
 const API_TIMEOUT_MS = 20000;
 
 async function apiRequest(action, params = {}, method = "GET") {
@@ -1012,7 +578,6 @@ async function apiRequest(action, params = {}, method = "GET") {
       });
     }
     if (!res.ok) throw new Error(`API error (${action}): ${res.status}`);
-
     const json = await res.json();
     if (!json || typeof json !== "object") throw new Error(`API error (${action}): 不正なレスポンス形式`);
     if (json.error) throw new Error(`API error (${action}): ${json.error}`);
@@ -1021,21 +586,13 @@ async function apiRequest(action, params = {}, method = "GET") {
     } else if (json.version !== SUPPORTED_VERSION) {
       Logger.warn(`apiRequest(${action}): APIバージョン不一致 (supported=${SUPPORTED_VERSION}, received=${json.version})`);
     }
-
     return json.data !== undefined ? json.data : json;
   } catch (err) {
-    if (err.name === "AbortError") {
-      throw new Error(`API error (${action}): タイムアウト(${API_TIMEOUT_MS}ms)`);
-    }
+    if (err.name === "AbortError") { throw new Error(`API error (${action}): タイムアウト(${API_TIMEOUT_MS}ms)`); }
     throw err;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  } finally { clearTimeout(timeoutId); }
 }
 
-/* ============================================================
-   1. ICONS
-   ============================================================ */
 const ICONS = {
   home:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>`,
   ai:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M9 4h6"/><circle cx="9" cy="13" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1.2" fill="currentColor" stroke="none"/></svg>`,
@@ -1079,30 +636,13 @@ const ICONS = {
 };
 function icon(name){ return ICONS[name] || ""; }
 
-/* ============================================================
-   2. DATA LAYER
-   ============================================================ */
 const STORAGE_KEY = "ceoOS_v2_home_state";
-
-/**
- * ============================================================
- * 【Sprint13】HOMEスナップショット(前回正常取得データの保存)
- * ------------------------------------------------------------
- * API取得が成功するたびに正規化済みデータをLocalStorageへ保存する。
- * 次回以降、API取得に失敗した場合はこのスナップショットを表示し、
- * 「前回データを表示しています」と分かるバナーを出す(黒画面・
- * いきなりダミー表示になる事態を避けるための保険)。
- * ============================================================ */
 const HOME_SNAPSHOT_KEY = "ceoOS_v2_home_snapshot";
 
 function saveHomeSnapshot_(data) {
-  try {
-    localStorage.setItem(HOME_SNAPSHOT_KEY, JSON.stringify({ data, fetchedAt: new Date().toISOString() }));
-  } catch (e) {
-    Logger.warn("[Snapshot] 保存に失敗しました", e);
-  }
+  try { localStorage.setItem(HOME_SNAPSHOT_KEY, JSON.stringify({ data, fetchedAt: new Date().toISOString() })); }
+  catch (e) { Logger.warn("[Snapshot] 保存に失敗しました", e); }
 }
-
 function loadHomeSnapshot_() {
   try {
     const raw = localStorage.getItem(HOME_SNAPSHOT_KEY);
@@ -1110,19 +650,13 @@ function loadHomeSnapshot_() {
     const parsed = JSON.parse(raw);
     if (!parsed || !parsed.data || !parsed.fetchedAt) return null;
     return parsed;
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
-
-/** 最終正常取得日時を人が読める形式に整える(例: 7/11 15:57)。バナー表示用。 */
 function formatStaleTimestamp_(iso) {
   try {
     const d = new Date(iso);
     return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  } catch (e) {
-    return "";
-  }
+  } catch (e) { return ""; }
 }
 
 const DUMMY_SEED = {
@@ -1301,7 +835,6 @@ const MENU_SEED = {
   ]
 };
 
-/** 【Sprint14】Content Stock ダミーデータ(DEV_MODE用) */
 const CONTENT_STOCK_SEED = {
   items: [
     { id: "seed-1", title: "新人教育あるある", contentType: "あるある", targetAudience: "製造業", category: "あるある", tags: "教育,新人", status: "idea", priority: "high", purpose: "follower", idea: "教えたはずなのに次の日にはできなくなってる新人あるある。", memo: "", photo: "", createdAt: "7/9", updatedAt: "7/9" },
@@ -1310,7 +843,6 @@ const CONTENT_STOCK_SEED = {
   ]
 };
 
-/** 【Sprint15】AIリサーチ候補 ダミーデータ(DEV_MODE用) */
 const RESEARCH_CANDIDATES_SEED = {
   items: [
     { id: "seed-rc-1", title: "新人がAIツールを覚えるスピードが速すぎる話", contentType: "あるある", targetAudience: "製造業", category: "あるある", tags: "新人,AI", trendScore: 82, reason: "AI活用×世代ギャップは反応が良い傾向", referenceUrl: "", createdAt: "7/11" },
@@ -1318,31 +850,16 @@ const RESEARCH_CANDIDATES_SEED = {
   ]
 };
 
-/* ============================================================
-   2c. 正規化レイヤー
-   ============================================================ */
-function normalizeString(v, fallback = "") {
-  return v === undefined || v === null ? fallback : String(v);
-}
-function normalizeNumber(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
+function normalizeString(v, fallback = "") { return v === undefined || v === null ? fallback : String(v); }
+function normalizeNumber(v, fallback = 0) { const n = Number(v); return Number.isFinite(n) ? n : fallback; }
 function normalizeBoolean(v, fallback = false) {
   if (typeof v === "boolean") return v;
   if (v === undefined || v === null || v === "") return fallback;
   return String(v).toLowerCase() === "true";
 }
-function normalizeArray(v, itemNormalizer) {
-  if (!Array.isArray(v)) return [];
-  return itemNormalizer ? v.map(itemNormalizer) : v;
-}
-function normalizeEnum(v, allowed, fallback) {
-  return allowed.includes(v) ? v : fallback;
-}
-function normalizeNumberArray(v, fallback = []) {
-  return Array.isArray(v) ? v.map(Number).filter(Number.isFinite) : fallback;
-}
+function normalizeArray(v, itemNormalizer) { if (!Array.isArray(v)) return []; return itemNormalizer ? v.map(itemNormalizer) : v; }
+function normalizeEnum(v, allowed, fallback) { return allowed.includes(v) ? v : fallback; }
+function normalizeNumberArray(v, fallback = []) { return Array.isArray(v) ? v.map(Number).filter(Number.isFinite) : fallback; }
 
 const AXIS_VALUES = ["開発", "発信", "収益化"];
 const KPI_DIR_VALUES = ["up", "down", "flat"];
@@ -1350,98 +867,51 @@ const KPI_DIR_VALUES = ["up", "down", "flat"];
 function normalizeMission(m) {
   m = m || {};
   return {
-    id: normalizeString(m.id),
-    title: normalizeString(m.title, "無題のミッション"),
-    axis: normalizeEnum(m.axis, AXIS_VALUES, "発信"),
-    priority: m.priority === "high" ? "high" : "normal",
-    xp: normalizeNumber(m.xp),
-    done: normalizeBoolean(m.done)
+    id: normalizeString(m.id), title: normalizeString(m.title, "無題のミッション"),
+    axis: normalizeEnum(m.axis, AXIS_VALUES, "発信"), priority: m.priority === "high" ? "high" : "normal",
+    xp: normalizeNumber(m.xp), done: normalizeBoolean(m.done)
   };
 }
 function normalizeKpiItem(k) {
   k = k || {};
   return {
-    key: normalizeString(k.key),
-    title: normalizeString(k.title),
-    axis: normalizeEnum(k.axis, AXIS_VALUES, "発信"),
-    value: normalizeNumber(k.value),
-    unit: normalizeString(k.unit),
-    deltaPct: normalizeNumber(k.deltaPct),
-    dir: normalizeEnum(k.dir, KPI_DIR_VALUES, "flat"),
-    icon: k.icon || "chart",
+    key: normalizeString(k.key), title: normalizeString(k.title), axis: normalizeEnum(k.axis, AXIS_VALUES, "発信"),
+    value: normalizeNumber(k.value), unit: normalizeString(k.unit), deltaPct: normalizeNumber(k.deltaPct),
+    dir: normalizeEnum(k.dir, KPI_DIR_VALUES, "flat"), icon: k.icon || "chart",
     history: Array.isArray(k.history) ? normalizeNumberArray(k.history) : undefined
   };
 }
-
-/* ---- 【Sprint10.3】GitHub履歴 / タイムラインの正規化 ---- */
-function normalizeGithubCommit(c) {
-  c = c || {};
-  return {
-    message: normalizeString(c.message),
-    author: normalizeString(c.author),
-    url: normalizeString(c.url)
-  };
-}
+function normalizeGithubCommit(c) { c = c || {}; return { message: normalizeString(c.message), author: normalizeString(c.author), url: normalizeString(c.url) }; }
 function normalizeGithubEvent(e) {
   e = e || {};
   return {
-    date: normalizeString(e.date),
-    title: normalizeString(e.title, "更新"),
-    eventType: normalizeString(e.eventType, "push"),
-    commitCount: normalizeNumber(e.commitCount),
-    author: normalizeString(e.author, "unknown"),
+    date: normalizeString(e.date), title: normalizeString(e.title, "更新"), eventType: normalizeString(e.eventType, "push"),
+    commitCount: normalizeNumber(e.commitCount), author: normalizeString(e.author, "unknown"),
     progressTag: (e.progressTag === "" || e.progressTag === undefined || e.progressTag === null) ? null : normalizeString(e.progressTag),
     releaseTag: (e.releaseTag === "" || e.releaseTag === undefined || e.releaseTag === null) ? null : normalizeString(e.releaseTag),
-    repo: normalizeString(e.repo),
-    repoLabel: normalizeString(e.repoLabel, normalizeString(e.repo)),
-    filesChanged: normalizeNumber(e.filesChanged),
-    commits: normalizeArray(e.commits, normalizeGithubCommit),
-    link: normalizeString(e.link)
+    repo: normalizeString(e.repo), repoLabel: normalizeString(e.repoLabel, normalizeString(e.repo)),
+    filesChanged: normalizeNumber(e.filesChanged), commits: normalizeArray(e.commits, normalizeGithubCommit), link: normalizeString(e.link)
   };
 }
 function normalizeTimelineItem(t) {
   t = t || {};
-  return {
-    date: normalizeString(t.date),
-    label: normalizeString(t.label, "更新"),
-    source: normalizeString(t.source, "github"),
-    type: normalizeString(t.type),
-    target: normalizeString(t.target),
-    link: normalizeString(t.link)
-  };
+  return { date: normalizeString(t.date), label: normalizeString(t.label, "更新"), source: normalizeString(t.source, "github"), type: normalizeString(t.type), target: normalizeString(t.target), link: normalizeString(t.link) };
 }
-
 function normalizeDevProject(p) {
   p = p || {};
   return {
-    id: normalizeString(p.id),
-    name: normalizeString(p.name),
-    progress: Math.min(100, Math.max(0, normalizeNumber(p.progress))),
-    color: p.color || "#FF6A2C",
-    sprint: normalizeString(p.sprint),
-    next: normalizeString(p.next),
-    updatedAt: normalizeString(p.updatedAt),
-    ai: normalizeString(p.ai),
-    githubHistory: normalizeArray(p.githubHistory, normalizeGithubEvent)
+    id: normalizeString(p.id), name: normalizeString(p.name), progress: Math.min(100, Math.max(0, normalizeNumber(p.progress))),
+    color: p.color || "#FF6A2C", sprint: normalizeString(p.sprint), next: normalizeString(p.next),
+    updatedAt: normalizeString(p.updatedAt), ai: normalizeString(p.ai), githubHistory: normalizeArray(p.githubHistory, normalizeGithubEvent)
   };
 }
-function normalizeActivityItem(a) {
-  a = a || {};
-  return { id: normalizeString(a.id), title: normalizeString(a.title), time: normalizeString(a.time), icon: a.icon || "sparkle" };
-}
-function normalizeHomeSnsItem(s) {
-  s = s || {};
-  return { key: normalizeString(s.key), label: normalizeString(s.label), color: s.color || "#0A1B33", value: normalizeString(s.value), sub: normalizeString(s.sub) };
-}
-/* ---- 【Sprint11】CEOレベル / フェーズ / 投資管理 / 実績バッジの正規化 ---- */
+function normalizeActivityItem(a) { a = a || {}; return { id: normalizeString(a.id), title: normalizeString(a.title), time: normalizeString(a.time), icon: a.icon || "sparkle" }; }
+function normalizeHomeSnsItem(s) { s = s || {}; return { key: normalizeString(s.key), label: normalizeString(s.label), color: s.color || "#0A1B33", value: normalizeString(s.value), sub: normalizeString(s.sub) }; }
 function normalizePlayer(p) {
   p = p || {};
   return {
-    level: normalizeNumber(p.level, 1),
-    xp: normalizeNumber(p.xp, 0),
-    xpIntoLevel: normalizeNumber(p.xpIntoLevel, 0),
-    xpForNextLevel: normalizeNumber(p.xpForNextLevel, 100),
-    progressPct: Math.min(100, Math.max(0, normalizeNumber(p.progressPct, 0)))
+    level: normalizeNumber(p.level, 1), xp: normalizeNumber(p.xp, 0), xpIntoLevel: normalizeNumber(p.xpIntoLevel, 0),
+    xpForNextLevel: normalizeNumber(p.xpForNextLevel, 100), progressPct: Math.min(100, Math.max(0, normalizeNumber(p.progressPct, 0)))
   };
 }
 const PHASE_NUMBERS = [1, 2, 3, 4, 5];
@@ -1449,214 +919,103 @@ function normalizePhase(p) {
   p = p || {};
   return {
     number: PHASE_NUMBERS.includes(normalizeNumber(p.number)) ? normalizeNumber(p.number) : 1,
-    key: normalizeString(p.key, "seed"),
-    emoji: normalizeString(p.emoji, "🌱"),
-    label: normalizeString(p.label, "種まき期間"),
-    description: normalizeString(p.description)
+    key: normalizeString(p.key, "seed"), emoji: normalizeString(p.emoji, "🌱"), label: normalizeString(p.label, "種まき期間"), description: normalizeString(p.description)
   };
 }
-function normalizeInvestmentItem(i) {
-  i = i || {};
-  return {
-    id: normalizeString(i.id),
-    category: normalizeString(i.category),
-    monthlyAmount: normalizeNumber(i.monthlyAmount),
-    active: normalizeBoolean(i.active, true)
-  };
-}
+function normalizeInvestmentItem(i) { i = i || {}; return { id: normalizeString(i.id), category: normalizeString(i.category), monthlyAmount: normalizeNumber(i.monthlyAmount), active: normalizeBoolean(i.active, true) }; }
 function normalizeInvestmentSummary(raw) {
   raw = raw || {};
   return {
-    monthlyTotal: normalizeNumber(raw.monthlyTotal),
-    cumulativeInvestment: normalizeNumber(raw.cumulativeInvestment),
-    cumulativeRevenue: normalizeNumber(raw.cumulativeRevenue),
-    recoveryPct: normalizeNumber(raw.recoveryPct),
-    remainingToRecover: normalizeNumber(raw.remainingToRecover),
-    months: normalizeNumber(raw.months, 1),
-    items: normalizeArray(raw.items, normalizeInvestmentItem),
-    messages: normalizeArray(raw.messages, (v) => normalizeString(v))
+    monthlyTotal: normalizeNumber(raw.monthlyTotal), cumulativeInvestment: normalizeNumber(raw.cumulativeInvestment),
+    cumulativeRevenue: normalizeNumber(raw.cumulativeRevenue), recoveryPct: normalizeNumber(raw.recoveryPct),
+    remainingToRecover: normalizeNumber(raw.remainingToRecover), months: normalizeNumber(raw.months, 1),
+    items: normalizeArray(raw.items, normalizeInvestmentItem), messages: normalizeArray(raw.messages, (v) => normalizeString(v))
   };
 }
-function normalizeBadge(b) {
-  b = b || {};
-  return {
-    id: normalizeString(b.id),
-    label: normalizeString(b.label),
-    icon: b.icon || "star",
-    unlocked: normalizeBoolean(b.unlocked, false)
-  };
-}
-
+function normalizeBadge(b) { b = b || {}; return { id: normalizeString(b.id), label: normalizeString(b.label), icon: b.icon || "star", unlocked: normalizeBoolean(b.unlocked, false) }; }
 function normalizeRecommendationItem(r) {
   r = r || {};
   return {
-    id: normalizeString(r.id),
-    title: normalizeString(r.title),
-    category: normalizeString(r.category),
-    contentType: normalizeString(r.contentType),
-    targetAudience: normalizeString(r.targetAudience),
-    priority: normalizeString(r.priority) || "normal",
-    /** 【Sprint16②】ネタの目的(follower/engagement/note/paid/product/branding) */
-    purpose: normalizeString(r.purpose)
+    id: normalizeString(r.id), title: normalizeString(r.title), category: normalizeString(r.category), contentType: normalizeString(r.contentType),
+    targetAudience: normalizeString(r.targetAudience), priority: normalizeString(r.priority) || "normal", purpose: normalizeString(r.purpose)
   };
 }
-
 function normalizeResearchRecommendationItem(r) {
   r = r || {};
   return {
-    id: normalizeString(r.id),
-    title: normalizeString(r.title),
-    category: normalizeString(r.category),
-    contentType: normalizeString(r.contentType),
-    targetAudience: normalizeString(r.targetAudience),
-    trendScore: normalizeNumber(r.trendScore),
-    reason: normalizeString(r.reason)
+    id: normalizeString(r.id), title: normalizeString(r.title), category: normalizeString(r.category), contentType: normalizeString(r.contentType),
+    targetAudience: normalizeString(r.targetAudience), trendScore: normalizeNumber(r.trendScore), reason: normalizeString(r.reason)
   };
 }
-
-/** 【Sprint19】AI編集部ダッシュボード(HOME画面) */
 function normalizeAiEditorial(raw) {
   raw = raw || {};
   return {
-    activeAiToday: normalizeArray(raw.activeAiToday, (v) => normalizeString(v)),
-    generatedToday: normalizeNumber(raw.generatedToday),
-    pendingApproval: normalizeNumber(raw.pendingApproval),
-    awaitingPost: normalizeNumber(raw.awaitingPost),
-    scheduledThisWeek: normalizeNumber(raw.scheduledThisWeek)
+    activeAiToday: normalizeArray(raw.activeAiToday, (v) => normalizeString(v)), generatedToday: normalizeNumber(raw.generatedToday),
+    pendingApproval: normalizeNumber(raw.pendingApproval), awaitingPost: normalizeNumber(raw.awaitingPost), scheduledThisWeek: normalizeNumber(raw.scheduledThisWeek)
   };
 }
-
 function normalizeHomeData(raw) {
   raw = raw || {};
   return {
-    streakDays: normalizeNumber(raw.streakDays),
-    missions: normalizeArray(raw.missions, normalizeMission),
-    briefing: normalizeArray(raw.briefing, (v) => normalizeString(v)),
-    kpi: normalizeArray(raw.kpi, normalizeKpiItem),
-    projects: normalizeArray(raw.projects, normalizeDevProject),
-    sns: normalizeArray(raw.sns, normalizeHomeSnsItem),
+    streakDays: normalizeNumber(raw.streakDays), missions: normalizeArray(raw.missions, normalizeMission),
+    briefing: normalizeArray(raw.briefing, (v) => normalizeString(v)), kpi: normalizeArray(raw.kpi, normalizeKpiItem),
+    projects: normalizeArray(raw.projects, normalizeDevProject), sns: normalizeArray(raw.sns, normalizeHomeSnsItem),
     activity: normalizeArray(raw.activity, normalizeActivityItem),
     yesterdaySummary: raw.yesterdaySummary && typeof raw.yesterdaySummary === "object" ? raw.yesterdaySummary : null,
-    player: normalizePlayer(raw.player),
-    phase: normalizePhase(raw.phase),
-    aiAdvice: normalizeArray(raw.aiAdvice, (v) => normalizeString(v)),
+    player: normalizePlayer(raw.player), phase: normalizePhase(raw.phase), aiAdvice: normalizeArray(raw.aiAdvice, (v) => normalizeString(v)),
     recommendations: normalizeArray(raw.recommendations, normalizeRecommendationItem),
     researchRecommendations: normalizeArray(raw.researchRecommendations, normalizeResearchRecommendationItem),
     aiEditorial: normalizeAiEditorial(raw.aiEditorial)
   };
 }
-
-function normalizeDateTextPair(x) {
-  return { date: normalizeString(x && x.date), text: normalizeString(x && x.text) };
-}
+function normalizeDateTextPair(x) { return { date: normalizeString(x && x.date), text: normalizeString(x && x.text) }; }
 function normalizePortfolioItem(p) {
   p = p || {};
   return {
-    id: normalizeString(p.id),
-    name: normalizeString(p.name),
-    tag: normalizeString(p.tag),
-    initial: normalizeString(p.initial) || (p.name ? String(p.name).slice(0, 2) : ""),
-    color: p.color || "#14304F",
-    summary: normalizeString(p.summary),
-    stack: Array.isArray(p.stack) ? p.stack.map(String) : normalizeString(p.stack).split(",").map(s => s.trim()).filter(Boolean),
-    github: p.github || null,
-    netlify: p.netlify || null,
-    history: normalizeArray(p.history, normalizeDateTextPair),
-    releases: normalizeArray(p.releases, normalizeDateTextPair),
-    fixes: normalizeArray(p.fixes, normalizeDateTextPair),
-    result: normalizeString(p.result),
-    screenshot: p.screenshot || null
+    id: normalizeString(p.id), name: normalizeString(p.name), tag: normalizeString(p.tag),
+    initial: normalizeString(p.initial) || (p.name ? String(p.name).slice(0, 2) : ""), color: p.color || "#14304F",
+    summary: normalizeString(p.summary), stack: Array.isArray(p.stack) ? p.stack.map(String) : normalizeString(p.stack).split(",").map(s => s.trim()).filter(Boolean),
+    github: p.github || null, netlify: p.netlify || null, history: normalizeArray(p.history, normalizeDateTextPair),
+    releases: normalizeArray(p.releases, normalizeDateTextPair), fixes: normalizeArray(p.fixes, normalizeDateTextPair),
+    result: normalizeString(p.result), screenshot: p.screenshot || null
   };
 }
-/** 【Sprint10.3】Projects/Portfolioデータの正規化。timeline(開発タイムライン)を追加。 */
 function normalizeProjectsData(raw) {
   raw = raw || {};
-  return {
-    dev: normalizeArray(raw.dev, normalizeDevProject),
-    portfolio: normalizeArray(raw.portfolio, normalizePortfolioItem),
-    timeline: normalizeArray(raw.timeline, normalizeTimelineItem)
-  };
+  return { dev: normalizeArray(raw.dev, normalizeDevProject), portfolio: normalizeArray(raw.portfolio, normalizePortfolioItem), timeline: normalizeArray(raw.timeline, normalizeTimelineItem) };
 }
-
-function normalizeAgent(a) {
-  a = a || {};
-  return { id: normalizeString(a.id), name: normalizeString(a.name), role: normalizeString(a.role), status: a.status || "待機中", lastUsed: normalizeString(a.lastUsed), color: a.color || "#1FA463" };
-}
+function normalizeAgent(a) { a = a || {}; return { id: normalizeString(a.id), name: normalizeString(a.name), role: normalizeString(a.role), status: a.status || "待機中", lastUsed: normalizeString(a.lastUsed), color: a.color || "#1FA463" }; }
 function normalizeRequestItem(r) {
   r = r || {};
-  return {
-    id: normalizeString(r.id),
-    ai: r.ai === "Claude" ? "Claude" : "ChatGPT",
-    text: normalizeString(r.text),
-    status: r.status || "待機中",
-    date: normalizeString(r.date)
-  };
+  return { id: normalizeString(r.id), ai: r.ai === "Claude" ? "Claude" : "ChatGPT", text: normalizeString(r.text), status: r.status || "待機中", date: normalizeString(r.date) };
 }
 function normalizeAiData(raw) {
   raw = raw || {};
-  return {
-    agents: normalizeArray(raw.agents, normalizeAgent),
-    templates: normalizeArray(raw.templates, (v) => normalizeString(v)),
-    todayRequests: normalizeArray(raw.todayRequests, normalizeRequestItem),
-    history: normalizeArray(raw.history, normalizeRequestItem)
-  };
+  return { agents: normalizeArray(raw.agents, normalizeAgent), templates: normalizeArray(raw.templates, (v) => normalizeString(v)), todayRequests: normalizeArray(raw.todayRequests, normalizeRequestItem), history: normalizeArray(raw.history, normalizeRequestItem) };
 }
-
-function normalizePost(post) {
-  return { date: normalizeString(post && post.date), title: normalizeString(post && post.title) };
-}
+function normalizePost(post) { return { date: normalizeString(post && post.date), title: normalizeString(post && post.title) }; }
 function normalizePlatform(p) {
   p = p || {};
   return {
-    key: normalizeString(p.key),
-    label: normalizeString(p.label),
-    color: p.color || "#0A1B33",
-    followers: normalizeNumberArray(p.followers, [0, 0]),
-    stockCount: normalizeNumber(p.stockCount),
-    nextPost: normalizeString(p.nextPost),
-    scheduled: normalizeString(p.scheduled),
-    lastPosts: normalizeArray(p.lastPosts, normalizePost)
+    key: normalizeString(p.key), label: normalizeString(p.label), color: p.color || "#0A1B33",
+    followers: normalizeNumberArray(p.followers, [0, 0]), stockCount: normalizeNumber(p.stockCount),
+    nextPost: normalizeString(p.nextPost), scheduled: normalizeString(p.scheduled), lastPosts: normalizeArray(p.lastPosts, normalizePost)
   };
 }
-function normalizeSnsData(raw) {
-  raw = raw || {};
-  return { platforms: normalizeArray(raw.platforms, normalizePlatform) };
-}
-
-function normalizeMenuItem(item) {
-  item = item || {};
-  return { key: normalizeString(item.key), label: normalizeString(item.label), icon: item.icon || "settings" };
-}
+function normalizeSnsData(raw) { raw = raw || {}; return { platforms: normalizeArray(raw.platforms, normalizePlatform) }; }
+function normalizeMenuItem(item) { item = item || {}; return { key: normalizeString(item.key), label: normalizeString(item.label), icon: item.icon || "settings" }; }
 function normalizeRevenueEntry(e) {
-  return {
-    date: normalizeString(e && e.date),
-    platform: normalizeString(e && e.platform),
-    amount: normalizeNumber(e && e.amount),
-    category: normalizeString(e && e.category),
-    confirmed: normalizeBoolean(e && e.confirmed)
-  };
+  return { date: normalizeString(e && e.date), platform: normalizeString(e && e.platform), amount: normalizeNumber(e && e.amount), category: normalizeString(e && e.category), confirmed: normalizeBoolean(e && e.confirmed) };
 }
 function normalizeMenuData(raw) {
   raw = raw || {};
   const profile = raw.profile || {};
   const revenue = raw.revenue || {};
   return {
-    profile: {
-      name: normalizeString(profile.name),
-      role: normalizeString(profile.role),
-      streakDays: normalizeNumber(profile.streakDays)
-    },
-    items: normalizeArray(raw.items, normalizeMenuItem),
-    kpi: normalizeArray(raw.kpi, normalizeKpiItem),
-    revenue: {
-      monthLabel: normalizeString(revenue.monthLabel),
-      total: normalizeNumber(revenue.total),
-      entries: normalizeArray(revenue.entries, normalizeRevenueEntry)
-    },
-    player: normalizePlayer(raw.player),
-    phase: normalizePhase(raw.phase),
-    investment: normalizeInvestmentSummary(raw.investment),
-    badges: normalizeArray(raw.badges, normalizeBadge)
+    profile: { name: normalizeString(profile.name), role: normalizeString(profile.role), streakDays: normalizeNumber(profile.streakDays) },
+    items: normalizeArray(raw.items, normalizeMenuItem), kpi: normalizeArray(raw.kpi, normalizeKpiItem),
+    revenue: { monthLabel: normalizeString(revenue.monthLabel), total: normalizeNumber(revenue.total), entries: normalizeArray(revenue.entries, normalizeRevenueEntry) },
+    player: normalizePlayer(raw.player), phase: normalizePhase(raw.phase), investment: normalizeInvestmentSummary(raw.investment), badges: normalizeArray(raw.badges, normalizeBadge)
   };
 }
 
@@ -1680,7 +1039,6 @@ const DataLayer = {
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
-
       const today = todayISO();
       let yesterdaySummary = saved.yesterdaySummary || null;
       if (saved.lastResetDate && saved.lastResetDate !== today) {
@@ -1692,25 +1050,14 @@ const DataLayer = {
       }
       saved.lastResetDate = today;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-
-      const missions = DUMMY_SEED.missions.map(m => ({
-        ...m,
-        done: saved.missionState ? !!saved.missionState[m.id] : m.done
-      }));
-      setTimeout(() => {
-        resolve({ ...DUMMY_SEED, missions, yesterdaySummary });
-      }, 450);
+      const missions = DUMMY_SEED.missions.map(m => ({ ...m, done: saved.missionState ? !!saved.missionState[m.id] : m.done }));
+      setTimeout(() => { resolve({ ...DUMMY_SEED, missions, yesterdaySummary }); }, 450);
     }).then(normalizeHomeData);
   },
-
   async setMissionDone(missionId, done) {
     if (shouldUseApi("home")) {
-      try {
-        return await apiRequest("setMissionDone", { missionId, done }, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] setMissionDone: API更新失敗。ローカル保存にフォールバックします。", e);
-        showToast("保存に失敗しました。この端末に一時保存します");
-      }
+      try { return await apiRequest("setMissionDone", { missionId, done }, "POST"); }
+      catch (e) { Logger.error("[DataLayer] setMissionDone: API更新失敗。ローカル保存にフォールバックします。", e); showToast("保存に失敗しました。この端末に一時保存します"); }
     }
     return new Promise((resolve) => {
       let saved = {};
@@ -1721,62 +1068,37 @@ const DataLayer = {
       resolve(true);
     });
   },
-
   async getProjectsData() {
     if (shouldUseApi("projects")) {
-      try {
-        return normalizeProjectsData(await apiRequest("getProjectsData"));
-      } catch (e) {
-        Logger.error("[DataLayer] getProjectsData: API取得失敗。ダミーデータにフォールバックします。", e);
-        showToast("データ取得に失敗しました。オフラインデータを表示します");
-      }
+      try { return normalizeProjectsData(await apiRequest("getProjectsData")); }
+      catch (e) { Logger.error("[DataLayer] getProjectsData: API取得失敗。ダミーデータにフォールバックします。", e); showToast("データ取得に失敗しました。オフラインデータを表示します"); }
     }
     return new Promise((resolve) => setTimeout(() => resolve(PROJECTS_SEED), 400)).then(normalizeProjectsData);
   },
-
   async getAiData() {
     if (shouldUseApi("ai")) {
-      try {
-        return normalizeAiData(await apiRequest("getAiData"));
-      } catch (e) {
-        Logger.error("[DataLayer] getAiData: API取得失敗。ダミーデータにフォールバックします。", e);
-        showToast("データ取得に失敗しました。オフラインデータを表示します");
-      }
+      try { return normalizeAiData(await apiRequest("getAiData")); }
+      catch (e) { Logger.error("[DataLayer] getAiData: API取得失敗。ダミーデータにフォールバックします。", e); showToast("データ取得に失敗しました。オフラインデータを表示します"); }
     }
     return new Promise((resolve) => {
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(AI_STORAGE_KEY) || "{}"); } catch (e) { saved = {}; }
-
       if (!saved.requests && saved.todayRequests) {
         saved.requests = saved.todayRequests.map(r => ({ ...r, date: todayISO(), displayDate: toMD() }));
         delete saved.todayRequests;
         localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(saved));
       }
-
       const requests = saved.requests || [];
       const today = todayISO();
       const localToday = requests.filter(r => r.date === today);
-      const localHistory = requests
-        .filter(r => r.date !== today)
-        .map(r => ({ ...r, date: r.displayDate || r.date }))
-        .sort((a, b) => (a.date < b.date ? 1 : -1));
-
-      setTimeout(() => resolve({
-        ...AI_SEED,
-        todayRequests: [...localToday, ...AI_SEED.todayRequests],
-        history: [...localHistory, ...AI_SEED.history]
-      }), 400);
+      const localHistory = requests.filter(r => r.date !== today).map(r => ({ ...r, date: r.displayDate || r.date })).sort((a, b) => (a.date < b.date ? 1 : -1));
+      setTimeout(() => resolve({ ...AI_SEED, todayRequests: [...localToday, ...AI_SEED.todayRequests], history: [...localHistory, ...AI_SEED.history] }), 400);
     }).then(normalizeAiData);
   },
-
   async addAiRequest(request) {
     if (shouldUseApi("ai")) {
-      try {
-        return await apiRequest("addAiRequest", request, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] addAiRequest: API追加失敗。ローカル保存にフォールバックします。", e);
-        showToast("送信に失敗しました。この端末に一時保存します");
-      }
+      try { return await apiRequest("addAiRequest", request, "POST"); }
+      catch (e) { Logger.error("[DataLayer] addAiRequest: API追加失敗。ローカル保存にフォールバックします。", e); showToast("送信に失敗しました。この端末に一時保存します"); }
     }
     return new Promise((resolve) => {
       let saved = {};
@@ -1787,205 +1109,104 @@ const DataLayer = {
       resolve(true);
     });
   },
-
   async getSnsData() {
     if (shouldUseApi("sns")) {
-      try {
-        return normalizeSnsData(await apiRequest("getSnsData"));
-      } catch (e) {
-        Logger.error("[DataLayer] getSnsData: API取得失敗。ダミーデータにフォールバックします。", e);
-        showToast("データ取得に失敗しました。オフラインデータを表示します");
-      }
+      try { return normalizeSnsData(await apiRequest("getSnsData")); }
+      catch (e) { Logger.error("[DataLayer] getSnsData: API取得失敗。ダミーデータにフォールバックします。", e); showToast("データ取得に失敗しました。オフラインデータを表示します"); }
     }
     return new Promise((resolve) => setTimeout(() => resolve(SNS_SEED), 400)).then(normalizeSnsData);
   },
-
   async getMenuData() {
     if (shouldUseApi("menu")) {
-      try {
-        return normalizeMenuData(await apiRequest("getMenuData"));
-      } catch (e) {
-        Logger.error("[DataLayer] getMenuData: API取得失敗。ダミーデータにフォールバックします。", e);
-        showToast("データ取得に失敗しました。オフラインデータを表示します");
-      }
+      try { return normalizeMenuData(await apiRequest("getMenuData")); }
+      catch (e) { Logger.error("[DataLayer] getMenuData: API取得失敗。ダミーデータにフォールバックします。", e); showToast("データ取得に失敗しました。オフラインデータを表示します"); }
     }
     return new Promise((resolve) => setTimeout(() => resolve(MENU_SEED), 250)).then(normalizeMenuData);
   },
-
-  /**
-   * ============================================================
-   * 【Sprint14】Content Stock(コンテンツストック)
-   * ------------------------------------------------------------
-   * 「1ネタ=1レコード」を起点にX/note/TikTok/画像/動画すべてが
-   * 派生していく設計。今回(①+③)はストック本体の作成・一覧・簡易編集
-   * (ステータス/優先度の変更)まで。生成導線(④)は次回以降。
-   * ============================================================ */
   async getContentStockData() {
     if (shouldUseApi("contentStock")) {
-      try {
-        return await apiRequest("getContentStockData");
-      } catch (e) {
-        Logger.error("[DataLayer] getContentStockData: API取得失敗。ダミーデータにフォールバックします。", e);
-        showToast("データ取得に失敗しました。オフラインデータを表示します");
-      }
+      try { return await apiRequest("getContentStockData"); }
+      catch (e) { Logger.error("[DataLayer] getContentStockData: API取得失敗。ダミーデータにフォールバックします。", e); showToast("データ取得に失敗しました。オフラインデータを表示します"); }
     }
     return new Promise((resolve) => setTimeout(() => resolve(CONTENT_STOCK_SEED), 300));
   },
-
   async createContentStockItem(payload) {
     if (shouldUseApi("contentStock")) {
-      try {
-        return await apiRequest("createContentStockItem", payload, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] createContentStockItem: 保存失敗", e);
-        showToast("保存に失敗しました");
-        throw e;
-      }
+      try { return await apiRequest("createContentStockItem", payload, "POST"); }
+      catch (e) { Logger.error("[DataLayer] createContentStockItem: 保存失敗", e); showToast("保存に失敗しました"); throw e; }
     }
     showToast("オフラインモードのため保存されません(開発用)");
     return { success: true, id: "dummy-" + Date.now() };
   },
-
   async updateContentStockItem(payload) {
     if (shouldUseApi("contentStock")) {
-      try {
-        return await apiRequest("updateContentStockItem", payload, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] updateContentStockItem: 更新失敗", e);
-        showToast("更新に失敗しました");
-        throw e;
-      }
+      try { return await apiRequest("updateContentStockItem", payload, "POST"); }
+      catch (e) { Logger.error("[DataLayer] updateContentStockItem: 更新失敗", e); showToast("更新に失敗しました"); throw e; }
     }
     return { success: true };
   },
-
-  /** 【Sprint21】コンテンツストックからネタを削除する(主にテストデータ整理用) */
   async deleteContentStockItem(payload) {
     if (shouldUseApi("contentStock")) {
-      try {
-        return await apiRequest("deleteContentStockItem", payload, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] deleteContentStockItem: 削除失敗", e);
-        showToast("削除に失敗しました");
-        throw e;
-      }
+      try { return await apiRequest("deleteContentStockItem", payload, "POST"); }
+      catch (e) { Logger.error("[DataLayer] deleteContentStockItem: 削除失敗", e); showToast("削除に失敗しました"); throw e; }
     }
     return { success: true };
   },
-
-  /**
-   * ============================================================
-   * 【Sprint18】AI編集部: 出力履歴・コメント・承認フロー
-   * ============================================================ */
   async appendContentHistory(payload) {
     if (shouldUseApi("contentStock")) {
-      try {
-        return await apiRequest("appendContentHistory", payload, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] appendContentHistory: 保存失敗", e);
-        showToast("履歴の保存に失敗しました");
-        throw e;
-      }
+      try { return await apiRequest("appendContentHistory", payload, "POST"); }
+      catch (e) { Logger.error("[DataLayer] appendContentHistory: 保存失敗", e); showToast("履歴の保存に失敗しました"); throw e; }
     }
     return { success: true, version: 1 };
   },
-
   async appendContentComment(payload) {
     if (shouldUseApi("contentStock")) {
-      try {
-        return await apiRequest("appendContentComment", payload, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] appendContentComment: 保存失敗", e);
-        showToast("コメントの保存に失敗しました");
-        throw e;
-      }
+      try { return await apiRequest("appendContentComment", payload, "POST"); }
+      catch (e) { Logger.error("[DataLayer] appendContentComment: 保存失敗", e); showToast("コメントの保存に失敗しました"); throw e; }
     }
     return { success: true };
   },
-
   async updateApprovalStatus(payload) {
     if (shouldUseApi("contentStock")) {
-      try {
-        return await apiRequest("updateApprovalStatus", payload, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] updateApprovalStatus: 更新失敗", e);
-        showToast("承認ステータスの更新に失敗しました");
-        throw e;
-      }
+      try { return await apiRequest("updateApprovalStatus", payload, "POST"); }
+      catch (e) { Logger.error("[DataLayer] updateApprovalStatus: 更新失敗", e); showToast("承認ステータスの更新に失敗しました"); throw e; }
     }
     return { success: true };
   },
-
-  /**
-   * ============================================================
-   * 【Sprint15】AIリサーチ候補(research_candidates)
-   * ============================================================ */
   async getResearchCandidates() {
     if (shouldUseApi("aiResearch")) {
-      try {
-        return await apiRequest("getResearchCandidates");
-      } catch (e) {
-        Logger.error("[DataLayer] getResearchCandidates: API取得失敗。ダミーデータにフォールバックします。", e);
-        showToast("データ取得に失敗しました。オフラインデータを表示します");
-      }
+      try { return await apiRequest("getResearchCandidates"); }
+      catch (e) { Logger.error("[DataLayer] getResearchCandidates: API取得失敗。ダミーデータにフォールバックします。", e); showToast("データ取得に失敗しました。オフラインデータを表示します"); }
     }
     return new Promise((resolve) => setTimeout(() => resolve(RESEARCH_CANDIDATES_SEED), 300));
   },
-
   async approveResearchCandidate(payload) {
     if (shouldUseApi("aiResearch")) {
-      try {
-        return await apiRequest("approveResearchCandidate", payload, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] approveResearchCandidate: 失敗", e);
-        showToast("採用処理に失敗しました");
-        throw e;
-      }
+      try { return await apiRequest("approveResearchCandidate", payload, "POST"); }
+      catch (e) { Logger.error("[DataLayer] approveResearchCandidate: 失敗", e); showToast("採用処理に失敗しました"); throw e; }
     }
     return { success: true };
   },
-
   async updateResearchCandidateStatus(payload) {
     if (shouldUseApi("aiResearch")) {
-      try {
-        return await apiRequest("updateResearchCandidateStatus", payload, "POST");
-      } catch (e) {
-        Logger.error("[DataLayer] updateResearchCandidateStatus: 失敗", e);
-        showToast("更新に失敗しました");
-        throw e;
-      }
+      try { return await apiRequest("updateResearchCandidateStatus", payload, "POST"); }
+      catch (e) { Logger.error("[DataLayer] updateResearchCandidateStatus: 失敗", e); showToast("更新に失敗しました"); throw e; }
     }
     return { success: true };
   }
 };
 
-/* ============================================================
-   2d. Repository層
-   ============================================================ */
 const CacheStrategies = {
-  none: {
-    get: () => null,
-    set: () => {},
-    clear: () => {}
-  },
+  none: { get: () => null, set: () => {}, clear: () => {} },
   memory: (() => {
     const store = new Map();
-    return {
-      get: (key) => (store.has(key) ? store.get(key) : null),
-      set: (key, value) => store.set(key, value),
-      clear: (key) => (key ? store.delete(key) : store.clear())
-    };
+    return { get: (key) => (store.has(key) ? store.get(key) : null), set: (key, value) => store.set(key, value), clear: (key) => (key ? store.delete(key) : store.clear()) };
   })()
 };
-
 const CACHE_STRATEGY = CacheStrategies.none;
-
 async function withCache(key, fetcher) {
   const cached = CACHE_STRATEGY.get(key);
-  if (cached !== null && cached !== undefined) {
-    Logger.info(`[Repository] cache hit: ${key}`);
-    return cached;
-  }
+  if (cached !== null && cached !== undefined) { Logger.info(`[Repository] cache hit: ${key}`); return cached; }
   const fresh = await fetcher();
   CACHE_STRATEGY.set(key, fresh);
   return fresh;
@@ -1993,98 +1214,29 @@ async function withCache(key, fetcher) {
 
 const Repository = {
   getHomeData: () => withCache("home", () => DataLayer.getHomeData()),
-  setMissionDone: async (missionId, done) => {
-    const result = await DataLayer.setMissionDone(missionId, done);
-    CACHE_STRATEGY.clear("home");
-    return result;
-  },
+  setMissionDone: async (missionId, done) => { const result = await DataLayer.setMissionDone(missionId, done); CACHE_STRATEGY.clear("home"); return result; },
   getProjectsData: () => withCache("projects", () => DataLayer.getProjectsData()),
   getAiData: () => withCache("ai", () => DataLayer.getAiData()),
-  addAiRequest: async (request) => {
-    const result = await DataLayer.addAiRequest(request);
-    CACHE_STRATEGY.clear("ai");
-    return result;
-  },
+  addAiRequest: async (request) => { const result = await DataLayer.addAiRequest(request); CACHE_STRATEGY.clear("ai"); return result; },
   getSnsData: () => withCache("sns", () => DataLayer.getSnsData()),
   getMenuData: () => withCache("menu", () => DataLayer.getMenuData()),
   getContentStockData: () => withCache("contentStock", () => DataLayer.getContentStockData()),
-  createContentStockItem: async (payload) => {
-    const result = await DataLayer.createContentStockItem(payload);
-    CACHE_STRATEGY.clear("contentStock");
-    CACHE_STRATEGY.clear("home");
-    return result;
-  },
-  updateContentStockItem: async (payload) => {
-    const result = await DataLayer.updateContentStockItem(payload);
-    CACHE_STRATEGY.clear("contentStock");
-    CACHE_STRATEGY.clear("home");
-    return result;
-  },
-  deleteContentStockItem: async (payload) => {
-    const result = await DataLayer.deleteContentStockItem(payload);
-    CACHE_STRATEGY.clear("contentStock");
-    CACHE_STRATEGY.clear("home");
-    return result;
-  },
-  appendContentHistory: async (payload) => {
-    const result = await DataLayer.appendContentHistory(payload);
-    CACHE_STRATEGY.clear("contentStock");
-    CACHE_STRATEGY.clear("home");
-    return result;
-  },
-  appendContentComment: async (payload) => {
-    const result = await DataLayer.appendContentComment(payload);
-    CACHE_STRATEGY.clear("contentStock");
-    CACHE_STRATEGY.clear("home");
-    return result;
-  },
-  updateApprovalStatus: async (payload) => {
-    const result = await DataLayer.updateApprovalStatus(payload);
-    CACHE_STRATEGY.clear("contentStock");
-    CACHE_STRATEGY.clear("home");
-    return result;
-  },
+  createContentStockItem: async (payload) => { const result = await DataLayer.createContentStockItem(payload); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
+  updateContentStockItem: async (payload) => { const result = await DataLayer.updateContentStockItem(payload); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
+  deleteContentStockItem: async (payload) => { const result = await DataLayer.deleteContentStockItem(payload); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
+  appendContentHistory: async (payload) => { const result = await DataLayer.appendContentHistory(payload); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
+  appendContentComment: async (payload) => { const result = await DataLayer.appendContentComment(payload); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
+  updateApprovalStatus: async (payload) => { const result = await DataLayer.updateApprovalStatus(payload); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
   getResearchCandidates: () => withCache("aiResearch", () => DataLayer.getResearchCandidates()),
-  approveResearchCandidate: async (payload) => {
-    const result = await DataLayer.approveResearchCandidate(payload);
-    CACHE_STRATEGY.clear("aiResearch");
-    CACHE_STRATEGY.clear("contentStock");
-    CACHE_STRATEGY.clear("home");
-    return result;
-  },
-  updateResearchCandidateStatus: async (payload) => {
-    const result = await DataLayer.updateResearchCandidateStatus(payload);
-    CACHE_STRATEGY.clear("aiResearch");
-    CACHE_STRATEGY.clear("home");
-    return result;
-  }
+  approveResearchCandidate: async (payload) => { const result = await DataLayer.approveResearchCandidate(payload); CACHE_STRATEGY.clear("aiResearch"); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
+  updateResearchCandidateStatus: async (payload) => { const result = await DataLayer.updateResearchCandidateStatus(payload); CACHE_STRATEGY.clear("aiResearch"); CACHE_STRATEGY.clear("home"); return result; }
 };
 
-/* ============================================================
-   3. UTILS
-   ============================================================ */
-function timeGreeting() {
-  const h = new Date().getHours();
-  if (h < 11) return "おはよう";
-  if (h < 18) return "こんにちは";
-  return "おつかれさま";
-}
-
-function formatDate(d) {
-  const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-  return `${d.getMonth() + 1}月${d.getDate()}日(${w})`;
-}
-
-function todayISO(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function toMD(d = new Date()) {
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-function formatNumber(n) {
-  return n.toLocaleString("ja-JP");
-}
+function timeGreeting() { const h = new Date().getHours(); if (h < 11) return "おはよう"; if (h < 18) return "こんにちは"; return "おつかれさま"; }
+function formatDate(d) { const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()]; return `${d.getMonth() + 1}月${d.getDate()}日(${w})`; }
+function todayISO(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function toMD(d = new Date()) { return `${d.getMonth() + 1}/${d.getDate()}`; }
+function formatNumber(n) { return n.toLocaleString("ja-JP"); }
 
 function animateCountUp(el, to, opts = {}) {
   const duration = opts.duration || 700;
@@ -2107,10 +1259,7 @@ function showToast(message) {
   el.innerHTML = `<span>${message}</span>`;
   wrap.innerHTML = "";
   wrap.appendChild(el);
-  setTimeout(() => {
-    el.classList.add("is-leaving");
-    setTimeout(() => el.remove(), 220);
-  }, 1900);
+  setTimeout(() => { el.classList.add("is-leaving"); setTimeout(() => el.remove(), 220); }, 1900);
 }
 
 function popXp(anchorEl, xp) {
@@ -2140,12 +1289,8 @@ function closeModal() {
 }
 
 async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    showToast("コピーしました");
-  } catch (e) {
-    showToast("コピーに失敗しました");
-  }
+  try { await navigator.clipboard.writeText(text); showToast("コピーしました"); }
+  catch (e) { showToast("コピーに失敗しました"); }
 }
 
 function buildSparkline(values, color) {
@@ -2157,29 +1302,15 @@ function buildSparkline(values, color) {
     const y = h - pad - ((v - min) / range) * (h - pad * 2);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(" ");
-  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="30" preserveAspectRatio="none">
-    <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="30" preserveAspectRatio="none"><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
-/* ============================================================
-   4. COMPONENTS
-   ============================================================ */
-
-/**
- * 【Sprint13】通信失敗時に前回データを表示していることを示すバナー。
- * data._isStale が true のときだけ表示。トースト(数秒で消える)とは違い、
- * 画面に残り続けるので「今見ているのは最新ではない」ことがずっと分かる。
- */
 function renderStaleBanner(data) {
   if (!data || !data._isStale) return "";
   const timeLabel = formatStaleTimestamp_(data._staleFetchedAt);
   return `
     <div class="co-section" data-component="stale-banner" style="padding-top:calc(env(safe-area-inset-top) + 10px);">
-      <div class="co-stalebanner">
-        ${icon("clock")}
-        <span>通信が不安定です。前回データ(${timeLabel}時点)を表示しています</span>
-      </div>
+      <div class="co-stalebanner">${icon("clock")}<span>通信が不安定です。前回データ(${timeLabel}時点)を表示しています</span></div>
     </div>`;
 }
 
@@ -2198,11 +1329,6 @@ function renderHeader(state) {
     </header>`;
 }
 
-/* ============================================================
-   4a-2. 【Sprint11】CEOレベルバー / フェーズカード
-   ------------------------------------------------------------
-   HOMEでは軽い表示のみ。タップでMenu側と同じ詳細Modalを開く。
-   ============================================================ */
 function renderLevelBar(player) {
   return `
     <section class="co-section" data-component="level-bar">
@@ -2220,17 +1346,13 @@ function renderLevelBar(player) {
 }
 
 const PHASE_STEP_LABELS = { 1: "Step 1 / 5", 2: "Step 2 / 5", 3: "Step 3 / 5", 4: "Step 4 / 5", 5: "Step 5 / 5" };
-
 function renderPhaseCard(phase) {
   return `
     <section class="co-section" data-component="phase-card">
       <div class="co-card co-phasecard" data-action="open-phase-detail">
         <div class="co-phasecard__top">
           <span class="co-phasecard__emoji">${phase.emoji}</span>
-          <div>
-            <p class="co-phasecard__label">${phase.label}</p>
-            <p class="co-phasecard__step">${PHASE_STEP_LABELS[phase.number] || ""}</p>
-          </div>
+          <div><p class="co-phasecard__label">${phase.label}</p><p class="co-phasecard__step">${PHASE_STEP_LABELS[phase.number] || ""}</p></div>
           <span class="co-phasecard__chevron">${icon("chevronRight")}</span>
         </div>
         <p class="co-phasecard__desc">${phase.description}</p>
@@ -2238,7 +1360,6 @@ function renderPhaseCard(phase) {
     </section>`;
 }
 
-/** レベル詳細Modal(次のレベルまでのゲージを大きく見せる)。HOME/Menu共通で使う。 */
 function buildLevelDetailModal(player) {
   return `
     <div class="co-modal-head">
@@ -2250,13 +1371,9 @@ function buildLevelDetailModal(player) {
       <div class="co-progress"><div class="co-progress__bar" style="background:var(--c-orange-500); width:${player.progressPct}%"></div></div>
       <p style="margin-top:8px;">${player.xpIntoLevel} / ${player.xpForNextLevel} XP(累計 ${formatNumber(player.xp)} XP)</p>
     </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">XPの増やし方</p>
-      <p>ミッション完了(通常20〜30XP)、GitHubへのpush(+15XP)、リリース(+50XP)でXPが増えます。</p>
-    </div>`;
+    <div class="co-modal-section"><p class="co-modal-section__label">XPの増やし方</p><p>ミッション完了(通常20〜30XP)、GitHubへのpush(+15XP)、リリース(+50XP)でXPが増えます。</p></div>`;
 }
 
-/** フェーズ詳細Modal(5段階の成長ジャーニーを一覧表示)。HOME/Menu共通。 */
 const PHASE_JOURNEY = [
   { number: 1, emoji: "🌱", label: "種まき期間" },
   { number: 2, emoji: "🚀", label: "初収益フェーズ" },
@@ -2268,9 +1385,7 @@ function buildPhaseDetailModal(phase) {
   const rows = PHASE_JOURNEY.map(step => `
     <div class="co-phase-journey-item ${step.number === phase.number ? "is-current" : ""}">
       <span class="co-phase-journey-item__emoji">${step.emoji}</span>
-      <div class="co-phase-journey-item__body">
-        <p class="co-phase-journey-item__label">${step.label}${step.number === phase.number ? '<span class="co-phase-journey-item__now">今ここ</span>' : ""}</p>
-      </div>
+      <div class="co-phase-journey-item__body"><p class="co-phase-journey-item__label">${step.label}${step.number === phase.number ? '<span class="co-phase-journey-item__now">今ここ</span>' : ""}</p></div>
     </div>`).join("");
   return `
     <div class="co-modal-head">
@@ -2278,10 +1393,7 @@ function buildPhaseDetailModal(phase) {
       <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
     </div>
     <div class="co-modal-section"><p>${phase.description}</p></div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">成長ジャーニー</p>
-      <div class="co-phase-journey">${rows}</div>
-    </div>`;
+    <div class="co-modal-section"><p class="co-modal-section__label">成長ジャーニー</p><div class="co-phase-journey">${rows}</div></div>`;
 }
 
 function bindLevelPhaseEvents(container, data) {
@@ -2296,75 +1408,39 @@ function renderMissionCard(missions) {
   const rows = missions.map(m => `
     <div class="co-mission ${m.done ? "is-done" : ""}" data-mission-id="${m.id}" data-xp="${m.xp}" data-axis="${m.axis}">
       <div class="co-mission__check" data-role="check">${icon("check")}</div>
-      <div class="co-mission__body">
-        <p class="co-mission__title">${m.title}</p>
-        <p class="co-mission__meta" data-axis="${m.axis}">${m.axis}</p>
-      </div>
+      <div class="co-mission__body"><p class="co-mission__title">${m.title}</p><p class="co-mission__meta" data-axis="${m.axis}">${m.axis}</p></div>
       <span class="co-mission__priority" data-level="${m.priority}">${m.priority === "high" ? "優先度:高" : "通常"}</span>
-    </div>
-  `).join("");
-
+    </div>`).join("");
   return `
     <section class="co-section" data-component="mission-card">
-      <div class="co-section__head">
-        <p class="co-section__title">${icon("sparkle")} 今日のミッション</p>
-        <span class="co-section__link">${doneCount}/${missions.length} 完了</span>
-      </div>
+      <div class="co-section__head"><p class="co-section__title">${icon("sparkle")} 今日のミッション</p><span class="co-section__link">${doneCount}/${missions.length} 完了</span></div>
       <div class="co-card">${rows}</div>
     </section>`;
 }
 
 function renderBriefingCard(items) {
-  const rows = items.slice(0, 3).map(text => `
-    <div class="co-briefing__item"><span class="co-briefing__dot"></span><span>${text}</span></div>
-  `).join("");
+  const rows = items.slice(0, 3).map(text => `<div class="co-briefing__item"><span class="co-briefing__dot"></span><span>${text}</span></div>`).join("");
   return `
     <section class="co-section" data-component="ai-briefing">
-      <div class="co-card co-briefing" id="briefing-bg">
-        <div class="co-briefing__label">${icon("sparkle")}AIブリーフィング</div>
-        ${rows}
-      </div>
+      <div class="co-card co-briefing" id="briefing-bg"><div class="co-briefing__label">${icon("sparkle")}AIブリーフィング</div>${rows}</div>
     </section>`;
 }
 
-/**
- * ============================================================
- * 【Sprint12】ルールベースAI秘書カード
- * ------------------------------------------------------------
- * GAS側の generateAiAdvice_(context) が返した文字列配列(最大3件)を
- * そのまま表示するだけ。将来AI APIに差し替わっても、この関数は
- * 一切変更不要(渡ってくる配列の中身が変わるだけ)。
- * ============================================================ */
 function renderAiAdviceCard(lines) {
   if (!lines || !lines.length) return "";
-  const rows = lines.slice(0, 3).map(text => `
-    <div class="co-aiadvice__item"><span class="co-aiadvice__dot"></span><span>${text}</span></div>
-  `).join("");
+  const rows = lines.slice(0, 3).map(text => `<div class="co-aiadvice__item"><span class="co-aiadvice__dot"></span><span>${text}</span></div>`).join("");
   return `
     <section class="co-section" data-component="ai-advice">
       <div class="co-card">
-        <div class="co-aiadvice__head">
-          <span class="co-aiadvice__avatar">${icon("ai")}</span>
-          <p class="co-aiadvice__title">AI秘書からの提案</p>
-        </div>
+        <div class="co-aiadvice__head"><span class="co-aiadvice__avatar">${icon("ai")}</span><p class="co-aiadvice__title">AI秘書からの提案</p></div>
         ${rows}
       </div>
     </section>`;
 }
 
-/**
- * ============================================================
- * 【Sprint19】AI編集部ダッシュボード
- * ------------------------------------------------------------
- * ①AIリサーチ〜⑧SNS分析までの8人が今どれだけ動いているかを
- * HOME画面を開いた瞬間に一覧できるカード。データはGAS側
- * computeAiEditorialDashboard_()で集計済みのものをそのまま表示する。
- * ============================================================ */
 function renderAiEditorialDashboardCard(aiEditorial) {
   if (!aiEditorial) return "";
-  const activeAiText = aiEditorial.activeAiToday.length
-    ? aiEditorial.activeAiToday.join("・")
-    : "まだ稼働なし";
+  const activeAiText = aiEditorial.activeAiToday.length ? aiEditorial.activeAiToday.join("・") : "まだ稼働なし";
   const stats = [
     { label: "生成コンテンツ", value: aiEditorial.generatedToday, unit: "件" },
     { label: "承認待ち", value: aiEditorial.pendingApproval, unit: "件" },
@@ -2379,26 +1455,13 @@ function renderAiEditorialDashboardCard(aiEditorial) {
   return `
     <section class="co-section" data-component="ai-editorial-dashboard">
       <div class="co-card">
-        <div class="co-aiadvice__head">
-          <span class="co-aiadvice__avatar">${icon("ai")}</span>
-          <p class="co-aiadvice__title">AI編集部ダッシュボード</p>
-        </div>
+        <div class="co-aiadvice__head"><span class="co-aiadvice__avatar">${icon("ai")}</span><p class="co-aiadvice__title">AI編集部ダッシュボード</p></div>
         <p class="co-cs-item__meta">今日動いたAI社員: ${activeAiText}</p>
-        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; margin-top:8px;">
-          ${statRows}
-        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; margin-top:8px;">${statRows}</div>
       </div>
     </section>`;
 }
 
-/**
- * 【Sprint14】今日のおすすめTOP3
- * ------------------------------------------------------------
- * コンテンツストックの status="idea" の中から、優先度(高→中→低)、
- * 同優先度内は登録が古い順(GAS側computeTopRecommendations_で判定済み)
- * に上位3件を表示。タップするとコンテンツストック一覧を開き、
- * そのままステータスを進められる。
- */
 function renderRecommendationsCard(recommendations) {
   if (!recommendations || !recommendations.length) return "";
   const rows = recommendations.map(r => {
@@ -2406,20 +1469,14 @@ function renderRecommendationsCard(recommendations) {
     const purposeLabel = CONTENT_PURPOSE_LABELS[r.purpose] || "";
     return `
       <div class="co-cs-item" data-action="open-recommendation" style="cursor:pointer;">
-        <div class="co-cs-item__top">
-          <p class="co-cs-item__title">${r.title}</p>
-          <span class="co-cs-recommend-badge">${CONTENT_PRIORITY_LABELS[r.priority] || "優先度:中"}</span>
-        </div>
+        <div class="co-cs-item__top"><p class="co-cs-item__title">${r.title}</p><span class="co-cs-recommend-badge">${CONTENT_PRIORITY_LABELS[r.priority] || "優先度:中"}</span></div>
         ${metaBits ? `<p class="co-cs-item__meta">${metaBits}${purposeLabel ? ` ・ ${purposeLabel}` : ""}</p>` : (purposeLabel ? `<p class="co-cs-item__meta">${purposeLabel}</p>` : "")}
       </div>`;
   }).join("");
   return `
     <section class="co-section" data-component="recommendations-card">
       <div class="co-card">
-        <div class="co-aiadvice__head">
-          <span class="co-aiadvice__avatar">${icon("sparkle")}</span>
-          <p class="co-aiadvice__title">今日のおすすめネタ TOP${recommendations.length}</p>
-        </div>
+        <div class="co-aiadvice__head"><span class="co-aiadvice__avatar">${icon("sparkle")}</span><p class="co-aiadvice__title">今日のおすすめネタ TOP${recommendations.length}</p></div>
         ${rows}
       </div>
     </section>`;
@@ -2427,9 +1484,7 @@ function renderRecommendationsCard(recommendations) {
 
 function bindRecommendationsEvents(container) {
   if (!container) return;
-  container.querySelectorAll('[data-action="open-recommendation"]').forEach(el => {
-    el.addEventListener("click", () => openContentStockList());
-  });
+  container.querySelectorAll('[data-action="open-recommendation"]').forEach(el => { el.addEventListener("click", () => openContentStockList()); });
 }
 
 function renderQuickActions() {
@@ -2440,16 +1495,8 @@ function renderQuickActions() {
     { key: "post",    label: "投稿追加", icon: "plus" },
     { key: "voice",   label: "音声メモ", icon: "mic" }
   ];
-  const chips = actions.map(a => `
-    <button class="co-qa" data-action="${a.key}">
-      <span class="co-qa__icon">${icon(a.icon)}</span>
-      <span class="co-qa__label">${a.label}</span>
-    </button>`).join("");
-  return `
-    <section class="co-section" data-component="quick-actions">
-      <div class="co-section__head"><p class="co-section__title">クイックアクション</p></div>
-      <div class="co-qa-row">${chips}</div>
-    </section>`;
+  const chips = actions.map(a => `<button class="co-qa" data-action="${a.key}"><span class="co-qa__icon">${icon(a.icon)}</span><span class="co-qa__label">${a.label}</span></button>`).join("");
+  return `<section class="co-section" data-component="quick-actions"><div class="co-section__head"><p class="co-section__title">クイックアクション</p></div><div class="co-qa-row">${chips}</div></section>`;
 }
 
 function renderKpiCard(kpiList) {
@@ -2463,1913 +1510,91 @@ function renderKpiCard(kpiList) {
         <div class="co-kpi__delta" data-dir="${k.dir}">${icon(dirIcon)}<span>${sign}${k.deltaPct}%</span></div>
       </div>`;
   }).join("");
-  return `
-    <section class="co-section" data-component="kpi-card">
-      <div class="co-section__head"><p class="co-section__title">KPI</p></div>
-      <div class="co-kpi-grid">${cards}</div>
-    </section>`;
+  return `<section class="co-section" data-component="kpi-card"><div class="co-section__head"><p class="co-section__title">KPI</p></div><div class="co-kpi-grid">${cards}</div></section>`;
 }
 
 function renderProjectCard(projects) {
   const rows = projects.map(p => `
     <div class="co-project" data-project-id="${p.id}">
-      <div class="co-project__top">
-        <span class="co-project__name"><span class="co-project__dot" style="background:${p.color}"></span>${p.name}</span>
-        <span class="co-project__pct">${p.progress}%</span>
-      </div>
+      <div class="co-project__top"><span class="co-project__name"><span class="co-project__dot" style="background:${p.color}"></span>${p.name}</span><span class="co-project__pct">${p.progress}%</span></div>
       <div class="co-progress"><div class="co-progress__bar" style="background:${p.color}" data-progress-to="${p.progress}"></div></div>
       <p class="co-project__meta">現在: ${p.sprint} ・ 次: ${p.next} ・ 担当AI: ${p.ai}</p>
     </div>`).join("");
-  return `
-    <section class="co-section" data-component="project-card">
-      <div class="co-section__head"><p class="co-section__title">開発中プロジェクト</p></div>
-      <div class="co-card">${rows}</div>
-    </section>`;
+  return `<section class="co-section" data-component="project-card"><div class="co-section__head"><p class="co-section__title">開発中プロジェクト</p></div><div class="co-card">${rows}</div></section>`;
 }
 
 function renderSnsCard(sns) {
-  const cards = sns.map(s => `
-    <div class="co-sns" data-sns="${s.key}">
-      <div class="co-sns__badge" style="background:${s.color}">${s.label}</div>
-      <p class="co-sns__value">${s.value}</p>
-      <p class="co-sns__label">${s.sub}</p>
-    </div>`).join("");
-  return `
-    <section class="co-section" data-component="sns-card">
-      <div class="co-section__head"><p class="co-section__title">SNS状況</p></div>
-      <div class="co-card"><div class="co-sns-row">${cards}</div></div>
-    </section>`;
+  const cards = sns.map(s => `<div class="co-sns" data-sns="${s.key}"><div class="co-sns__badge" style="background:${s.color}">${s.label}</div><p class="co-sns__value">${s.value}</p><p class="co-sns__label">${s.sub}</p></div>`).join("");
+  return `<section class="co-section" data-component="sns-card"><div class="co-section__head"><p class="co-section__title">SNS状況</p></div><div class="co-card"><div class="co-sns-row">${cards}</div></div></section>`;
 }
 
 function renderActivityCard(activity) {
-  const rows = activity.map(a => `
-    <div class="co-timeline__item">
-      <div class="co-timeline__icon">${icon(a.icon)}</div>
-      <div>
-        <p class="co-timeline__title">${a.title}</p>
-        <p class="co-timeline__time">${a.time}</p>
-      </div>
-    </div>`).join("");
-  return `
-    <section class="co-section" data-component="recent-activity" style="margin-bottom:8px;">
-      <div class="co-section__head"><p class="co-section__title">最近の成果</p></div>
-      <div class="co-card">${rows}</div>
-    </section>`;
+  const rows = activity.map(a => `<div class="co-timeline__item"><div class="co-timeline__icon">${icon(a.icon)}</div><div><p class="co-timeline__title">${a.title}</p><p class="co-timeline__time">${a.time}</p></div></div>`).join("");
+  return `<section class="co-section" data-component="recent-activity" style="margin-bottom:8px;"><div class="co-section__head"><p class="co-section__title">最近の成果</p></div><div class="co-card">${rows}</div></section>`;
 }
 
 function renderPlaceholderScreen(title, desc, iconName) {
-  return `
-    <div class="co-empty">
-      <div class="co-empty__icon">${icon(iconName)}</div>
-      <p class="co-empty__title">${title}</p>
-      <p class="co-empty__desc">${desc}</p>
-      <button class="co-empty__btn" data-action="placeholder-cta">${icon("plus")}近日公開</button>
-    </div>`;
+  return `<div class="co-empty"><div class="co-empty__icon">${icon(iconName)}</div><p class="co-empty__title">${title}</p><p class="co-empty__desc">${desc}</p><button class="co-empty__btn" data-action="placeholder-cta">${icon("plus")}近日公開</button></div>`;
 }
+function renderSkeletonBlock(heights) { return `<div class="co-section">${heights.map(h => `<div class="co-skel-card" style="height:${h}px;"></div>`).join("")}</div>`; }
+function renderScreenTitle(title) { return `<div class="co-header" style="padding-bottom:8px;"><div><p class="co-header__greeting" style="font-size:19px; margin:0;">${title}</p></div></div>`; }
 
-function renderSkeletonBlock(heights) {
-  return `<div class="co-section">${heights.map(h => `<div class="co-skel-card" style="height:${h}px;"></div>`).join("")}</div>`;
-}
-
-function renderScreenTitle(title) {
-  return `
-    <div class="co-header" style="padding-bottom:8px;">
-      <div><p class="co-header__greeting" style="font-size:19px; margin:0;">${title}</p></div>
-    </div>`;
-}
-
-/* ============================================================
-   4b. Projects / Portfolio コンポーネント
-   ============================================================ */
 function renderDevProjectCard(p) {
   return `
     <div class="co-card co-devcard" data-dev-id="${p.id}">
-      <div class="co-project__top">
-        <span class="co-project__name"><span class="co-project__dot" style="background:${p.color}"></span>${p.name}</span>
-        <span class="co-project__pct">${p.progress}%</span>
-      </div>
+      <div class="co-project__top"><span class="co-project__name"><span class="co-project__dot" style="background:${p.color}"></span>${p.name}</span><span class="co-project__pct">${p.progress}%</span></div>
       <div class="co-progress"><div class="co-progress__bar" style="background:${p.color}" data-progress-to="${p.progress}"></div></div>
-      <div class="co-devcard__meta-row">
-        <span>現在: ${p.sprint} ・ 次: ${p.next}</span>
-        ${icon("chevronRight")}
-      </div>
+      <div class="co-devcard__meta-row"><span>現在: ${p.sprint} ・ 次: ${p.next}</span>${icon("chevronRight")}</div>
       ${renderGithubHistorySection(p)}
     </div>`;
 }
 
-/* ============================================================
-   4b-2. 【Sprint10.3】GitHub履歴 / 開発タイムライン コンポーネント
-   ------------------------------------------------------------
-   共通コンポーネントとして設計。renderGithubHistoryItem() は
-   どのリポジトリのイベントでも同じ形式(normalizeGithubEvent済み)
-   を受け取って描画するだけなので、REPO_CONFIGにリポジトリが
-   増えてもこちら側の変更は不要。
-   ============================================================ */
 const GITHUB_HISTORY_VISIBLE_COUNT = 5;
-
-/** dev-idカードの下に差し込む「GitHub履歴」セクション。クリックはbindProjectsEventsで委譲する。 */
 function renderGithubHistorySection(p) {
   const events = p.githubHistory || [];
-  if (!events.length) {
-    return `
-      <div class="co-github-history">
-        <p class="co-github-history__label">${icon("github")}GitHub履歴</p>
-        <p class="co-github-history__empty">まだ更新履歴がありません。</p>
-      </div>`;
-  }
+  if (!events.length) { return `<div class="co-github-history"><p class="co-github-history__label">${icon("github")}GitHub履歴</p><p class="co-github-history__empty">まだ更新履歴がありません。</p></div>`; }
   const visible = events.slice(0, GITHUB_HISTORY_VISIBLE_COUNT);
   const rows = visible.map((e, idx) => renderGithubHistoryItem(e, p.id, idx)).join("");
-  return `
-    <div class="co-github-history">
-      <p class="co-github-history__label">${icon("github")}GitHub履歴</p>
-      ${rows}
-    </div>`;
+  return `<div class="co-github-history"><p class="co-github-history__label">${icon("github")}GitHub履歴</p>${rows}</div>`;
 }
-
-/** 1件分のGitHub履歴行。data-github-project / data-github-idx で後からイベント本体を引ける。 */
 function renderGithubHistoryItem(e, projectId, idx) {
   const progressChip = e.progressTag ? `<span class="co-github-item__tag">進捗 ${e.progressTag}%</span>` : "";
   const releaseChip = e.releaseTag ? `<span class="co-github-item__tag">${e.releaseTag}</span>` : "";
   return `
     <div class="co-github-item" data-github-project="${projectId}" data-github-idx="${idx}">
-      <div class="co-github-item__top">
-        <span class="co-github-item__repo">${e.repoLabel}</span>
-        <span class="co-github-item__date">${e.date}</span>
-      </div>
+      <div class="co-github-item__top"><span class="co-github-item__repo">${e.repoLabel}</span><span class="co-github-item__date">${e.date}</span></div>
       <p class="co-github-item__title">${e.title}</p>
-      <div class="co-github-item__meta">
-        <span>${icon("github")}${e.commitCount}件</span>
-        <span>${icon("user")}${e.author}</span>
-        ${progressChip}${releaseChip}
-      </div>
+      <div class="co-github-item__meta"><span>${icon("github")}${e.commitCount}件</span><span>${icon("user")}${e.author}</span>${progressChip}${releaseChip}</div>
     </div>`;
 }
 
-/** GitHub履歴1件の詳細Modal(コミット一覧・変更ファイル数・GitHubリンク・更新内容)。 */
 function buildGithubEventDetailModal(e) {
   const commitsHtml = e.commits.length
-    ? e.commits.map(c => `
-        <div class="co-modal-list-item">
-          <span style="flex:1;">${c.message}${c.author ? ` <span style="color:var(--c-text-300);">— ${c.author}</span>` : ""}</span>
-        </div>`).join("")
+    ? e.commits.map(c => `<div class="co-modal-list-item"><span style="flex:1;">${c.message}${c.author ? ` <span style="color:var(--c-text-300);">— ${c.author}</span>` : ""}</span></div>`).join("")
     : `<p class="co-modal-empty-note">コミット詳細は記録されていません。</p>`;
-
-  const linkHtml = e.link
-    ? `<div class="co-modal-link-row">${icon("link")}<span>${e.link}</span><button class="co-modal-copy-btn" data-copy="${e.link}">コピー</button></div>`
-    : "";
-
+  const linkHtml = e.link ? `<div class="co-modal-link-row">${icon("link")}<span>${e.link}</span><button class="co-modal-copy-btn" data-copy="${e.link}">コピー</button></div>` : "";
   return `
     <div class="co-modal-head">
-      <div>
-        <p class="co-modal-title">${e.repoLabel}</p>
-        <p class="co-modal-subtitle">${e.date} ・ ${e.eventType === "release" ? "リリース" : "Push"} ・ ${e.author}</p>
-      </div>
+      <div><p class="co-modal-title">${e.repoLabel}</p><p class="co-modal-subtitle">${e.date} ・ ${e.eventType === "release" ? "リリース" : "Push"} ・ ${e.author}</p></div>
       <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
     </div>
-
     <div class="co-modal-section">
-      <p class="co-modal-section__label">更新内容</p>
-      <p>${e.title}</p>
+      <p class="co-modal-section__label">更新内容</p><p>${e.title}</p>
       ${e.progressTag ? `<div class="co-modal-chip-row" style="margin-top:8px;"><span class="co-modal-chip">進捗タグ ${e.progressTag}%</span></div>` : ""}
       ${e.releaseTag ? `<div class="co-modal-chip-row" style="margin-top:8px;"><span class="co-modal-chip">${e.releaseTag}</span></div>` : ""}
     </div>
-
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">${icon("files")}コミット一覧(${e.commitCount}件) ・ 変更ファイル ${e.filesChanged}件</p>
-      ${commitsHtml}
-    </div>
-
+    <div class="co-modal-section"><p class="co-modal-section__label">${icon("files")}コミット一覧(${e.commitCount}件) ・ 変更ファイル ${e.filesChanged}件</p>${commitsHtml}</div>
     ${linkHtml ? `<div class="co-modal-section"><p class="co-modal-section__label">${icon("github")}GitHubリンク</p>${linkHtml}</div>` : ""}`;
 }
 
-/* ---- 【Sprint10.3】開発タイムライン(Projects画面の一番下) ---- */
-const TIMELINE_SOURCE_ICON = {
-  github: "github",
-  note: "note",
-  x: "sns",
-  tiktok: "video"
-};
-
+const TIMELINE_SOURCE_ICON = { github: "github", note: "note", x: "sns", tiktok: "video" };
 function renderTimelineSection(timeline) {
   if (!timeline || !timeline.length) {
-    return `
-      <section class="co-section" data-component="dev-timeline" style="margin-bottom:8px;">
-        <div class="co-section__head"><p class="co-section__title">${icon("history")}開発タイムライン</p></div>
-        <div class="co-card"><p class="co-github-history__empty">まだ記録がありません。</p></div>
-      </section>`;
+    return `<section class="co-section" data-component="dev-timeline" style="margin-bottom:8px;"><div class="co-section__head"><p class="co-section__title">${icon("history")}開発タイムライン</p></div><div class="co-card"><p class="co-github-history__empty">まだ記録がありません。</p></div></section>`;
   }
   const rows = timeline.map(t => `
     <div class="co-timeline2-item">
       <div class="co-timeline2-item__dot">${icon(TIMELINE_SOURCE_ICON[t.source] || "sparkle")}</div>
-      <div class="co-timeline2-item__body">
-        <p class="co-timeline2-item__label">${t.label}</p>
-        <p class="co-timeline2-item__meta">${t.date}${t.target ? ` ・ ${t.target}` : ""}</p>
-      </div>
+      <div class="co-timeline2-item__body"><p class="co-timeline2-item__label">${t.label}</p><p class="co-timeline2-item__meta">${t.date}${t.target ? ` ・ ${t.target}` : ""}</p></div>
     </div>`).join("");
-  return `
-    <section class="co-section" data-component="dev-timeline" style="margin-bottom:8px;">
-      <div class="co-section__head"><p class="co-section__title">${icon("history")}開発タイムライン</p></div>
-      <div class="co-card"><div class="co-timeline2">${rows}</div></div>
-    </section>`;
-}
-
-function renderPortfolioCard(p) {
-  return `
-    <div class="co-card co-portfolio-card" data-portfolio-id="${p.id}">
-      <div class="co-portfolio-card__top">
-        <span class="co-portfolio-card__badge" style="background:${p.color}">${p.initial}</span>
-        <div>
-          <p class="co-portfolio-card__name">${p.name}</p>
-          <span class="co-portfolio-card__tag">${p.tag}</span>
-        </div>
-        <span class="co-portfolio-card__chevron">${icon("chevronRight")}</span>
-      </div>
-      <p class="co-portfolio-card__summary">${p.summary}</p>
-    </div>`;
-}
-
-function buildDevDetailModal(p) {
-  return `
-    <div class="co-modal-head">
-      <div>
-        <p class="co-modal-title">${p.name}</p>
-        <p class="co-modal-subtitle">担当AI: ${p.ai} ・ 更新 ${p.updatedAt}</p>
-      </div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">進捗</p>
-      <div class="co-progress"><div class="co-progress__bar" style="background:${p.color}; width:${p.progress}%"></div></div>
-      <p style="margin-top:6px;">${p.progress}% ・ 現在のSprint: ${p.sprint}</p>
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">次にやること</p>
-      <p>${p.next}</p>
-    </div>`;
-}
-
-function buildPortfolioDetailModal(p) {
-  const stackChips = p.stack.map(s => `<span class="co-modal-chip">${s}</span>`).join("");
-  const historyHtml = p.history.length
-    ? p.history.map(h => `<div class="co-modal-list-item"><span class="co-modal-list-item__date">${h.date}</span><span>${h.text}</span></div>`).join("")
-    : `<p class="co-modal-empty-note">開発履歴はまだ記録されていません。</p>`;
-  const releasesHtml = p.releases.length
-    ? p.releases.map(r => `<div class="co-modal-list-item"><span class="co-modal-list-item__date">${r.date}</span><span>${r.text}</span></div>`).join("")
-    : `<p class="co-modal-empty-note">リリース履歴はまだ記録されていません。</p>`;
-  const fixesHtml = p.fixes.length
-    ? p.fixes.map(f => `<div class="co-modal-list-item"><span class="co-modal-list-item__date">${f.date}</span><span>${f.text}</span></div>`).join("")
-    : `<p class="co-modal-empty-note">修正履歴はまだ記録されていません。</p>`;
-  const linksHtml = `
-    ${p.github ? `<div class="co-modal-link-row">${icon("github")}<span>${p.github}</span><button class="co-modal-copy-btn" data-copy="${p.github}">コピー</button></div>` : ""}
-    ${p.netlify ? `<div class="co-modal-link-row">${icon("link")}<span>${p.netlify}</span></div>` : ""}
-  `;
-
-  return `
-    <div class="co-modal-head">
-      <div>
-        <p class="co-modal-title">${p.name}</p>
-        <p class="co-modal-subtitle">${p.tag}</p>
-      </div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-
-    <div class="co-modal-section">
-      <div class="co-modal-shot" id="modal-shot">${icon("image")}</div>
-    </div>
-
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">概要</p>
-      <p>${p.summary}</p>
-    </div>
-
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">使用技術</p>
-      <div class="co-modal-chip-row">${stackChips}</div>
-    </div>
-
-    ${(p.github || p.netlify) ? `<div class="co-modal-section"><p class="co-modal-section__label">GitHub / Netlify</p>${linksHtml}</div>` : ""}
-
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">${icon("history")}開発履歴</p>
-      ${historyHtml}
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">${icon("rocket") || ""}リリース履歴</p>
-      ${releasesHtml}
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">修正履歴</p>
-      ${fixesHtml}
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">${icon("star")}成果</p>
-      <p>${p.result}</p>
-    </div>`;
-}
-
-function bindProjectsEvents(container, data) {
-  container.querySelectorAll("[data-dev-id]").forEach(el => {
-    el.addEventListener("click", (ev) => {
-      // GitHub履歴行のクリックはこちらのカード全体クリックとして扱わない
-      if (ev.target.closest("[data-github-idx]")) return;
-      const p = data.dev.find(d => d.id === el.dataset.devId);
-      openModal(buildDevDetailModal(p));
-    });
-  });
-  // 【Sprint10.3】GitHub履歴行のクリックで詳細Modalを開く(共通コンポーネント)
-  container.querySelectorAll("[data-github-idx]").forEach(el => {
-    el.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      const projectId = el.dataset.githubProject;
-      const idx = Number(el.dataset.githubIdx);
-      const p = data.dev.find(d => d.id === projectId);
-      const event = p && p.githubHistory ? p.githubHistory[idx] : null;
-      if (!event) return;
-      openModal(buildGithubEventDetailModal(event));
-      const copyBtn = document.querySelector(".co-modal-sheet [data-copy]");
-      if (copyBtn) copyBtn.addEventListener("click", () => copyToClipboard(copyBtn.dataset.copy));
-    });
-  });
-  container.querySelectorAll("[data-portfolio-id]").forEach(el => {
-    el.addEventListener("click", () => {
-      const p = data.portfolio.find(d => d.id === el.dataset.portfolioId);
-      openModal(buildPortfolioDetailModal(p));
-      const shotEl = document.getElementById("modal-shot");
-      if (shotEl) applyImageAsset(shotEl, p.screenshot, null);
-      const copyBtn = document.querySelector(".co-modal-sheet [data-copy]");
-      if (copyBtn) copyBtn.addEventListener("click", () => copyToClipboard(copyBtn.dataset.copy));
-    });
-  });
-  const addBtn = container.querySelector('[data-action="add-portfolio"]');
-  if (addBtn) addBtn.addEventListener("click", () => showToast("実績の追加はSprint3以降で対応予定です"));
-}
-
-async function renderProjectsScreen() {
-  const target = document.getElementById("screen-projects");
-  target.innerHTML = renderSkeletonBlock([150, 110, 90, 90, 90, 90]);
-  const data = await Repository.getProjectsData();
-
-  target.innerHTML = `
-    ${renderScreenTitle("Projects / Portfolio")}
-    <section class="co-section" data-component="dev-projects">
-      <div class="co-section__head"><p class="co-section__title">${icon("code")}開発中</p></div>
-      ${data.dev.map(renderDevProjectCard).join("")}
-    </section>
-    <section class="co-section" data-component="portfolio">
-      <div class="co-section__head"><p class="co-section__title">${icon("star")}Portfolio(実績)</p></div>
-      ${data.portfolio.map(renderPortfolioCard).join("")}
-      <button class="co-card co-portfolio-add" data-action="add-portfolio">${icon("plus")}<span>今後追加する実績</span></button>
-    </section>
-    ${renderTimelineSection(data.timeline)}`;
-
-  animateEntrance(target);
-  bindProjectsEvents(target, data);
-  requestAnimationFrame(() => {
-    target.querySelectorAll("[data-progress-to]").forEach(el => { el.style.width = `${el.dataset.progressTo}%`; });
-  });
-}
-
-/* ============================================================
-   4c. AI秘書 コンポーネント
-   ============================================================ */
-function renderAgentCard(a) {
-  return `
-    <div class="co-card co-agent" data-agent-id="${a.id}">
-      <span class="co-agent__avatar" style="background:${a.color}">${a.name.slice(0, 2)}</span>
-      <p class="co-agent__name">${a.name}</p>
-      <p class="co-agent__role">${a.role}</p>
-      <span class="co-status-badge" data-status="${a.status}">${a.status}</span>
-    </div>`;
-}
-
-function renderRequestItem(r, showDate) {
-  const aiColor = r.ai === "Claude" ? "#FF6A2C" : "#1FA463";
-  return `
-    <div class="co-request-item">
-      <span class="co-request-item__ai" style="background:${aiColor}">${r.ai.slice(0, 2)}</span>
-      <span class="co-request-item__text">${r.text}</span>
-      ${showDate ? `<span class="co-request-item__date">${r.date}</span>` : `<span class="co-status-badge" data-status="${r.status}">${r.status}</span>`}
-    </div>`;
-}
-
-function bindAiEvents(container, data) {
-  const templateRow = container.querySelector(".co-template-row");
-  const textarea = container.querySelector("#ai-composer-input");
-  if (templateRow && textarea) {
-    templateRow.querySelectorAll(".co-template-chip").forEach(chip => {
-      chip.addEventListener("click", () => {
-        textarea.value = textarea.value ? `${textarea.value} / ${chip.textContent}` : `${chip.textContent}：`;
-        textarea.focus();
-      });
-    });
-  }
-  const sendBtn = container.querySelector("#ai-send-btn");
-  if (sendBtn && textarea) {
-    sendBtn.addEventListener("click", async () => {
-      const text = textarea.value.trim();
-      if (!text) { showToast("依頼内容を入力してください"); return; }
-      const request = { id: `local-${Date.now()}`, ai: "Claude", text, status: "待機中" };
-      await Repository.addAiRequest(request);
-      const listEl = container.querySelector('[data-component="ai-today"] .co-card');
-      if (listEl) listEl.insertAdjacentHTML("afterbegin", renderRequestItem(request, false));
-      textarea.value = "";
-      showToast("依頼を送信しました(Sprint3でAI連携予定)");
-    });
-  }
-  const micBtn = container.querySelector("#ai-mic-btn");
-  if (micBtn) micBtn.addEventListener("click", () => showToast("音声メモはSprint3以降で対応予定です"));
-}
-
-async function renderAiScreen() {
-  const target = document.getElementById("screen-ai");
-  target.innerHTML = renderSkeletonBlock([150, 130, 150, 130]);
-  const data = await Repository.getAiData();
-  const templateChips = data.templates.map(t => `<button class="co-template-chip">${t}</button>`).join("");
-
-  const HISTORY_VISIBLE_COUNT = 5;
-  const historyVisible = data.history.slice(0, HISTORY_VISIBLE_COUNT);
-  const historyHidden = data.history.slice(HISTORY_VISIBLE_COUNT);
-  const historyMoreBtn = historyHidden.length
-    ? `<button class="co-section__link" id="ai-history-more" style="width:100%; text-align:center; padding:10px 0 2px;">もっと見る(${historyHidden.length}件)</button>`
-    : "";
-
-  target.innerHTML = `
-    ${renderScreenTitle("AI秘書")}
-    <section class="co-section" data-component="ai-agents">
-      <div class="co-agent-grid">${data.agents.map(renderAgentCard).join("")}</div>
-    </section>
-    <section class="co-section" data-component="ai-composer">
-      <div class="co-section__head"><p class="co-section__title">クイック依頼</p></div>
-      <div class="co-card co-composer">
-        <div class="co-template-row">${templateChips}</div>
-        <textarea id="ai-composer-input" placeholder="やってほしいことを入力(例: TikTok企画を3案ください)"></textarea>
-        <div class="co-composer__row">
-          <button class="co-btn-primary" id="ai-send-btn">${icon("send")}依頼する</button>
-          <button class="co-btn-ghost" id="ai-mic-btn" aria-label="音声メモ">${icon("mic")}</button>
-        </div>
-      </div>
-    </section>
-    <section class="co-section" data-component="ai-today">
-      <div class="co-section__head"><p class="co-section__title">今日の依頼</p></div>
-      <div class="co-card">${data.todayRequests.map(r => renderRequestItem(r, false)).join("")}</div>
-    </section>
-    <section class="co-section" data-component="ai-history" style="margin-bottom:8px;">
-      <div class="co-section__head"><p class="co-section__title">依頼履歴</p></div>
-      <div class="co-card" id="ai-history-list">${historyVisible.map(r => renderRequestItem(r, true)).join("")}</div>
-      ${historyMoreBtn}
-    </section>`;
-
-  animateEntrance(target);
-  bindAiEvents(target, data);
-
-  const moreBtn = target.querySelector("#ai-history-more");
-  if (moreBtn) {
-    moreBtn.addEventListener("click", () => {
-      const listEl = target.querySelector("#ai-history-list");
-      listEl.insertAdjacentHTML("beforeend", historyHidden.map(r => renderRequestItem(r, true)).join(""));
-      moreBtn.remove();
-    });
-  }
-}
-
-/* ============================================================
-   4d. SNS コンポーネント
-   ============================================================ */
-function renderPlatformCard(p) {
-  const current = p.followers[p.followers.length - 1];
-  const prev = p.followers[p.followers.length - 2];
-  const delta = current - prev;
-  const lastPostsHtml = p.lastPosts.map(post => `
-    <div class="co-modal-list-item"><span class="co-modal-list-item__date">${post.date}</span><span>${post.title}</span></div>
-  `).join("");
-
-  return `
-    <div class="co-card co-platform-card" data-platform="${p.key}">
-      <div class="co-platform-card__top">
-        <span class="co-platform-card__badge" style="background:${p.color}">${p.label.slice(0, 2)}</span>
-        <div>
-          <p class="co-platform-card__label">${p.label}</p>
-          <span class="co-platform-card__followers">${formatNumber(current)}人 (${delta >= 0 ? "+" : ""}${delta})</span>
-        </div>
-        <span class="co-platform-card__spark">${buildSparkline(p.followers, p.color)}</span>
-      </div>
-      <div class="co-platform-card__stats">
-        <div class="co-platform-card__stat"><b>${p.stockCount}</b><span>ストック</span></div>
-      </div>
-      <div class="co-platform-card__next"><b>次の投稿:</b> ${p.nextPost}(${p.scheduled})</div>
-      <div style="margin-top:10px;">${lastPostsHtml}</div>
-    </div>`;
-}
-
-function buildPlatformDetailModal(p) {
-  const lastPostsHtml = p.lastPosts.map(post => `
-    <div class="co-modal-list-item"><span class="co-modal-list-item__date">${post.date}</span><span>${post.title}</span></div>
-  `).join("");
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">${p.label}</p><p class="co-modal-subtitle">フォロワー推移(直近7)</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-    <div class="co-modal-section">${buildSparkline(p.followers, p.color)}</div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">次に投稿する内容</p>
-      <p>${p.nextPost}(予定: ${p.scheduled})</p>
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">投稿履歴</p>
-      ${lastPostsHtml}
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">投稿分析</p>
-      <p class="co-modal-empty-note">詳細分析はSprint3以降で対応予定です。</p>
-    </div>`;
-}
-
-function bindSnsEvents(container, data) {
-  container.querySelectorAll("[data-platform]").forEach(el => {
-    el.addEventListener("click", () => {
-      const p = data.platforms.find(x => x.key === el.dataset.platform);
-      openModal(buildPlatformDetailModal(p));
-    });
-  });
-}
-
-async function renderSnsScreen() {
-  const target = document.getElementById("screen-sns");
-  target.innerHTML = renderSkeletonBlock([150, 150, 150]);
-  const data = await Repository.getSnsData();
-
-  target.innerHTML = `
-    ${renderScreenTitle("SNS")}
-    <section class="co-section" data-component="sns-platforms" style="margin-bottom:8px;">
-      ${data.platforms.map(renderPlatformCard).join("")}
-    </section>`;
-
-  animateEntrance(target);
-  bindSnsEvents(target, data);
-}
-
-/* ============================================================
-   4e. Menu コンポーネント
-   ============================================================ */
-/** 【Sprint11】Menu画面固定の追加項目。menu_itemsシートの内容に関わらず常に表示する。 */
-const SPRINT11_MENU_ITEMS = [
-  { key: "level",      label: "CEOレベル",   icon: "star" },
-  { key: "phase",      label: "成長フェーズ", icon: "rocket" },
-  { key: "investment", label: "投資管理",     icon: "briefcase" },
-  { key: "badges",     label: "実績バッジ",   icon: "shield" }
-];
-/** 【Sprint14】Content Stock(コンテンツストック)へのメニュー導線 */
-const SPRINT14_MENU_ITEMS = [
-  { key: "content_stock", label: "コンテンツストック", icon: "database" }
-];
-/** 【Sprint15】AIリサーチ画面へのメニュー導線 */
-const SPRINT15_MENU_ITEMS = [
-  { key: "ai_research", label: "AIリサーチ", icon: "sparkle" }
-];
-const MENU_KEYS_WITH_DETAIL = ["kpi", "revenue", "level", "phase", "investment", "badges", "content_stock", "ai_research"];
-function renderMenuRow(item) {
-  const hasDetail = MENU_KEYS_WITH_DETAIL.includes(item.key);
-  return `
-    <div class="co-menu-row ${hasDetail ? "co-menu-row--has-detail" : ""}" data-menu-key="${item.key}">
-      <span class="co-menu-row__icon">${icon(item.icon)}</span>
-      <span class="co-menu-row__label">${item.label}</span>
-      ${hasDetail ? `<span class="co-detail-badge">詳細あり</span>` : ""}
-      <span class="co-menu-row__chevron">${icon("chevronRight")}</span>
-    </div>`;
-}
-
-function buildProfileModal(profile) {
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">プロフィール</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-    <div class="co-modal-section" style="display:flex; align-items:center; gap:14px;">
-      <span class="co-menu-avatar">${profile.name.slice(0, 1)}</span>
-      <div>
-        <p style="font-size:16px; font-weight:800; margin:0;">${profile.name}</p>
-        <p style="font-size:12px; color:var(--c-text-500); margin:3px 0 0;">${profile.role}</p>
-      </div>
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">継続日数</p>
-      <p>${profile.streakDays}日</p>
-    </div>
-    <p class="co-modal-empty-note">プロフィール編集はSprint5以降で対応予定です。</p>`;
-}
-
-function buildKpiListModal(kpiList) {
-  const axisOrder = ["開発", "発信", "収益化"];
-  const axisColor = { "開発": "#14304F", "発信": "#FF6A2C", "収益化": "#1FA463" };
-  const groups = axisOrder.map(axis => {
-    const items = kpiList.filter(k => k.axis === axis);
-    if (!items.length) return "";
-    const rows = items.map(k => `
-      <div class="co-modal-list-item" style="align-items:center;">
-        <span style="flex:1;">
-          <b style="display:block; font-size:14px; font-weight:800;">${k.title}</b>
-          <span class="tabular-num" style="font-size:18px; font-weight:900;">${formatNumber(k.value)}</span>
-          <span style="font-size:11px; color:var(--c-text-500);">${k.unit} ・ ${k.dir === "up" ? "+" : k.dir === "down" ? "-" : ""}${k.deltaPct}%</span>
-        </span>
-        <span style="width:90px;">${buildSparkline(k.history, axisColor[axis])}</span>
-      </div>`).join("");
-    return `
-      <div class="co-modal-section">
-        <p class="co-modal-section__label" style="color:${axisColor[axis]};">${axis}</p>
-        ${rows}
-      </div>`;
-  }).join("");
-
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">KPI一覧</p><p class="co-modal-subtitle">開発・発信・収益化(直近7日)</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-    ${groups}`;
-}
-
-function buildRevenueModal(revenue) {
-  const rows = revenue.entries.map(e => `
-    <div class="co-modal-list-item">
-      <span class="co-modal-list-item__date">${e.date}</span>
-      <span style="flex:1;">${e.platform} ・ ${e.category}</span>
-      <span style="font-weight:800;">¥${formatNumber(e.amount)}</span>
-      <span class="co-status-badge" data-status="${e.confirmed ? "完了" : "待機中"}">${e.confirmed ? "確定" : "未確定"}</span>
-    </div>`).join("");
-
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">収益管理</p><p class="co-modal-subtitle">${revenue.monthLabel}</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">今月の合計</p>
-      <span class="tabular-num" id="revenue-total" style="font-size:26px; font-weight:900;">0</span><span style="font-size:14px; font-weight:700;">円</span>
-    </div>
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">内訳</p>
-      ${rows}
-    </div>
-    <p class="co-modal-empty-note">収益の追加入力はSprint5以降で対応予定です。</p>`;
-}
-
-/**
- * 【Sprint11】投資管理Modal。
- * 方針:「赤字」「マイナス」という言葉は一切使わない。
- * 常に「今月の投資」「未来への種まき」「回収まであと◯円」「回収率◯%」の
- * 前向きな表現のみで見せる(generateInvestmentMessages_ 側で文言を生成)。
- */
-function buildInvestmentModal(investment) {
-  const itemsHtml = investment.items.length
-    ? investment.items.map(i => `
-        <div class="co-invest-item">
-          <span class="co-invest-item__name">${i.category}${i.active ? "" : "(停止中)"}</span>
-          <span class="co-invest-item__amount">${formatYenClient_(i.monthlyAmount)}/月</span>
-        </div>`).join("")
-    : `<p class="co-modal-empty-note">まだ投資項目が登録されていません。</p>`;
-
-  const messagesHtml = investment.messages.map(m => `<p class="co-invest-message">${m}</p>`).join("");
-  const gaugePct = Math.min(100, investment.recoveryPct);
-
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">投資管理</p><p class="co-modal-subtitle">未来への種まき状況</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-
-    <div class="co-modal-section co-invest-hero">
-      <div class="co-invest-hero__value">${formatYenClient_(investment.monthlyTotal)}</div>
-      <div class="co-invest-hero__label">今月の投資(未来への種まき)</div>
-    </div>
-
-    <div class="co-modal-section">
-      <div class="co-invest-gauge"><div class="co-invest-gauge__fill" data-progress-to="${gaugePct}"></div></div>
-      <p class="co-invest-gauge__label">投資回収ゲージ ${investment.recoveryPct}%</p>
-    </div>
-
-    <div class="co-modal-section">
-      ${messagesHtml}
-    </div>
-
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">投資項目(累計 ${investment.months}ヶ月)</p>
-      ${itemsHtml}
-    </div>`;
-}
-
-/** 円表示ヘルパー(クライアント側)。GAS側のformatYen_と表記を揃える。 */
-function formatYenClient_(n) {
-  return "¥" + formatNumber(Math.round(n));
-}
-
-/**
- * 【Sprint11】実績バッジModal。
- * 表示のみ(自動解除ロジックはGAS側のcomputeBadges_で判定済み)。
- * 将来バッジが増えても、このModalはbadges配列を渡すだけで対応できる。
- */
-function buildBadgesModal(badges) {
-  const cards = badges.map(b => `
-    <div class="co-badge ${b.unlocked ? "is-unlocked" : ""}">
-      <span class="co-badge__icon">${icon(b.icon)}</span>
-      <span class="co-badge__label">${b.label}</span>
-    </div>`).join("");
-  const unlockedCount = badges.filter(b => b.unlocked).length;
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">実績バッジ</p><p class="co-modal-subtitle">${unlockedCount}/${badges.length} 解除済み</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-    <div class="co-modal-section"><div class="co-badge-grid">${cards}</div></div>`;
-}
-
-function bindMenuEvents(container, data) {
-  container.querySelectorAll("[data-menu-key]").forEach(row => {
-    row.addEventListener("click", () => {
-      const key = row.dataset.menuKey;
-      if (key === "kpi") {
-        openModal(buildKpiListModal(data.kpi));
-        return;
-      }
-      if (key === "revenue") {
-        openModal(buildRevenueModal(data.revenue));
-        const totalEl = document.getElementById("revenue-total");
-        if (totalEl) animateCountUp(totalEl, data.revenue.total);
-        return;
-      }
-      if (key === "level") {
-        openModal(buildLevelDetailModal(data.player));
-        return;
-      }
-      if (key === "phase") {
-        openModal(buildPhaseDetailModal(data.phase));
-        return;
-      }
-      if (key === "investment") {
-        openModal(buildInvestmentModal(data.investment));
-        requestAnimationFrame(() => {
-          document.querySelectorAll(".co-modal-sheet [data-progress-to]").forEach(el => {
-            el.style.width = `${el.dataset.progressTo}%`;
-          });
-        });
-        return;
-      }
-      if (key === "badges") {
-        openModal(buildBadgesModal(data.badges));
-        return;
-      }
-      if (key === "content_stock") {
-        openContentStockList();
-        return;
-      }
-      if (key === "ai_research") {
-        openResearchCandidatesList();
-        return;
-      }
-      showToast("この項目はSprint5以降で実装予定です");
-    });
-  });
-  const profileEl = container.querySelector("[data-menu-profile]");
-  if (profileEl) profileEl.addEventListener("click", () => openModal(buildProfileModal(data.profile)));
-}
-
-async function renderMenuScreen() {
-  const target = document.getElementById("screen-menu");
-  target.innerHTML = renderSkeletonBlock([90, 240]);
-  const data = await Repository.getMenuData();
-
-  target.innerHTML = `
-    ${renderScreenTitle("Menu")}
-    <section class="co-section" data-component="menu-profile">
-      <div class="co-card co-menu-profile" data-menu-profile>
-        <span class="co-menu-avatar">${data.profile.name.slice(0, 1)}</span>
-        <div>
-          <p class="co-menu-profile__name">${data.profile.name}</p>
-          <p class="co-menu-profile__role">${data.profile.role}</p>
-        </div>
-        <span class="co-portfolio-card__chevron" style="margin-left:auto;">${icon("chevronRight")}</span>
-      </div>
-    </section>
-    <section class="co-section" data-component="menu-list" style="margin-bottom:8px;">
-      <div class="co-card">${data.items.map(renderMenuRow).join("")}${SPRINT11_MENU_ITEMS.map(renderMenuRow).join("")}${SPRINT14_MENU_ITEMS.map(renderMenuRow).join("")}${SPRINT15_MENU_ITEMS.map(renderMenuRow).join("")}</div>
-    </section>`;
-
-  animateEntrance(target);
-  bindMenuEvents(target, data);
-}
-
-/* ============================================================
-   4f. 【Sprint14】Content Stock コンポーネント
-   ------------------------------------------------------------
-   「1ネタ=1レコード」がX/note/TikTok/画像/動画すべての起点になる設計。
-   今回(①+③)はストック本体の作成・一覧・ステータス/優先度の簡易編集まで。
-   生成導線(X/note/TikTok12シーン等への遷移)は次回Sprintで追加する。
-   ============================================================ */
-const CONTENT_STATUS_LABELS = {
-  idea: "アイデア", draft: "下書き", review: "レビュー中", approved: "承認済み", posted: "投稿済み"
-};
-const CONTENT_STATUS_ORDER = ["idea", "draft", "review", "approved", "posted"];
-const CONTENT_PRIORITY_LABELS = { high: "優先度:高", normal: "優先度:中", low: "優先度:低" };
-const CONTENT_PRIORITY_ORDER = ["high", "normal", "low"];
-
-/**
- * 【Sprint16①】ネタの目的(purpose)
- * follower:フォロワー獲得 / engagement:保存・コメント狙い / note:note誘導
- * paid:有料記事 / product:商品・システム紹介 / branding:ブランディング
- */
-const CONTENT_PURPOSE_LABELS = {
-  follower: "🎯フォロワー獲得",
-  engagement: "💬保存・コメント",
-  note: "📝note誘導",
-  paid: "💰有料記事",
-  product: "🛠商品紹介",
-  branding: "🏷ブランディング"
-};
-const CONTENT_PURPOSE_ORDER = ["follower", "engagement", "note", "paid", "product", "branding"];
-
-/**
- * 【Sprint18③】承認フロー
- * 通常投稿: draft → pending → approved
- * 有料note: draft → pending(一次承認) → content_approved(二次承認待ち) → approved
- */
-const APPROVAL_STATUS_LABELS = {
-  draft: "未提出", pending: "承認待ち", content_approved: "二次承認待ち(価格/公開範囲)", approved: "承認済み"
-};
-
-/** 【Sprint18①】AI社員別ステータス */
-const AI_STAFF_STATUS_OPTIONS = ["未実行", "完了"];
-const AI_STAFF_FIELDS = [
-  { field: "researchStatus", label: "AIリサーチ" },
-  { field: "imageStatus", label: "画像クリエイター" },
-  { field: "qualityStatus", label: "品質管理" },
-  { field: "analyticsStatus", label: "SNS分析" }
-];
-
-/** 【Sprint18②④】履歴・コメントの発言者(AI社員)候補 */
-const AI_STAFF_NAMES = ["AIリサーチ", "X編集", "note編集", "TikTokディレクター", "画像クリエイター", "品質管理", "SNS分析", "投稿マネージャー", "オーナー"];
-
-function aiStaffStatusOptions_(selected) {
-  return AI_STAFF_STATUS_OPTIONS.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${s}</option>`).join("");
-}
-function aiStaffNameOptions_() {
-  return AI_STAFF_NAMES.map(n => `<option value="${n}">${n}</option>`).join("");
-}
-/** 履歴・コメントのISO日時を "7/12 23:40" のような表示用文字列に変換 */
-function formatHistoryDateTime_(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return String(iso);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
-}
-/** GAS側todayDateString_と同じ "M/D" 形式(承認日のローカル即時反映用) */
-function todayShortDate_() {
-  const d = new Date();
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-function contentStatusOptions_(selected) {
-  return CONTENT_STATUS_ORDER.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${CONTENT_STATUS_LABELS[s]}</option>`).join("");
-}
-function contentPriorityOptions_(selected) {
-  return CONTENT_PRIORITY_ORDER.map(p => `<option value="${p}" ${p === selected ? "selected" : ""}>${CONTENT_PRIORITY_LABELS[p]}</option>`).join("");
-}
-function contentPurposeOptions_(selected) {
-  const blank = `<option value="" ${!selected ? "selected" : ""}>未設定</option>`;
-  return blank + CONTENT_PURPOSE_ORDER.map(p => `<option value="${p}" ${p === selected ? "selected" : ""}>${CONTENT_PURPOSE_LABELS[p]}</option>`).join("");
-}
-
-function renderContentStockItem_(item) {
-  const metaBits = [item.contentType, item.targetAudience, item.category].filter(Boolean).join(" ・ ");
-  const purposeLabel = CONTENT_PURPOSE_LABELS[item.purpose] || "";
-  const approvalLabel = APPROVAL_STATUS_LABELS[item.approvalStatus] || "未提出";
-  const doneCount = AI_STAFF_FIELDS.filter(f => item[f.field] === "完了").length;
-  return `
-    <div class="co-cs-item" data-cs-id="${item.id}">
-      <div class="co-cs-item__top">
-        <p class="co-cs-item__title">${item.title || "(無題)"}</p>
-        <span class="co-status-badge" data-status="${item.status}">${CONTENT_STATUS_LABELS[item.status] || item.status}</span>
-      </div>
-      ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
-      ${purposeLabel ? `<p class="co-cs-item__meta">${purposeLabel}</p>` : ""}
-      <p class="co-cs-item__meta">🗂${approvalLabel} ・ 🤖AI社員${doneCount}/4完了</p>
-      ${item.idea ? `<p class="co-cs-item__idea">${item.idea}</p>` : ""}
-      <div class="co-cs-item__controls">
-        <select class="co-cs-select" data-cs-field="status" data-cs-id="${item.id}">${contentStatusOptions_(item.status)}</select>
-        <select class="co-cs-select" data-cs-field="priority" data-cs-id="${item.id}">${contentPriorityOptions_(item.priority || "normal")}</select>
-      </div>
-      <button class="co-cs-detail-link" data-action="cs-open-detail" data-cs-id="${item.id}">
-        生成コンテンツを編集(X・note・TikTok)${icon("chevronRight")}
-      </button>
-    </div>`;
-}
-
-function buildContentStockListModal_(items) {
-  const body = items.length
-    ? items.map(renderContentStockItem_).join("")
-    : `<div class="co-cs-empty">まだネタが登録されていません。<br>「＋新しいネタ」から追加してください。</div>`;
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">コンテンツストック</p><p class="co-modal-subtitle">${items.length}件のネタ</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-    <div class="co-modal-section">
-      <button class="co-cs-fab" data-action="cs-new">${icon("plus")}＋新しいネタ</button>
-      ${body}
-    </div>`;
-}
-
-async function openContentStockList() {
-  openModal(renderSkeletonBlock([60, 60, 60]));
-  let data;
-  try {
-    data = await Repository.getContentStockData();
-  } catch (e) {
-    closeModal();
-    showToast("コンテンツストックの取得に失敗しました");
-    return;
-  }
-  const items = (data && data.items) || [];
-  openModal(buildContentStockListModal_(items));
-  bindContentStockListEvents_(items);
-}
-
-function bindContentStockListEvents_(items) {
-  const sheet = document.querySelector(".co-modal-sheet");
-  if (!sheet) return;
-
-  const newBtn = sheet.querySelector('[data-action="cs-new"]');
-  if (newBtn) newBtn.addEventListener("click", openContentStockForm);
-
-  sheet.querySelectorAll("[data-cs-field]").forEach(select => {
-    select.addEventListener("change", async () => {
-      const id = select.dataset.csId;
-      const field = select.dataset.csField;
-      const value = select.value;
-      select.disabled = true;
-      try {
-        await Repository.updateContentStockItem({ id, [field]: value });
-        showToast("更新しました");
-        if (field === "status") {
-          const badge = sheet.querySelector(`.co-cs-item[data-cs-id="${id}"] .co-status-badge`);
-          if (badge) {
-            badge.dataset.status = value;
-            badge.textContent = CONTENT_STATUS_LABELS[value] || value;
-          }
-        }
-      } catch (e) {
-        showToast("更新に失敗しました");
-      } finally {
-        select.disabled = false;
-      }
-    });
-  });
-
-  sheet.querySelectorAll('[data-action="cs-open-detail"]').forEach(btn => {
-    btn.addEventListener("click", () => {
-      const item = items.find(i => i.id === btn.dataset.csId);
-      if (item) openContentStockDetail(item);
-    });
-  });
-}
-
-const CONTENT_TYPE_OPTIONS = ["あるある", "AI活用", "実体験", "ニュース", "比較", "レビュー", "ノウハウ", "ストーリー", "開発ログ"];
-const TARGET_AUDIENCE_OPTIONS = ["製造業", "工場勤務", "管理職", "新人", "AI初心者", "経営者"];
-
-function buildContentStockFormModal_() {
-  const typeOptions = CONTENT_TYPE_OPTIONS.map(t => `<option value="${t}">${t}</option>`).join("");
-  const audienceOptions = TARGET_AUDIENCE_OPTIONS.map(a => `<option value="${a}">${a}</option>`).join("");
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">新しいネタ</p><p class="co-modal-subtitle">現場で気づいたことを残しましょう</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-    <div class="co-modal-section co-cs-form">
-      <label>タイトル</label>
-      <input type="text" id="cs-form-title" placeholder="例: 新人教育あるある">
-
-      <label>ネタ種別</label>
-      <select id="cs-form-content-type"><option value="">選択してください</option>${typeOptions}</select>
-
-      <label>想定読者</label>
-      <select id="cs-form-target-audience"><option value="">選択してください</option>${audienceOptions}</select>
-
-      <label>カテゴリ</label>
-      <input type="text" id="cs-form-category" placeholder="例: あるある / Claude活用 / 運用報告">
-
-      <label>タグ(カンマ区切り)</label>
-      <input type="text" id="cs-form-tags" placeholder="例: 教育,新人">
-
-      <label>優先度</label>
-      <select id="cs-form-priority">${contentPriorityOptions_("normal")}</select>
-
-      <label>目的(purpose)</label>
-      <select id="cs-form-purpose">${contentPurposeOptions_("")}</select>
-
-      <label>現場であったこと</label>
-      <textarea id="cs-form-idea" placeholder="現場で気づいたこと・あったことを書いてください"></textarea>
-
-      <label>メモ</label>
-      <textarea id="cs-form-memo" placeholder="補足メモがあれば"></textarea>
-
-      <label>写真URL(任意)</label>
-      <input type="text" id="cs-form-photo" placeholder="参考写真のURL">
-
-      <p id="cs-form-status" class="co-modal-empty-note" style="display:none;"></p>
-      <button class="co-cs-form__submit" data-action="cs-save">保存</button>
-    </div>`;
-}
-
-function openContentStockForm() {
-  openModal(buildContentStockFormModal_());
-  const sheet = document.querySelector(".co-modal-sheet");
-  if (!sheet) return;
-  const saveBtn = sheet.querySelector('[data-action="cs-save"]');
-  if (!saveBtn) return;
-  const statusEl = sheet.querySelector("#cs-form-status");
-
-  let isSaving = false;
-  saveBtn.addEventListener("click", async () => {
-    /** 【Sprint22バグ修正】連打による二重登録を確実に防ぐガード */
-    if (isSaving) return;
-
-    const title = sheet.querySelector("#cs-form-title").value.trim();
-    if (!title) {
-      showToast("タイトルを入力してください");
-      return;
-    }
-    const payload = {
-      title,
-      contentType: sheet.querySelector("#cs-form-content-type").value,
-      targetAudience: sheet.querySelector("#cs-form-target-audience").value,
-      category: sheet.querySelector("#cs-form-category").value.trim(),
-      tags: sheet.querySelector("#cs-form-tags").value.trim(),
-      priority: sheet.querySelector("#cs-form-priority").value,
-      purpose: sheet.querySelector("#cs-form-purpose").value,
-      idea: sheet.querySelector("#cs-form-idea").value.trim(),
-      memo: sheet.querySelector("#cs-form-memo").value.trim(),
-      photo: sheet.querySelector("#cs-form-photo").value.trim()
-    };
-
-    isSaving = true;
-    saveBtn.disabled = true;
-    saveBtn.textContent = "保存中...";
-    if (statusEl) {
-      statusEl.style.display = "none";
-      statusEl.style.color = "";
-    }
-
-    try {
-      await Repository.createContentStockItem(payload);
-      /** 【Sprint22バグ修正】成功をはっきり表示してから一覧へ切り替える */
-      saveBtn.textContent = "✓ 保存しました";
-      if (statusEl) {
-        statusEl.style.display = "block";
-        statusEl.style.color = "#1E9E5A";
-        statusEl.textContent = "保存が完了しました。一覧に戻ります…";
-      }
-      showToast("ネタを保存しました");
-      await new Promise(resolve => setTimeout(resolve, 600));
-      await openContentStockList();
-    } catch (e) {
-      /** 【Sprint22バグ修正】失敗時は赤字で残す(一瞬のトーストだけに頼らない) */
-      showToast("保存に失敗しました");
-      if (statusEl) {
-        statusEl.style.display = "block";
-        statusEl.style.color = "#D0342C";
-        statusEl.textContent = "保存に失敗しました。もう一度「保存」を押してください。";
-      }
-      saveBtn.disabled = false;
-      saveBtn.textContent = "保存";
-      isSaving = false;
-    }
-  });
-}
-
-/**
- * ============================================================
- * 【Sprint14④】投稿生成導線(構造のみ・API接続なし)
- * ------------------------------------------------------------
- * X/note/TikTok台本/TikTok12シーンを、それぞれ編集できる詳細画面。
- * 実際の文章生成はまだ行わない(AI API未接続のため)。ChatGPT/Claude
- * とのチャットで作った文章をここに貼り付けて保存する運用を想定。
- * 画像生成・動画生成・自動投稿はまだ実装しない(次Sprint以降)。
- * ============================================================ */
-const GEN_STATUS_OPTIONS = ["未着手", "下書き", "投稿済み"];
-const TIKTOK_SCENE_TEMPLATE = [
-  "①フック(最初の3秒)", "②現場紹介", "③問題発生", "④困る", "⑤原因判明",
-  "⑥さらに悪化", "⑦Claude登場", "⑧AI提案", "⑨改善開始", "⑩成功", "⑪ビフォーアフター", "⑫オチ・フォローCTA"
-];
-
-function genStatusOptions_(selected) {
-  return GEN_STATUS_OPTIONS.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${s}</option>`).join("");
-}
-
-/** tiktokScenesJsonを12要素の配列に正規化する(未生成なら空文字で埋める)。 */
-function parseTiktokScenes_(json) {
-  let parsed = [];
-  try { parsed = JSON.parse(json || "[]"); } catch (e) { parsed = []; }
-  if (!Array.isArray(parsed)) parsed = [];
-  return TIKTOK_SCENE_TEMPLATE.map((_, i) => (parsed[i] || ""));
-}
-
-/**
- * 【Sprint18③】承認フローの次アクションを判定する。
- * 通常投稿: draft→pending→approved
- * 有料note(purpose=paid): draft→pending(一次)→content_approved(二次待ち)→approved
- */
-function nextApprovalAction_(item) {
-  const isPaid = item.purpose === "paid";
-  const s = item.approvalStatus || "draft";
-  if (s === "draft") return { label: "承認待ちに提出する", target: "pending", needsApprovedBy: false };
-  if (s === "pending" && isPaid) return { label: "一次承認する(内容・価値・SEO)", target: "content_approved", needsApprovedBy: false };
-  if (s === "pending") return { label: "承認する", target: "approved", needsApprovedBy: true };
-  if (s === "content_approved") return { label: "最終承認する(価格・公開範囲・購入導線)", target: "approved", needsApprovedBy: true };
-  return null; // approved済み: 次アクションなし
-}
-
-function renderApprovalSection_(item) {
-  const label = APPROVAL_STATUS_LABELS[item.approvalStatus] || "未提出";
-  const action = nextApprovalAction_(item);
-  const approvedInfo = item.approvalStatus === "approved"
-    ? `<p class="co-modal-empty-note">承認者: ${item.approvedBy || "(未記録)"} / 承認日: ${item.approvedAt || "-"}</p>`
-    : "";
-  return `
-    <div class="co-modal-section co-cs-form">
-      <p class="co-modal-section__label">承認フロー</p>
-      <p style="font-size:14px; font-weight:600;">現在のステータス: ${label}</p>
-      ${approvedInfo}
-      ${action ? `
-        ${action.needsApprovedBy ? `<label>承認者名</label><input type="text" id="cs-detail-approved-by" placeholder="例: 森下">` : ""}
-        <button class="co-cs-form__submit" data-action="cs-approval-advance" data-target="${action.target}" style="margin-top:8px;">${action.label}</button>
-      ` : `<p class="co-modal-empty-note">このネタは承認済みです。</p>`}
-      ${item.approvalStatus !== "draft" ? `<button class="co-cs-detail-link" data-action="cs-approval-reset" style="margin-top:8px;">下書きに戻す</button>` : ""}
-    </div>`;
-}
-
-function renderAiStaffStatusSection_(item) {
-  const rows = AI_STAFF_FIELDS.map(f => `
-    <label>${f.label}</label>
-    <select id="cs-detail-${f.field}">${aiStaffStatusOptions_(item[f.field] || "未実行")}</select>
-  `).join("");
-  return `
-    <div class="co-modal-section co-cs-form">
-      <p class="co-modal-section__label">AI社員ステータス</p>
-      ${rows}
-    </div>`;
-}
-
-function renderHistorySection_(item) {
-  const history = Array.isArray(item.history) ? item.history.slice().reverse() : [];
-  const rows = history.length
-    ? history.map(h => `
-        <div class="co-cs-item" style="margin-bottom:8px;">
-          <div class="co-cs-item__top">
-            <p class="co-cs-item__title">Ver${h.version} ・ ${h.ai || "不明"}</p>
-            <span class="co-status-badge" data-status="${h.status}">${h.status || "draft"}</span>
-          </div>
-          <p class="co-cs-item__meta">${formatHistoryDateTime_(h.createdAt)}</p>
-          <p class="co-cs-item__idea">${(h.text || "").slice(0, 200)}</p>
-        </div>`).join("")
-    : `<p class="co-modal-empty-note">まだ履歴はありません。</p>`;
-  return `
-    <div class="co-modal-section co-cs-form">
-      <p class="co-modal-section__label">出力履歴(Ver管理)</p>
-      ${rows}
-      <label>追加する担当AI</label>
-      <select id="cs-history-ai">${aiStaffNameOptions_()}</select>
-      <label>本文</label>
-      <textarea id="cs-history-text" placeholder="新しいバージョンの本文を貼り付け"></textarea>
-      <label>ステータス</label>
-      <select id="cs-history-status">
-        <option value="draft">draft(下書き)</option>
-        <option value="approved">approved(採用)</option>
-      </select>
-      <button class="co-cs-form__submit" data-action="cs-history-add" style="margin-top:8px;">履歴に追加</button>
-    </div>`;
-}
-
-function renderCommentsSection_(item) {
-  const comments = Array.isArray(item.comments) ? item.comments.slice().reverse() : [];
-  const rows = comments.length
-    ? comments.map(c => `
-        <div class="co-cs-item" style="margin-bottom:8px;">
-          <div class="co-cs-item__top">
-            <p class="co-cs-item__title">${c.ai || "不明"}</p>
-            <span class="co-cs-item__meta">${formatHistoryDateTime_(c.time)}</span>
-          </div>
-          <p class="co-cs-item__idea">${c.comment || ""}</p>
-        </div>`).join("")
-    : `<p class="co-modal-empty-note">まだコメントはありません。</p>`;
-  return `
-    <div class="co-modal-section co-cs-form">
-      <p class="co-modal-section__label">AI社員コメント</p>
-      ${rows}
-      <label>発言者</label>
-      <select id="cs-comment-ai">${aiStaffNameOptions_()}</select>
-      <label>コメント</label>
-      <textarea id="cs-comment-text" placeholder="例: 話題度84。今週向きです。"></textarea>
-      <button class="co-cs-form__submit" data-action="cs-comment-add" style="margin-top:8px;">コメントを追加</button>
-    </div>`;
-}
-
-/**
- * 【Sprint20①】AI社員へ渡す基本情報をまとめてコピーする
- * title/idea/category/targetAudience/purposeを1テキストにまとめ、
- * プロンプト集の{{}}へそのまま貼り付けられる形にする。
- */
-function buildAiHandoffText_(item) {
-  const purposeLabel = CONTENT_PURPOSE_LABELS[item.purpose] || "未設定";
-  return [
-    `タイトル: ${item.title || ""}`,
-    `現場であったこと: ${item.idea || ""}`,
-    `カテゴリ: ${item.category || ""}`,
-    `想定読者: ${item.targetAudience || ""}`,
-    `目的(purpose): ${item.purpose || ""}(${purposeLabel})`
-  ].join("\n");
-}
-
-/**
- * 【Sprint20③】8ステップの進捗チェックリスト
- * ①AIリサーチ→②X→③note→④TikTok→⑤画像→⑥品質→⑦承認→⑧投稿
- * 一目でどこまで進んだかを俯瞰できるようにする。
- */
-function computeProgressSteps_(item) {
-  const anyPosted = item.xStatus === "投稿済み" || item.noteStatus === "投稿済み" || item.tiktokStatus === "投稿済み";
-  return [
-    { label: "①リサーチ", done: item.researchStatus === "完了" },
-    { label: "②X", done: !!(item.xText && item.xText.trim()) },
-    { label: "③note", done: !!(item.noteText && item.noteText.trim()) },
-    { label: "④TikTok", done: !!(item.tiktokScript && item.tiktokScript.trim()) },
-    { label: "⑤画像", done: item.imageStatus === "完了" },
-    { label: "⑥品質", done: item.qualityStatus === "完了" },
-    { label: "⑦承認", done: item.approvalStatus === "approved" },
-    { label: "⑧投稿", done: anyPosted }
-  ];
-}
-
-function renderProgressChecklist_(item) {
-  const steps = computeProgressSteps_(item);
-  const doneCount = steps.filter(s => s.done).length;
-  const chips = steps.map(s => `
-    <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:999px; font-size:12px; margin:2px;
-      background:${s.done ? "var(--c-primary, #FF6A2C)" : "var(--c-surface-200, #eee)"};
-      color:${s.done ? "#fff" : "var(--c-text-500, #888)"};">
-      ${s.done ? "✓" : "・"}${s.label}
-    </span>`).join("");
-  return `
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">進捗チェックリスト(${doneCount}/8完了)</p>
-      <div>${chips}</div>
-    </div>`;
-}
-
-function buildContentStockDetailModal_(item) {
-  const scenes = parseTiktokScenes_(item.tiktokScenesJson);
-  const sceneFields = TIKTOK_SCENE_TEMPLATE.map((label, i) => `
-    <label>${label}</label>
-    <textarea class="cs-detail-scene" data-scene-index="${i}" placeholder="このシーンの内容を書く、またはChatGPT/Claudeの提案を貼り付け">${scenes[i]}</textarea>
-  `).join("");
-
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">${item.title || "(無題)"}</p><p class="co-modal-subtitle">生成コンテンツの編集</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-
-    ${renderProgressChecklist_(item)}
-
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">現場であったこと</p>
-      <p style="font-size:13px; color:var(--c-text-500); line-height:1.6;">${item.idea || "(未入力)"}</p>
-      <button class="co-cs-detail-link" data-action="cs-copy-handoff" style="margin-top:8px;">
-        ${icon("chevronRight")}AI社員へ渡す情報をコピー(title/idea/purpose等)
-      </button>
-    </div>
-
-    <div class="co-modal-section co-cs-form">
-      <p class="co-modal-section__label">目的(purpose)</p>
-      <label>このネタの目的</label>
-      <select id="cs-detail-purpose">${contentPurposeOptions_(item.purpose || "")}</select>
-    </div>
-
-    ${renderAiStaffStatusSection_(item)}
-
-    <div class="co-modal-section co-cs-form">
-      <p class="co-modal-section__label">X投稿</p>
-      <label>ステータス</label>
-      <select id="cs-detail-x-status">${genStatusOptions_(item.xStatus || "未着手")}</select>
-      <label>本文</label>
-      <textarea id="cs-detail-x-text" placeholder="ChatGPT/Claudeで作ったX投稿文をここに貼り付け">${item.xText || ""}</textarea>
-    </div>
-
-    <div class="co-modal-section co-cs-form">
-      <p class="co-modal-section__label">note記事</p>
-      <label>ステータス</label>
-      <select id="cs-detail-note-status">${genStatusOptions_(item.noteStatus || "未着手")}</select>
-      <label>本文</label>
-      <textarea id="cs-detail-note-text" placeholder="note記事の本文をここに貼り付け" style="min-height:120px;">${item.noteText || ""}</textarea>
-    </div>
-
-    <div class="co-modal-section co-cs-form">
-      <p class="co-modal-section__label">TikTok台本</p>
-      <label>ステータス</label>
-      <select id="cs-detail-tiktok-status">${genStatusOptions_(item.tiktokStatus || "未着手")}</select>
-      <label>全体の台本メモ</label>
-      <textarea id="cs-detail-tiktok-script" placeholder="12シーン全体のナレーション・セリフ案など">${item.tiktokScript || ""}</textarea>
-    </div>
-
-    <div class="co-modal-section co-cs-form">
-      <p class="co-modal-section__label">TikTok 12シーン絵コンテ</p>
-      ${sceneFields}
-    </div>
-
-    <div class="co-modal-section">
-      <p class="co-modal-section__label">画像生成・動画生成</p>
-      <p class="co-modal-empty-note">画像生成・動画生成・自動投稿は次Sprint以降で対応予定です。</p>
-    </div>
-
-    ${renderApprovalSection_(item)}
-    ${renderHistorySection_(item)}
-    ${renderCommentsSection_(item)}
-
-    <div class="co-modal-section">
-      <p id="cs-autosave-indicator" class="co-modal-empty-note">入力後、自動的に下書き保存されます</p>
-      <button class="co-cs-form__submit" data-action="cs-detail-save">保存</button>
-    </div>
-
-    <div class="co-modal-section">
-      <button class="co-cs-detail-link" data-action="cs-detail-delete" style="color:#D0342C;">
-        このネタを削除する(テストデータ整理用・元に戻せません)
-      </button>
-    </div>`;
-}
-
-/**
- * 【Sprint21バグ修正】フォームの現在値を1つのpayloadにまとめて取得する。
- * 保存ボタン・自動保存・承認/履歴/コメント操作の前フラッシュ、全てここを共有する。
- */
-function collectContentFormValues_(sheet) {
-  const scenes = Array.from(sheet.querySelectorAll(".cs-detail-scene"))
-    .sort((a, b) => Number(a.dataset.sceneIndex) - Number(b.dataset.sceneIndex))
-    .map(el => el.value.trim());
-
-  const getVal = (id) => {
-    const el = sheet.querySelector(id);
-    return el ? el.value.trim() : undefined;
-  };
-
-  const payload = {
-    purpose: getVal("#cs-detail-purpose"),
-    xStatus: getVal("#cs-detail-x-status"),
-    xText: getVal("#cs-detail-x-text"),
-    noteStatus: getVal("#cs-detail-note-status"),
-    noteText: getVal("#cs-detail-note-text"),
-    tiktokStatus: getVal("#cs-detail-tiktok-status"),
-    tiktokScript: getVal("#cs-detail-tiktok-script"),
-    tiktokScenesJson: JSON.stringify(scenes)
-  };
-  AI_STAFF_FIELDS.forEach(f => {
-    const el = sheet.querySelector(`#cs-detail-${f.field}`);
-    if (el) payload[f.field] = el.value;
-  });
-  return payload;
-}
-
-/**
- * 【Sprint21バグ修正】現在のフォーム内容をitemへ反映しつつサーバへ保存する。
- * 承認ボタンなど、フォームの中身と無関係な操作の直前に必ず呼ぶことで、
- * 「未保存のまま別ボタンを押すと入力が消える」問題を防ぐ。
- */
-async function flushContentForm_(sheet, item) {
-  const payload = collectContentFormValues_(sheet);
-  payload.id = item.id;
-  try {
-    await Repository.updateContentStockItem(payload);
-    Object.assign(item, payload);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-function setAutosaveIndicator_(sheet, text) {
-  const el = sheet.querySelector("#cs-autosave-indicator");
-  if (el) el.textContent = text;
-}
-
-function openContentStockDetail(item) {
-  openModal(buildContentStockDetailModal_(item));
-  const sheet = document.querySelector(".co-modal-sheet");
-  if (!sheet) return;
-
-  /** 【Sprint20①】AI社員へ渡す基本情報をコピー */
-  const copyHandoffBtn = sheet.querySelector('[data-action="cs-copy-handoff"]');
-  if (copyHandoffBtn) {
-    copyHandoffBtn.addEventListener("click", () => {
-      copyToClipboard(buildAiHandoffText_(item));
-    });
-  }
-
-  /**
-   * 【Sprint21バグ修正】自動保存(入力停止から500ms後)
-   * textarea/selectの変更を検知し、デバウンスしてflushContentForm_を呼ぶ。
-   * 履歴・コメントの追加フォームは対象外(専用ボタンで明示的に追加するため)。
-   */
-  let autosaveTimer_ = null;
-  const autosaveTargets = sheet.querySelectorAll(
-    "#cs-detail-purpose, #cs-detail-x-status, #cs-detail-x-text, " +
-    "#cs-detail-note-status, #cs-detail-note-text, " +
-    "#cs-detail-tiktok-status, #cs-detail-tiktok-script, .cs-detail-scene, " +
-    AI_STAFF_FIELDS.map(f => `#cs-detail-${f.field}`).join(", ")
-  );
-  autosaveTargets.forEach(el => {
-    const evt = (el.tagName === "SELECT") ? "change" : "input";
-    el.addEventListener(evt, () => {
-      setAutosaveIndicator_(sheet, "保存中...");
-      if (autosaveTimer_) clearTimeout(autosaveTimer_);
-      autosaveTimer_ = setTimeout(async () => {
-        const ok = await flushContentForm_(sheet, item);
-        const now = new Date();
-        const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
-        setAutosaveIndicator_(sheet, ok ? `自動保存済み ${hhmm}` : "自動保存に失敗しました(手動で保存してください)");
-      }, 500);
-    });
-  });
-
-  const saveBtn = sheet.querySelector('[data-action="cs-detail-save"]');
-  if (saveBtn) {
-    saveBtn.addEventListener("click", async () => {
-      saveBtn.disabled = true;
-      saveBtn.textContent = "保存中...";
-      const ok = await flushContentForm_(sheet, item);
-      if (ok) {
-        showToast("生成コンテンツを保存しました");
-        closeModal();
-      } else {
-        showToast("保存に失敗しました");
-        saveBtn.disabled = false;
-        saveBtn.textContent = "保存";
-      }
-    });
-  }
-
-  /**
-   * 【Sprint18③・Sprint21バグ修正】承認フロー: ステータスを進める
-   * 承認操作の前に必ずflushContentForm_でフォーム内容を保存してから
-   * ステータス更新→再描画する(入力内容が消えるバグの修正)。
-   */
-  const approvalBtn = sheet.querySelector('[data-action="cs-approval-advance"]');
-  if (approvalBtn) {
-    approvalBtn.addEventListener("click", async () => {
-      const target = approvalBtn.dataset.target;
-      const approvedByEl = sheet.querySelector("#cs-detail-approved-by");
-      const approvedBy = approvedByEl ? approvedByEl.value.trim() : "";
-      approvalBtn.disabled = true;
-      approvalBtn.textContent = "保存中...";
-      try {
-        await flushContentForm_(sheet, item);
-        await Repository.updateApprovalStatus({ id: item.id, approvalStatus: target, approvedBy });
-        item.approvalStatus = target;
-        if (target === "approved") {
-          item.approvedBy = approvedBy;
-          item.approvedAt = todayShortDate_();
-        }
-        showToast("入力内容を保存し、承認ステータスを更新しました");
-        openContentStockDetail(item);
-      } catch (e) {
-        showToast("更新に失敗しました");
-        approvalBtn.disabled = false;
-        approvalBtn.textContent = nextApprovalAction_(item) ? nextApprovalAction_(item).label : "更新";
-      }
-    });
-  }
-  const approvalResetBtn = sheet.querySelector('[data-action="cs-approval-reset"]');
-  if (approvalResetBtn) {
-    approvalResetBtn.addEventListener("click", async () => {
-      try {
-        await flushContentForm_(sheet, item);
-        await Repository.updateApprovalStatus({ id: item.id, approvalStatus: "draft" });
-        item.approvalStatus = "draft";
-        showToast("下書きに戻しました");
-        openContentStockDetail(item);
-      } catch (e) {
-        showToast("更新に失敗しました");
-      }
-    });
-  }
-
-  /**
-   * 【Sprint18②・Sprint21バグ修正】出力履歴を追加
-   * 追加前にflushContentForm_でフォーム内容を保存してから再描画する。
-   */
-  const historyAddBtn = sheet.querySelector('[data-action="cs-history-add"]');
-  if (historyAddBtn) {
-    historyAddBtn.addEventListener("click", async () => {
-      const text = sheet.querySelector("#cs-history-text").value.trim();
-      if (!text) { showToast("本文を入力してください"); return; }
-      const ai = sheet.querySelector("#cs-history-ai").value;
-      const status = sheet.querySelector("#cs-history-status").value;
-      historyAddBtn.disabled = true;
-      try {
-        await flushContentForm_(sheet, item);
-        const result = await Repository.appendContentHistory({ id: item.id, ai, text, status });
-        item.history = Array.isArray(item.history) ? item.history : [];
-        item.history.push({ version: result.version || (item.history.length + 1), ai, text, status, createdAt: new Date().toISOString() });
-        showToast("履歴に追加しました");
-        openContentStockDetail(item);
-      } catch (e) {
-        showToast("追加に失敗しました");
-        historyAddBtn.disabled = false;
-      }
-    });
-  }
-
-  /** 【Sprint18④・Sprint21バグ修正】AI社員コメントを追加 */
-  const commentAddBtn = sheet.querySelector('[data-action="cs-comment-add"]');
-  if (commentAddBtn) {
-    commentAddBtn.addEventListener("click", async () => {
-      const comment = sheet.querySelector("#cs-comment-text").value.trim();
-      if (!comment) { showToast("コメントを入力してください"); return; }
-      const ai = sheet.querySelector("#cs-comment-ai").value;
-      commentAddBtn.disabled = true;
-      try {
-        await flushContentForm_(sheet, item);
-        await Repository.appendContentComment({ id: item.id, ai, comment });
-        item.comments = Array.isArray(item.comments) ? item.comments : [];
-        item.comments.push({ ai, comment, time: new Date().toISOString() });
-        showToast("コメントを追加しました");
-        openContentStockDetail(item);
-      } catch (e) {
-        showToast("追加に失敗しました");
-        commentAddBtn.disabled = false;
-      }
-    });
-  }
-
-  /** 【Sprint21】ネタを削除する(主にテストデータ整理用) */
-  const deleteBtn = sheet.querySelector('[data-action="cs-detail-delete"]');
-  if (deleteBtn) {
-    deleteBtn.addEventListener("click", async () => {
-      const confirmed = window.confirm(`「${item.title || "(無題)"}」を削除します。元に戻せませんが、よろしいですか?`);
-      if (!confirmed) return;
-      deleteBtn.disabled = true;
-      deleteBtn.textContent = "削除中...";
-      try {
-        await Repository.deleteContentStockItem({ id: item.id });
-        showToast("ネタを削除しました");
-        closeModal();
-        openContentStockList();
-      } catch (e) {
-        showToast("削除に失敗しました");
-        deleteBtn.disabled = false;
-        deleteBtn.textContent = "このネタを削除する(テストデータ整理用・元に戻せません)";
-      }
-    });
-  }
-}
-
-/* ============================================================
-   4g. 【Sprint15】AIリサーチ候補 コンポーネント
-   ------------------------------------------------------------
-   research_candidatesのstatus="candidate"を一覧表示し、
-   採用(→contentsへ登録)/保留/却下の3ボタンで管理する。
-   採用・保留・却下いずれも行を削除せず、statusだけ更新する。
-   ============================================================ */
-function renderResearchCandidateItem_(item) {
-  const metaBits = [item.contentType, item.targetAudience, item.category].filter(Boolean).join(" ・ ");
-  return `
-    <div class="co-cs-item" data-rc-id="${item.id}">
-      <div class="co-cs-item__top">
-        <p class="co-cs-item__title">${item.title || "(無題)"}</p>
-        <span class="co-cs-recommend-badge">話題度 ${item.trendScore}</span>
-      </div>
-      ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
-      ${item.reason ? `<p class="co-cs-item__idea">${item.reason}</p>` : ""}
-      <div class="co-rc-actions">
-        <button class="co-rc-btn" data-variant="approve" data-rc-action="approve" data-rc-id="${item.id}">採用</button>
-        <button class="co-rc-btn" data-variant="hold" data-rc-action="hold" data-rc-id="${item.id}">保留</button>
-        <button class="co-rc-btn" data-variant="reject" data-rc-action="reject" data-rc-id="${item.id}">却下</button>
-      </div>
-    </div>`;
-}
-
-function buildResearchCandidatesListModal_(items) {
-  const body = items.length
-    ? items.map(renderResearchCandidateItem_).join("")
-    : `<div class="co-cs-empty">今は候補がありません。<br>AIリサーチが新しいネタを見つけ次第ここに表示されます。</div>`;
-  return `
-    <div class="co-modal-head">
-      <div><p class="co-modal-title">AIリサーチ</p><p class="co-modal-subtitle">${items.length}件のおすすめネタ候補</p></div>
-      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
-    </div>
-    <div class="co-modal-section">${body}</div>`;
-}
-
-async function openResearchCandidatesList() {
-  openModal(renderSkeletonBlock([60, 60, 60]));
-  let data;
-  try {
-    data = await Repository.getResearchCandidates();
-  } catch (e) {
-    closeModal();
-    showToast("AIリサーチ候補の取得に失敗しました");
-    return;
-  }
-  const items = (data && data.items) || [];
-  openModal(buildResearchCandidatesListModal_(items));
-  bindResearchCandidateActions_(document.querySelector(".co-modal-sheet"), {
-    onHandled: () => openResearchCandidatesList()
-  });
-}
-
-/**
- * 採用/保留/却下ボタンの共通ハンドラ。HOME側のカードとAIリサーチ
- * 一覧Modalの両方から呼ばれるため、対象コンテナとハンドル後の
- * 挙動(onHandled)を引数で受け取る汎用実装にしている。
- */
-function bindResearchCandidateActions_(container, opts) {
-  if (!container) return;
-  const onHandled = (opts && opts.onHandled) || (() => {});
-
-  container.querySelectorAll("[data-rc-action]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const id = btn.dataset.rcId;
-      const action = btn.dataset.rcAction;
-      const row = container.querySelector(`[data-rc-id="${id}"]`);
-      const buttons = row ? row.querySelectorAll("[data-rc-action]") : [btn];
-      buttons.forEach(b => b.disabled = true);
-
-      try {
-        if (action === "approve") {
-          await Repository.approveResearchCandidate({ id });
-          showToast("採用しました。コンテンツストックに追加されました");
-        } else if (action === "hold") {
-          await Repository.updateResearchCandidateStatus({ id, status: "hold" });
-          showToast("保留にしました");
-        } else if (action === "reject") {
-          await Repository.updateResearchCandidateStatus({ id, status: "rejected" });
-          showToast("却下しました");
-        }
-        if (row) row.remove();
-        onHandled();
-      } catch (e) {
-        showToast("処理に失敗しました");
-        buttons.forEach(b => b.disabled = false);
-      }
-    });
-  });
-}
-
-/**
- * 【Sprint15③】HOME「今日おすすめの新ネタ」カード。
- * AI秘書カードの直下に配置(既存の「今日のおすすめネタ」= コンテンツ
- * ストックのidea一覧とは別枠。こちらはAIリサーチが見つけた新規候補)。
- */
-function renderResearchRecommendationsCard(items) {
-  if (!items || !items.length) return "";
-  const rows = items.map(item => {
-    const metaBits = [item.contentType, item.targetAudience].filter(Boolean).join(" ・ ");
-    return `
-      <div class="co-cs-item" data-rc-id="${item.id}">
-        <div class="co-cs-item__top">
-          <p class="co-cs-item__title">${item.title}</p>
-          <span class="co-cs-recommend-badge">話題度 ${item.trendScore}</span>
-        </div>
-        ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
-        ${item.reason ? `<p class="co-cs-item__idea">${item.reason}</p>` : ""}
-        <div class="co-rc-actions">
-          <button class="co-rc-btn" data-variant="approve" data-rc-action="approve" data-rc-id="${item.id}">採用</button>
-          <button class="co-rc-btn" data-variant="hold" data-rc-action="hold" data-rc-id="${item.id}">保留</button>
-          <button class="co-rc-btn" data-variant="reject" data-rc-action="reject" data-rc-id="${item.id}">却下</button>
-        </div>
-      </div>`;
-  }).join("");
-  return `
-    <section class="co-section" data-component="research-recommendations-card">
-      <div class="co-card">
-        <div class="co-aiadvice__head">
-          <span class="co-aiadvice__avatar">${icon("sparkle")}</span>
-          <p class="co-aiadvice__title">今日おすすめの新ネタ</p>
-        </div>
-        ${rows}
-      </div>
-    </section>`;
-}
-
-function bindResearchRecommendationsEvents(container) {
-  if (!container) return;
-  bindResearchCandidateActions_(container, { onHandled: () => {} });
-}
-
-/* ============================================================
-   5. HOME SCREEN 組み立て
-   ============================================================ */
-function buildHomeSkeleton() {
-  const el = document.getElementById("home-skeleton");
-  el.innerHTML = `
-    ${renderHeader({ streakDays: 0 }).replace(/継続 0日/, "")}
-    <div class="co-section">
-      <div class="co-skel-card" style="height:150px;"></div>
-      <div class="co-skel-card" style="height:110px;"></div>
-      <div class="co-skel-card" style="height:70px;"></div>
-      <div class="co-skel-card" style="height:150px;"></div>
-    </div>`;
-}
-
-function bindMissionEvents(container, state) {
-  container.querySelectorAll(".co-mission").forEach(row => {
-    const checkEl = row.querySelector('[data-role="check"]');
-    checkEl.addEventListener("click", async () => {
-      const id = row.dataset.missionId;
-      const xp = Number(row.dataset.xp);
-      const willBeDone = !row.classList.contains("is-done");
-      row.classList.toggle("is-done", willBeDone);
-      if (willBeDone) popXp(checkEl, xp);
-      await Repository.setMissionDone(id, willBeDone);
-      const doneCount = container.querySelectorAll(".co-mission.is-done").length;
-      const total = container.querySelectorAll(".co-mission").length;
-      const linkEl = container.closest("section").querySelector(".co-section__link");
-      if (linkEl) linkEl.textContent = `${doneCount}/${total} 完了`;
-      if (willBeDone) showToast(`「${row.dataset.axis || ""}」が1件積み上がった。おつかれさま！`);
-    });
-  });
-}
-
-/**
- * 【Sprint14⑤】クイックアクションを実際の仕事に接続する。
- * - ChatGPT/Claude: 各サービスを新しいタブで開く
- * - 投稿追加: コンテンツストックの新規ネタ登録フォームを直接開く
- * - 案件追加: AWK Factory OS(外部アプリ)を開く
- * - 音声メモ: 実際の録音機能は未実装のため、代わりに新規ネタ登録
- *   フォームを開き、思いついたことをすぐメモできるようにする
- */
-const QUICK_ACTION_URLS_ = {
-  chatgpt: "https://chat.openai.com",
-  claude: "https://claude.ai",
-  project: "https://msyoou26-ops.github.io/awk-kanri-"
-};
-
-function bindQuickActionEvents(container) {
-  container.querySelectorAll(".co-qa").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const key = btn.dataset.action;
-      if (key === "chatgpt" || key === "claude" || key === "project") {
-        window.open(QUICK_ACTION_URLS_[key], "_blank");
-        return;
-      }
-      if (key === "post") {
-        openContentStockForm();
-        return;
-      }
-      if (key === "voice") {
-        showToast("音声メモは今後対応予定です。まずはメモで残しましょう");
-        openContentStockForm();
-        return;
-      }
-      showToast("この機能はSprint2以降で実装予定です");
-    });
-  });
-}
-
-function bindKpiEvents(container) {
-  container.querySelectorAll(".co-kpi").forEach(card => {
-    card.addEventListener("click", () => showToast("詳細画面は準備中です"));
-  });
-}
-
-function bindHeaderEvents(container) {
-  const notifyBtn = container.querySelector("#btn-notify");
-  const settingsBtn = container.querySelector("#btn-settings");
-  if (notifyBtn) notifyBtn.addEventListener("click", () => showToast("通知センターは準備中です"));
-  if (settingsBtn) settingsBtn.addEventListener("click", () => showToast("設定画面は準備中です"));
-}
-
-function animateEntrance(container) {
-  const cards = container.querySelectorAll(".co-card, .co-section");
-  cards.forEach((el, i) => {
-    el.style.animationDelay = `${Math.min(i * 45, 250)}ms`;
-  });
-}
-
-async function renderHomeScreen() {
-  buildHomeSkeleton();
-  const skeletonEl = document.getElementById("home-skeleton");
-  const contentEl = document.getElementById("home-content");
-
-  const data = await Repository.getHomeData();
-
-  contentEl.innerHTML = [
-    renderStaleBanner(data),
-    renderHeader(data),
-    renderLevelBar(data.player),
-    renderPhaseCard(data.phase),
-    renderAiAdviceCard(data.aiAdvice),
-    renderAiEditorialDashboardCard(data.aiEditorial),
-    renderResearchRecommendationsCard(data.researchRecommendations),
-    renderRecommendationsCard(data.recommendations),
-    renderMissionCard(data.missions),
-    renderBriefingCard(data.briefing),
-    renderQuickActions(),
-    renderKpiCard(data.kpi),
-    renderProjectCard(data.projects),
-    renderSnsCard(data.sns),
-    renderActivityCard(data.activity)
-  ].join("");
-
-  const briefingBg = document.getElementById("briefing-bg");
-  if (briefingBg) applyImageAsset(briefingBg, ASSETS.homeHeroBackground, null);
-
-  skeletonEl.style.display = "none";
-  contentEl.style.display = "block";
-
-  animateEntrance(contentEl);
-  bindHeaderEvents(contentEl);
-  bindLevelPhaseEvents(contentEl, data);
-  bindResearchRecommendationsEvents(contentEl.querySelector('[data-component="research-recommendations-card"]'));
-  bindRecommendationsEvents(contentEl.querySelector('[data-component="recommendations-card"]'));
-  bindMissionEvents(contentEl.querySelector('[data-component="mission-card"]'), data);
-  bindQuickActionEvents(contentEl.querySelector('[data-component="quick-actions"]'));
-  bindKpiEvents(contentEl.querySelector('[data-component="kpi-card"]'));
-
-  contentEl.querySelectorAll("[data-count-to]").forEach(el => {
-    animateCountUp(el, Number(el.dataset.countTo));
-  });
-  requestAnimationFrame(() => {
-    contentEl.querySelectorAll("[data-progress-to]").forEach(el => {
-      el.style.width = `${el.dataset.progressTo}%`;
-    });
-  });
-
-  if (data.yesterdaySummary) {
-    const shownKey = "ceoOS_v2_yesterday_summary_shown";
-    const today = todayISO();
-    if (sessionStorage.getItem(shownKey) !== today) {
-      const { doneCount, total } = data.yesterdaySummary;
-      setTimeout(() => showToast(`昨日は${doneCount}/${total}ミッション達成でした`), 500);
-      sessionStorage.setItem(shownKey, today);
-    }
-  }
-}
-
-/* ============================================================
-   6. BOTTOM NAVIGATION / 画面切り替え
-   ============================================================ */
-const NAV_ITEMS = [
-  { key: "home",     label: "HOME",     icon: "home" },
-  { key: "ai",       label: "AI",       icon: "ai" },
-  { key: "projects", label: "Projects", icon: "projects" },
-  { key: "sns",      label: "SNS",      icon: "sns" },
-  { key: "menu",     label: "Menu",     icon: "menu" }
-];
-
-const SCREEN_RENDERERS = {
-  ai: renderAiScreen,
-  projects: renderProjectsScreen,
-  sns: renderSnsScreen,
-  menu: renderMenuScreen
-};
-
-function renderBottomNav() {
-  const nav = document.getElementById("bottom-nav");
-  nav.innerHTML = NAV_ITEMS.map(item => `
-    <button class="co-navitem ${item.key === "home" ? "is-active" : ""}" data-nav="${item.key}">
-      ${icon(item.icon)}
-      <span>${item.label}</span>
-    </button>`).join("");
-
-  nav.querySelectorAll(".co-navitem").forEach(btn => {
-    btn.addEventListener("click", () => switchScreen(btn.dataset.nav));
-  });
-}
-
-function switchScreen(key) {
-  document.querySelectorAll(".co-navitem").forEach(b => b.classList.toggle("is-active", b.dataset.nav === key));
-  document.querySelectorAll(".co-screen").forEach(s => s.classList.toggle("is-active", s.dataset.screen === key));
-
-  if (key !== "home") {
-    const target = document.getElementById(`screen-${key}`);
-    if (!target.dataset.rendered) {
-      target.dataset.rendered = "1";
-      SCREEN_RENDERERS[key]();
-    }
-  }
-  window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
-}
-
-/* ============================================================
-   7. INIT
-   ============================================================ */
-document.addEventListener("DOMContentLoaded", () => {
-  renderBottomNav();
-  renderHomeScreen();
-
-  const modalBackdrop = document.getElementById("modal-backdrop");
-  modalBackdrop.addEventListener("click", (e) => {
-    if (e.target === modalBackdrop) closeModal();
-  });
-});
-</script>
-</body>
-</html>
+  return `<section class="co-section" data-component="dev
