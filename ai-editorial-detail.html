@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>案件詳細 - AI編集部</title>
+<style>
+  :root{
+    --bg-deep:#0d1420;
+    --bg-card:#16213a;
+    --bg-card-active:#1c2b4a;
+    --bg-panel:#101a2c;
+    --accent:#ff8c42;
+    --accent-dim:rgba(255,140,66,0.14);
+    --done:#34d399;
+    --done-dim:rgba(52,211,153,0.14);
+    --waiting:#3d4a63;
+    --notstarted:#5b6c8c;
+    --text-1:#f3f1ea;
+    --text-2:#aebcd6;
+    --text-3:#7c8db0;
+    --border:rgba(255,255,255,0.07);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    background:var(--bg-deep);
+    color:var(--text-1);
+    font-family:'Noto Sans CJK JP','Hiragino Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{ font-family:inherit; border:none; background:none; color:inherit; cursor:pointer; }
+  .mono{ font-family:'Noto Sans Mono','SF Mono',monospace; }
+
+  .topbar{
+    position:sticky; top:0; z-index:10;
+    background:linear-gradient(180deg, var(--bg-deep) 75%, rgba(13,20,32,0.85));
+    padding:16px 16px 14px;
+    border-bottom:1px solid var(--border);
+  }
+  .back-btn{
+    display:flex; align-items:center; gap:6px;
+    color:var(--text-2); font-size:13px; font-weight:600;
+    margin-bottom:14px;
+  }
+  .back-btn:active{ color:var(--accent); }
+  .job-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .job-title{ font-size:18px; font-weight:900; line-height:1.4; flex:1; }
+  .job-meta{ font-size:11px; color:var(--text-3); margin-top:5px; font-family:'Noto Sans Mono',monospace; }
+
+  .badge{
+    font-size:11px; font-weight:700; padding:4px 9px; border-radius:20px;
+    white-space:nowrap; flex-shrink:0;
+  }
+  .badge.making{ background:rgba(125,211,252,0.14); color:#7dd3fc; }
+  .badge.unapproved{ background:var(--accent-dim); color:var(--accent); }
+  .badge.approved{ background:var(--done-dim); color:var(--done); }
+  .badge.published{ background:rgba(159,176,204,0.12); color:var(--text-2); }
+
+  .progress-row{ margin-top:16px; }
+  .progress-track{
+    height:8px; border-radius:5px; background:rgba(91,108,140,0.25); overflow:hidden;
+  }
+  .progress-fill{
+    height:100%; background:linear-gradient(90deg, var(--accent), #ffb37a);
+    border-radius:5px; transition:width .3s;
+  }
+  .progress-label{
+    display:flex; justify-content:space-between; margin-top:7px;
+    font-size:12px; color:var(--text-2); font-family:'Noto Sans Mono',monospace;
+  }
+  .progress-label b{ color:var(--text-1); }
+
+  .section-title{
+    font-size:13px; font-weight:700; color:var(--text-2);
+    padding:20px 16px 8px; letter-spacing:0.5px;
+  }
+  .roles{ padding:0 16px 100px; display:flex; flex-direction:column; gap:10px; }
+
+  .role-card{
+    background:var(--bg-card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .role-head{
+    width:100%; text-align:left;
+    padding:14px 14px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .role-head:active{ background:var(--bg-card-active); }
+  .role-dot{
+    width:10px; height:10px; border-radius:50%; flex-shrink:0;
+  }
+  .role-dot.done{ background:var(--done); }
+  .role-dot.inprogress{ background:var(--accent); box-shadow:0 0 6px var(--accent); }
+  .role-dot.notstarted{ background:rgba(91,108,140,0.5); }
+  .role-dot.waiting{ background:rgba(91,108,140,0.25); }
+
+  .role-info{ flex:1; min-width:0; }
+  .role-name{ font-size:15px; font-weight:700; }
+  .role-sub{ font-size:11.5px; color:var(--text-3); margin-top:3px; font-family:'Noto Sans Mono',monospace; }
+
+  .role-status-badge{
+    font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:14px; flex-shrink:0;
+  }
+  .role-status-badge.done{ background:var(--done-dim); color:var(--done); }
+  .role-status-badge.inprogress{ background:var(--accent-dim); color:var(--accent); }
+  .role-status-badge.notstarted{ background:rgba(125,211,252,0.14); color:#7dd3fc; }
+  .role-status-badge.waiting{ background:rgba(159,176,204,0.1); color:var(--text-3); }
+
+  .chevron{
+    color:var(--text-3); font-size:12px; transition:transform .2s; flex-shrink:0;
+  }
+  .role-card.open .chevron{ transform:rotate(90deg); }
+
+  .role-panel{
+    display:none;
+    padding:4px 14px 16px;
+    border-top:1px solid var(--border);
+  }
+  .role-card.open .role-panel{ display:block; }
+
+  .field-label{
+    font-size:11px; font-weight:700; color:var(--text-3);
+    letter-spacing:0.5px; margin:14px 0 6px;
+  }
+  .field-box{
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:10px;
+    padding:10px 12px; font-size:13.5px; line-height:1.7; color:var(--text-1);
+    white-space:pre-wrap; word-break:break-word;
+  }
+  .field-box.empty{ color:var(--text-3); font-style:normal; }
+
+  .version-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:14px; margin-bottom:6px; }
+  .version-chip{
+    font-size:11px; font-weight:700; padding:5px 11px; border-radius:20px;
+    background:rgba(159,176,204,0.1); color:var(--text-2);
+    border:1px solid transparent;
+  }
+  .version-chip.active{
+    background:var(--accent-dim); color:var(--accent); border-color:rgba(255,140,66,0.35);
+  }
+
+  .meta-line{
+    display:flex; gap:14px; margin-top:12px;
+    font-size:11.5px; color:var(--text-3); font-family:'Noto Sans Mono',monospace;
+  }
+
+  .comment-box{
+    background:rgba(255,140,66,0.06); border:1px dashed rgba(255,140,66,0.25); border-radius:10px;
+    padding:10px 12px; font-size:13px; line-height:1.7; color:var(--text-2);
+  }
+  .comment-box.empty{ color:var(--text-3); }
+  .comment-future-note{
+    font-size:10.5px; color:var(--text-3); margin-top:6px; line-height:1.6;
+  }
+
+  .empty{ margin:60px 24px 0; text-align:center; color:var(--text-2); }
+  .empty .icon{ font-size:34px; margin-bottom:14px; }
+  .empty .msg{ font-size:14px; line-height:1.7; }
+  .empty .cta{
+    margin-top:20px; display:inline-block;
+    background:var(--accent-dim); color:var(--accent);
+    border:1px solid rgba(255,140,66,0.35);
+    padding:10px 20px; border-radius:12px; font-size:13px; font-weight:700;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="back-btn" onclick="goBack()">← 一覧に戻る</button>
+  <div class="job-header">
+    <div>
+      <div class="job-title" id="jobTitle">読み込み中…</div>
+      <div class="job-meta" id="jobMeta"></div>
+    </div>
+    <span class="badge" id="jobBadge"></span>
+  </div>
+  <div class="progress-row" id="progressRow" style="display:none;">
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+    <div class="progress-label">
+      <span id="progressText"></span>
+      <span><b id="progressPercent">0</b>%</span>
+    </div>
+  </div>
+</div>
+
+<div id="body">
+  <div class="empty">
+    <div class="icon">⏳</div>
+    <div class="msg">データを取得しています…</div>
+  </div>
+</div>
+
+<script>
+const ROLE_ORDER = ['research','x','note','tiktok','image','quality','publish'];
+const ROLE_LABELS = {
+  research:'AIリサーチ', x:'X編集', note:'note編集', tiktok:'TikTokディレクター',
+  image:'画像クリエイター', quality:'品質管理', publish:'投稿マネージャー'
+};
+
+function escapeHTML(str){
+  if(str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function statusClass(status){
+  if(status === '完了') return 'done';
+  if(status === '実行中') return 'inprogress';
+  if(status === '未実行') return 'notstarted';
+  return 'waiting';
+}
+function statusLabel(status){
+  return status || '待機中';
+}
+
+function isAllRolesDone(job){
+  return ROLE_ORDER.every(r => job[r+'Status'] === '完了');
+}
+function jobPhase(job){
+  if(job.approvalStatus === '投稿済み') return 'published';
+  if(job.approvalStatus === '承認済み') return 'approved';
+  if(isAllRolesDone(job)) return 'pending_approval';
+  return 'making';
+}
+function badgeClassAndText(job){
+  const phase = jobPhase(job);
+  if(phase === 'published') return { cls:'published', text:'投稿済み' };
+  if(phase === 'approved') return { cls:'approved', text:'承認済み' };
+  if(phase === 'pending_approval') return { cls:'unapproved', text:'承認待ち' };
+  return { cls:'making', text:'制作中' };
+}
+
+function formatRelativeTime(iso){
+  if(!iso) return '';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diffMs / 3600000);
+  if(h < 1) return '1時間以内';
+  if(h < 24) return h + '時間前';
+  return Math.floor(h/24) + '日前';
+}
+function formatDateTime(iso){
+  if(!iso) return '未実行';
+  const d = new Date(iso);
+  return new Intl.DateTimeFormat('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }).format(d);
+}
+
+function goBack(){
+  if(document.referrer){ history.back(); return; }
+  location.href = 'ai-editorial-list.html';
+}
+
+function renderHeader(job){
+  document.getElementById('jobTitle').textContent = job.title || '(タイトル未設定)';
+  document.getElementById('jobMeta').textContent = job.jobId + ' ・ ' + formatRelativeTime(job.createdAt);
+
+  const b = badgeClassAndText(job);
+  const badgeEl = document.getElementById('jobBadge');
+  badgeEl.className = 'badge ' + b.cls;
+  badgeEl.textContent = b.text;
+
+  const doneCount = ROLE_ORDER.filter(r => job[r+'Status'] === '完了').length;
+  document.getElementById('progressRow').style.display = 'block';
+  document.getElementById('progressFill').style.width = (job.progressPercent || 0) + '%';
+  document.getElementById('progressPercent').textContent = job.progressPercent || 0;
+  document.getElementById('progressText').textContent = doneCount + ' / ' + ROLE_ORDER.length + ' 工程完了';
+}
+
+function renderVersionPanel(step, versionIndex){
+  const hasHistory = step.history && step.history.length > 0;
+  let output, processedAt, processedBy;
+
+  if(hasHistory){
+    const v = step.history[versionIndex];
+    output = v.output;
+    processedAt = v.processedAt;
+    processedBy = v.processedBy;
+  } else {
+    output = step.output;
+    processedAt = step.processedAt;
+    processedBy = step.processedBy;
+  }
+
+  const versionChips = hasHistory ? step.history.map((v, idx) => {
+    const active = idx === versionIndex ? 'active' : '';
+    return `<button class="version-chip ${active}" onclick="switchVersion('${step.role}', ${idx})">v${v.version}</button>`;
+  }).join('') : '';
+
+  return `
+    <div class="field-label">INPUT</div>
+    <div class="field-box ${step.input ? '' : 'empty'}">${step.input ? escapeHTML(step.input) : 'まだ入力がありません'}</div>
+
+    <div class="field-label">OUTPUT</div>
+    <div class="field-box ${output ? '' : 'empty'}">${output ? escapeHTML(output) : 'まだ出力がありません'}</div>
+
+    ${hasHistory && step.history.length > 1 ? `
+      <div class="field-label">履歴（Ver切替）</div>
+      <div class="version-row">${versionChips}</div>
+    ` : ''}
+
+    <div class="field-label">AI社員コメント</div>
+    <div class="comment-box ${step.comments ? '' : 'empty'}">${step.comments ? escapeHTML(step.comments) : 'まだコメントはありません'}</div>
+    <div class="comment-future-note">※ 将来Claude APIやOpenAI APIが自動生成する申し送り欄です</div>
+
+    <div class="meta-line">
+      <span>処理日時: ${formatDateTime(processedAt)}</span>
+      <span>担当: ${escapeHTML(processedBy || '未着手')}</span>
+    </div>
+  `;
+}
+
+let currentSteps = [];
+let versionState = {};
+
+function switchVersion(role, idx){
+  versionState[role] = idx;
+  const step = currentSteps.find(s => s.role === role);
+  const panel = document.querySelector(`.role-panel[data-role="${role}"]`);
+  if(panel && step) panel.innerHTML = renderVersionPanel(step, idx);
+}
+
+function toggleCard(role){
+  const card = document.querySelector(`.role-card[data-role="${role}"]`);
+  if(card) card.classList.toggle('open');
+}
+
+function renderRoleCard(step){
+  const cls = statusClass(step.status);
+  const latestVersionIdx = step.history && step.history.length > 0 ? step.history.length - 1 : 0;
+  versionState[step.role] = latestVersionIdx;
+
+  const subText = step.processedAt
+    ? `${escapeHTML(step.processedBy || '')} ・ ${formatRelativeTime(step.processedAt)}`
+    : (step.status === '待機中' ? '前工程の完了待ち' : 'まだ未着手です');
+
+  return `
+    <div class="role-card" data-role="${escapeHTML(step.role)}">
+      <button class="role-head" onclick="toggleCard('${step.role}')">
+        <span class="role-dot ${cls}"></span>
+        <div class="role-info">
+          <div class="role-name">${escapeHTML(step.label)}</div>
+          <div class="role-sub">${subText}</div>
+        </div>
+        <span class="role-status-badge ${cls}">${escapeHTML(statusLabel(step.status))}</span>
+        <span class="chevron">▶</span>
+      </button>
+      <div class="role-panel" data-role="${escapeHTML(step.role)}">
+        ${renderVersionPanel(step, latestVersionIdx)}
+      </div>
+    </div>
+  `;
+}
+
+function renderBody(job, steps){
+  currentSteps = steps;
+  const bodyEl = document.getElementById('body');
+  bodyEl.innerHTML = `
+    <div class="section-title">AI編集部 — 7つの担当ステップ</div>
+    <div class="roles">${steps.map(renderRoleCard).join('')}</div>
+  `;
+}
+
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLeDSFLxLGtCsX7O79MAdy0YDnvbE2tLl51Yyl1DTf-rXxK2JXhpCuJiA/exec';
+
+function getJobIdFromUrl(){
+  const params = new URLSearchParams(location.search);
+  return params.get('jobId');
+}
+
+function loadDetail(){
+  const bodyEl = document.getElementById('body');
+  const jobId = getJobIdFromUrl();
+
+  if(!jobId){
+    bodyEl.innerHTML = `
+      <div class="empty">
+        <div class="icon">⚠️</div>
+        <div class="msg">案件IDが指定されていません。<br>一覧画面からカードをタップして開いてください。</div>
+        <button class="cta" onclick="goBack()">一覧へ戻る</button>
+      </div>`;
+    return;
+  }
+
+  bodyEl.innerHTML = `
+    <div class="empty">
+      <div class="icon">⏳</div>
+      <div class="msg">データを取得しています…</div>
+    </div>`;
+
+  fetch(GAS_WEB_APP_URL + '?action=getPipelineJobDetail&jobId=' + encodeURIComponent(jobId))
+    .then(function(res){
+      if(!res.ok) throw new Error('HTTPエラー: ' + res.status);
+      return res.json();
+    })
+    .then(function(res){
+      if(!res.success) throw new Error(res.error || '取得に失敗しました');
+      const job = res.data.job;
+      const steps = res.data.steps;
+      if(!job){
+        throw new Error('該当する案件が見つかりませんでした（jobId: ' + jobId + '）');
+      }
+      renderHeader(job);
+      renderBody(job, steps);
+    })
+    .catch(function(err){
+      console.error('getPipelineJobDetail failed', err);
+      bodyEl.innerHTML = `
+        <div class="empty">
+          <div class="icon">⚠️</div>
+          <div class="msg">データの取得に失敗しました。<br><span class="mono" style="font-size:11px;color:var(--text-3);word-break:break-all;">${escapeHTML(err.message || String(err))}</span></div>
+          <button class="cta" onclick="loadDetail()">もう一度読み込む</button>
+        </div>`;
+    });
+}
+
+loadDetail();
+</script>
+</body>
+</html>
