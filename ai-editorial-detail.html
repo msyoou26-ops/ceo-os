@@ -340,7 +340,11 @@ function renderVersionPanel(step, versionIndex){
   `;
 }
 
+let isSubmitting = false;
+
 async function submitOutput(role){
+  if(isSubmitting) return; // 二重送信防止
+
   const sheet = document;
   const textarea = sheet.querySelector(`.output-input[data-role="${role}"]`);
   const nameInput = sheet.querySelector(`.processed-by-input[data-role="${role}"]`);
@@ -356,26 +360,82 @@ async function submitOutput(role){
   const jobId = getJobIdFromUrl();
   if(!jobId) return;
 
+  isSubmitting = true;
   btn.disabled = true;
-  btn.textContent = '送信中...';
+  btn.textContent = '更新中…';
+
+  // 楽観的UI：結果を待たずに、この工程を先に「完了」表示にしておく
+  const dotEl = sheet.querySelector(`.role-card[data-role="${role}"] .role-dot`);
+  const badgeEl = sheet.querySelector(`.role-card[data-role="${role}"] .role-status-badge`);
+  const prevDotClass = dotEl ? dotEl.className : null;
+  const prevBadgeClass = badgeEl ? badgeEl.className : null;
+  const prevBadgeText = badgeEl ? badgeEl.textContent : null;
+  if(dotEl) dotEl.className = 'role-dot done';
+  if(badgeEl){ badgeEl.className = 'role-status-badge done'; badgeEl.textContent = '完了'; }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(function(){ controller.abort(); }, 15000);
 
   try{
     const res = await fetch(GAS_WEB_APP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'submitStepOutput', jobId, role, outputText, processedByName })
+      body: JSON.stringify({ action: 'submitStepOutput', jobId, role, outputText, processedByName }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     const json = await res.json();
-    if(!json.success) throw new Error(json.error || '更新に失敗しました');
-    loadDetail();
+    const result = json && json.data ? json.data : null;
+    if(!json.success || !result || !result.success){
+      throw new Error((result && result.message) || json.error || '更新に失敗しました');
+    }
+    applyPartialUpdate(result);
   }catch(e){
-    alert('送信に失敗しました: ' + (e.message || e));
+    // 失敗時は楽観的UIを元に戻す
+    if(dotEl && prevDotClass !== null) dotEl.className = prevDotClass;
+    if(badgeEl && prevBadgeClass !== null){ badgeEl.className = prevBadgeClass; badgeEl.textContent = prevBadgeText; }
+
+    const timedOut = e && e.name === 'AbortError';
+    const msg = timedOut
+      ? '通信がタイムアウトしました。電波状況をご確認のうえ、もう一度お試しください。'
+      : '送信に失敗しました: ' + (e.message || e);
+    alert(msg);
     btn.disabled = false;
     btn.textContent = 'この内容で完了にする';
+  }finally{
+    isSubmitting = false;
+  }
+}
+
+/**
+ * 【Sprint16.1.2】完了操作の直後、画面全体を再取得(loadDetail)するのではなく、
+ * サーバーが返してくれた「更新された工程だけ」をその場でマージ・再描画する。
+ */
+function applyPartialUpdate(result){
+  if(result.job && currentJob){
+    // titleはサーバー側から返していない（速度優先で省略）ので既存の値を維持する
+    currentJob = Object.assign({}, currentJob, result.job, { title: currentJob.title });
+    renderHeader(currentJob);
+  }
+
+  if(result.steps && result.steps.length){
+    result.steps.forEach(function(updatedStep){
+      const idx = currentSteps.findIndex(function(s){ return s.role === updatedStep.role; });
+      if(idx !== -1) currentSteps[idx] = updatedStep;
+      else currentSteps.push(updatedStep);
+
+      const oldCard = document.querySelector(`.role-card[data-role="${updatedStep.role}"]`);
+      if(oldCard){
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = renderRoleCard(updatedStep).trim();
+        oldCard.replaceWith(wrapper.firstChild);
+      }
+    });
   }
 }
 
 let currentSteps = [];
+let currentJob = null;
 let versionState = {};
 
 function switchVersion(role, idx){
@@ -465,6 +525,7 @@ function loadDetail(){
       if(!job){
         throw new Error('該当する案件が見つかりませんでした（jobId: ' + jobId + '）');
       }
+      currentJob = job;
       renderHeader(job);
       renderBody(job, steps);
     })
