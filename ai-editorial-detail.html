@@ -477,13 +477,74 @@ function renderRoleCard(step){
   `;
 }
 
+function renderApprovalAction(job){
+  const phase = jobPhase(job);
+  if(phase === 'pending_approval'){
+    return `
+      <div class="section-title">承認</div>
+      <button class="approval-btn" onclick="submitApprovalAction('approve')" style="width:100%; margin-bottom:20px; padding:14px; border:none; border-radius:12px; background:var(--accent); color:#0d1420; font-weight:700; font-size:14px;">この内容を承認する</button>`;
+  }
+  if(phase === 'approved'){
+    return `
+      <div class="section-title">投稿</div>
+      <button class="approval-btn" onclick="submitApprovalAction('publish')" style="width:100%; margin-bottom:20px; padding:14px; border:none; border-radius:12px; background:var(--done); color:#0d1420; font-weight:700; font-size:14px;">投稿済みにする</button>`;
+  }
+  return '';
+}
+
 function renderBody(job, steps){
   currentSteps = steps;
   const bodyEl = document.getElementById('body');
   bodyEl.innerHTML = `
     <div class="section-title">AI編集部 — 7つの担当ステップ</div>
     <div class="roles">${steps.map(renderRoleCard).join('')}</div>
+    ${renderApprovalAction(job)}
   `;
+}
+
+let isApproving = false;
+async function submitApprovalAction(kind){
+  if(isApproving) return;
+  const jobId = getJobIdFromUrl();
+  if(!jobId) return;
+
+  isApproving = true;
+  const btn = document.querySelector('.approval-btn');
+  const prevText = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = '処理中…'; }
+
+  const action = kind === 'approve' ? 'approvePipelineJob' : 'markPipelineJobPublished';
+  const controller = new AbortController();
+  const timeoutId = setTimeout(function(){ controller.abort(); }, 15000);
+
+  try{
+    const res = await fetch(GAS_WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: action, jobId: jobId }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    const json = await res.json();
+    const result = json && json.data ? json.data : null;
+    if(!json.success || !result || !result.success){
+      throw new Error((result && result.message) || json.error || '更新に失敗しました');
+    }
+    if(result.job){
+      currentJob = Object.assign({}, currentJob, result.job, { title: currentJob.title });
+      renderHeader(currentJob);
+      renderBody(currentJob, currentSteps); // ネットワーク再取得なし、メモリ上のデータで再描画するだけ
+    }
+  }catch(e){
+    const timedOut = e && e.name === 'AbortError';
+    const msg = timedOut
+      ? '通信がタイムアウトしました。電波状況をご確認のうえ、もう一度お試しください。'
+      : '処理に失敗しました: ' + (e.message || e);
+    alert(msg);
+    if(btn){ btn.disabled = false; btn.textContent = prevText; }
+  }finally{
+    isApproving = false;
+  }
 }
 
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLeDSFLxLGtCsX7O79MAdy0YDnvbE2tLl51Yyl1DTf-rXxK2JXhpCuJiA/exec';
