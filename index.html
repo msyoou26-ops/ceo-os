@@ -1991,17 +1991,30 @@ function contentStatusOptions_(selected) { return CONTENT_STATUS_ORDER.map(s => 
 function contentPriorityOptions_(selected) { return CONTENT_PRIORITY_ORDER.map(p => `<option value="${p}" ${p === selected ? "selected" : ""}>${CONTENT_PRIORITY_LABELS[p]}</option>`).join(""); }
 function contentPurposeOptions_(selected) { const blank = `<option value="" ${!selected ? "selected" : ""}>未設定</option>`; return blank + CONTENT_PURPOSE_ORDER.map(p => `<option value="${p}" ${p === selected ? "selected" : ""}>${CONTENT_PURPOSE_LABELS[p]}</option>`).join(""); }
 
+/**
+ * 【Sprint16.1.3 優先修正②】旧来の「AI社員0/4完了」は researchStatus/imageStatus/qualityStatus/
+ * analyticsStatus という、AI編集部パイプラインとは無関係な4フィールドを見ていたため、実際に
+ * パイプラインで7工程を完了させても表示が「未提出」のまま食い違っていた。
+ * ai_pipeline_jobsを正としたitem.pipelineがあればそちらを優先して表示する。
+ */
+function pipelineStatusLabel_(pipeline) {
+  if (!pipeline) return "未提出";
+  if (pipeline.approvalStatus === "投稿済み") return "投稿済み";
+  if (pipeline.approvalStatus === "承認済み") return "承認済み";
+  return `${pipeline.doneCount}/${pipeline.totalCount}完了`;
+}
+
 function renderContentStockItem_(item) {
   const metaBits = [item.contentType, item.targetAudience, item.category].filter(Boolean).join(" ・ ");
   const purposeLabel = CONTENT_PURPOSE_LABELS[item.purpose] || "";
   const approvalLabel = APPROVAL_STATUS_LABELS[item.approvalStatus] || "未提出";
-  const doneCount = AI_STAFF_FIELDS.filter(f => item[f.field] === "完了").length;
+  const pipelineLabel = pipelineStatusLabel_(item.pipeline);
   return `
     <div class="co-cs-item" data-cs-id="${item.id}">
       <div class="co-cs-item__top"><p class="co-cs-item__title">${item.title || "(無題)"}</p><span class="co-status-badge" data-status="${item.status}">${CONTENT_STATUS_LABELS[item.status] || item.status}</span></div>
       ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
       ${purposeLabel ? `<p class="co-cs-item__meta">${purposeLabel}</p>` : ""}
-      <p class="co-cs-item__meta">🗂${approvalLabel} ・ 🤖AI社員${doneCount}/4完了</p>
+      <p class="co-cs-item__meta">🗂${approvalLabel} ・ 🤖AI編集部${pipelineLabel}</p>
       ${item.idea ? `<p class="co-cs-item__idea">${item.idea}</p>` : ""}
       <div class="co-cs-item__controls">
         <select class="co-cs-select" data-cs-field="status" data-cs-id="${item.id}">${contentStatusOptions_(item.status)}</select>
@@ -2154,8 +2167,18 @@ function renderApprovalSection_(item) {
     </div>`;
 }
 function renderAiStaffStatusSection_(item) {
-  const rows = AI_STAFF_FIELDS.map(f => `<label>${f.label}</label><select id="cs-detail-${f.field}">${aiStaffStatusOptions_(item[f.field] || "未実行")}</select>`).join("");
-  return `<div class="co-modal-section co-cs-form"><p class="co-modal-section__label">AI社員ステータス</p>${rows}</div>`;
+  const p = item.pipeline;
+  if (!p) {
+    return `<div class="co-modal-section co-cs-form"><p class="co-modal-section__label">AI編集部ステータス</p><p class="co-modal-empty-note">まだAI編集部へ依頼していません。上の「🤖 AI編集部へ依頼する」から依頼できます。</p></div>`;
+  }
+  const label = pipelineStatusLabel_(p);
+  return `
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">AI編集部ステータス</p>
+      <p style="font-size:14px; font-weight:600;">${label}（${p.progressPercent || 0}%）</p>
+      <p class="co-modal-empty-note">jobId: ${p.jobId}</p>
+      <button class="co-cs-detail-link" data-action="cs-open-pipeline" data-job-id="${p.jobId}" style="margin-top:8px;">AI編集部の案件詳細を開く${icon("chevronRight")}</button>
+    </div>`;
 }
 function renderHistorySection_(item) {
   const history = Array.isArray(item.history) ? item.history.slice().reverse() : [];
@@ -2284,6 +2307,15 @@ function openContentStockDetail(item) {
         requestPipelineBtn.disabled = false;
         requestPipelineBtn.textContent = "🤖 AI編集部へ依頼する";
       }
+    });
+  }
+
+  /** 【Sprint16.1.3 優先修正②】AI編集部の案件詳細を開くボタン */
+  const openPipelineBtn = sheet.querySelector('[data-action="cs-open-pipeline"]');
+  if (openPipelineBtn) {
+    openPipelineBtn.addEventListener("click", () => {
+      const jobId = openPipelineBtn.dataset.jobId;
+      if (jobId) location.href = "ai-editorial-detail.html?jobId=" + encodeURIComponent(jobId);
     });
   }
   let autosaveTimer_ = null;
