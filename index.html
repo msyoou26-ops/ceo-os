@@ -1173,6 +1173,14 @@ const DataLayer = {
     }
     return { success: true };
   },
+  /** 【Sprint16.1.1】Content Stock → AI編集部への依頼(パイプラインジョブ作成) */
+  async createPipelineJob(payload) {
+    if (shouldUseApi("contentStock")) {
+      try { return await apiRequest("createPipelineJob", payload, "POST"); }
+      catch (e) { Logger.error("[DataLayer] createPipelineJob: 依頼失敗", e); throw e; }
+    }
+    return { jobId: "dummy-job-" + Date.now() };
+  },
   async getResearchCandidates() {
     if (shouldUseApi("aiResearch")) {
       try { return await apiRequest("getResearchCandidates"); }
@@ -1227,6 +1235,7 @@ const Repository = {
   appendContentHistory: async (payload) => { const result = await DataLayer.appendContentHistory(payload); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
   appendContentComment: async (payload) => { const result = await DataLayer.appendContentComment(payload); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
   updateApprovalStatus: async (payload) => { const result = await DataLayer.updateApprovalStatus(payload); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
+  createPipelineJob: async (payload) => { const result = await DataLayer.createPipelineJob(payload); CACHE_STRATEGY.clear("home"); return result; },
   getResearchCandidates: () => withCache("aiResearch", () => DataLayer.getResearchCandidates()),
   approveResearchCandidate: async (payload) => { const result = await DataLayer.approveResearchCandidate(payload); CACHE_STRATEGY.clear("aiResearch"); CACHE_STRATEGY.clear("contentStock"); CACHE_STRATEGY.clear("home"); return result; },
   updateResearchCandidateStatus: async (payload) => { const result = await DataLayer.updateResearchCandidateStatus(payload); CACHE_STRATEGY.clear("aiResearch"); CACHE_STRATEGY.clear("home"); return result; }
@@ -2211,6 +2220,10 @@ function buildContentStockDetailModal_(item) {
     <div class="co-modal-head"><div><p class="co-modal-title">${item.title || "(無題)"}</p><p class="co-modal-subtitle">生成コンテンツの編集</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
     ${renderProgressChecklist_(item)}
     <div class="co-modal-section">
+      <button class="co-cs-form__submit" data-action="cs-request-pipeline" style="background:var(--c-navy-900);">🤖 AI編集部へ依頼する</button>
+      <p class="co-modal-empty-note" style="margin-top:6px;">タップすると、AIリサーチ〜投稿までの7つの工程が自動で始まります</p>
+    </div>
+    <div class="co-modal-section">
       <p class="co-modal-section__label">現場であったこと</p><p style="font-size:13px; color:var(--c-text-500); line-height:1.6;">${item.idea || "(未入力)"}</p>
       <button class="co-cs-detail-link" data-action="cs-copy-handoff" style="margin-top:8px;">${icon("chevronRight")}AI社員へ渡す情報をコピー(title/idea/purpose等)</button>
     </div>
@@ -2253,6 +2266,26 @@ function openContentStockDetail(item) {
   if (!sheet) return;
   const copyHandoffBtn = sheet.querySelector('[data-action="cs-copy-handoff"]');
   if (copyHandoffBtn) copyHandoffBtn.addEventListener("click", () => { copyToClipboard(buildAiHandoffText_(item)); });
+
+  /** 【Sprint16.1.1】Content Stock → AI編集部への依頼ボタン */
+  const requestPipelineBtn = sheet.querySelector('[data-action="cs-request-pipeline"]');
+  if (requestPipelineBtn) {
+    requestPipelineBtn.addEventListener("click", async () => {
+      requestPipelineBtn.disabled = true;
+      requestPipelineBtn.textContent = "依頼中...";
+      try {
+        await flushContentForm_(sheet, item);
+        const result = await Repository.createPipelineJob({ contentId: item.id, contentTopic: item.title || "" });
+        if (!result || !result.jobId) throw new Error("jobIdが返されませんでした");
+        showToast("AI編集部へ依頼しました");
+        location.href = "ai-editorial-detail.html?jobId=" + encodeURIComponent(result.jobId);
+      } catch (e) {
+        showToast("依頼に失敗しました");
+        requestPipelineBtn.disabled = false;
+        requestPipelineBtn.textContent = "🤖 AI編集部へ依頼する";
+      }
+    });
+  }
   let autosaveTimer_ = null;
   const autosaveTargets = sheet.querySelectorAll(
     "#cs-detail-purpose, #cs-detail-x-status, #cs-detail-x-text, #cs-detail-note-status, #cs-detail-note-text, #cs-detail-tiktok-status, #cs-detail-tiktok-script, .cs-detail-scene, " +
