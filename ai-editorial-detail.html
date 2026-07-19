@@ -31,6 +31,7 @@
   button{ font-family:inherit; border:none; background:none; color:inherit; cursor:pointer; }
   .mono{ font-family:'Noto Sans Mono','SF Mono',monospace; }
 
+  /* ===== Top bar ===== */
   .topbar{
     position:sticky; top:0; z-index:10;
     background:linear-gradient(180deg, var(--bg-deep) 75%, rgba(13,20,32,0.85));
@@ -70,12 +71,14 @@
   }
   .progress-label b{ color:var(--text-1); }
 
+  /* ===== Section ===== */
   .section-title{
     font-size:13px; font-weight:700; color:var(--text-2);
     padding:20px 16px 8px; letter-spacing:0.5px;
   }
   .roles{ padding:0 16px 100px; display:flex; flex-direction:column; gap:10px; }
 
+  /* ===== Role card ===== */
   .role-card{
     background:var(--bg-card);
     border:1px solid var(--border);
@@ -131,6 +134,12 @@
   }
   .field-box.empty{ color:var(--text-3); font-style:normal; }
 
+  .output-input{
+    width:100%; min-height:100px; margin-top:6px; padding:10px 12px; border-radius:10px;
+    border:1px solid var(--border); background:var(--bg-panel); color:var(--text-1);
+    font-size:13.5px; line-height:1.7; font-family:inherit; resize:vertical; box-sizing:border-box;
+  }
+
   .version-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:14px; margin-bottom:6px; }
   .version-chip{
     font-size:11px; font-weight:700; padding:5px 11px; border-radius:20px;
@@ -155,6 +164,7 @@
     font-size:10.5px; color:var(--text-3); margin-top:6px; line-height:1.6;
   }
 
+  /* ===== states ===== */
   .empty{ margin:60px 24px 0; text-align:center; color:var(--text-2); }
   .empty .icon{ font-size:34px; margin-bottom:14px; }
   .empty .msg{ font-size:14px; line-height:1.7; }
@@ -229,6 +239,11 @@ function jobPhase(job){
   if(isAllRolesDone(job)) return 'pending_approval';
   return 'making';
 }
+function badgeHTML(job){
+  const phase = jobPhase(job);
+  if(phase === 'published') return '<span class="badge published">投稿済み</span>'.replace('badge', 'badge').replace('>','>').replace('投稿済み','投稿済み');
+  return '';
+}
 function badgeClassAndText(job){
   const phase = jobPhase(job);
   if(phase === 'published') return { cls:'published', text:'投稿済み' };
@@ -292,6 +307,14 @@ function renderVersionPanel(step, versionIndex){
     return `<button class="version-chip ${active}" onclick="switchVersion('${step.role}', ${idx})">v${v.version}</button>`;
   }).join('') : '';
 
+  const canSubmit = step.status === '未実行' || step.status === '実行中';
+  const submitSection = canSubmit ? `
+    <div class="field-label">この工程を完了する</div>
+    <textarea class="output-input" data-role="${step.role}" placeholder="ChatGPT/Claudeで作った結果をここに貼り付け"></textarea>
+    <input type="text" class="processed-by-input" data-role="${step.role}" placeholder="担当者名(例: 森下)" style="width:100%; margin-top:8px; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg-panel); color:var(--text-1); font-size:13px; box-sizing:border-box;">
+    <button class="submit-output-btn" data-role="${step.role}" onclick="submitOutput('${step.role}')" style="width:100%; margin-top:10px; padding:12px; border:none; border-radius:10px; background:var(--accent); color:#0d1420; font-weight:700; font-size:13.5px;">この内容で完了にする</button>
+  ` : '';
+
   return `
     <div class="field-label">INPUT</div>
     <div class="field-box ${step.input ? '' : 'empty'}">${step.input ? escapeHTML(step.input) : 'まだ入力がありません'}</div>
@@ -304,6 +327,8 @@ function renderVersionPanel(step, versionIndex){
       <div class="version-row">${versionChips}</div>
     ` : ''}
 
+    ${submitSection}
+
     <div class="field-label">AI社員コメント</div>
     <div class="comment-box ${step.comments ? '' : 'empty'}">${step.comments ? escapeHTML(step.comments) : 'まだコメントはありません'}</div>
     <div class="comment-future-note">※ 将来Claude APIやOpenAI APIが自動生成する申し送り欄です</div>
@@ -313,6 +338,41 @@ function renderVersionPanel(step, versionIndex){
       <span>担当: ${escapeHTML(processedBy || '未着手')}</span>
     </div>
   `;
+}
+
+async function submitOutput(role){
+  const sheet = document;
+  const textarea = sheet.querySelector(`.output-input[data-role="${role}"]`);
+  const nameInput = sheet.querySelector(`.processed-by-input[data-role="${role}"]`);
+  const btn = sheet.querySelector(`.submit-output-btn[data-role="${role}"]`);
+  const outputText = textarea ? textarea.value.trim() : '';
+  const processedByName = nameInput ? nameInput.value.trim() : '';
+
+  if(!outputText){
+    alert('内容を入力してください');
+    return;
+  }
+
+  const jobId = getJobIdFromUrl();
+  if(!jobId) return;
+
+  btn.disabled = true;
+  btn.textContent = '送信中...';
+
+  try{
+    const res = await fetch(GAS_WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'submitStepOutput', jobId, role, outputText, processedByName })
+    });
+    const json = await res.json();
+    if(!json.success) throw new Error(json.error || '更新に失敗しました');
+    loadDetail();
+  }catch(e){
+    alert('送信に失敗しました: ' + (e.message || e));
+    btn.disabled = false;
+    btn.textContent = 'この内容で完了にする';
+  }
 }
 
 let currentSteps = [];
