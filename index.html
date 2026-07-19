@@ -1597,4 +1597,980 @@ function renderTimelineSection(timeline) {
       <div class="co-timeline2-item__dot">${icon(TIMELINE_SOURCE_ICON[t.source] || "sparkle")}</div>
       <div class="co-timeline2-item__body"><p class="co-timeline2-item__label">${t.label}</p><p class="co-timeline2-item__meta">${t.date}${t.target ? ` ・ ${t.target}` : ""}</p></div>
     </div>`).join("");
-  return `<section class="co-section" data-component="dev
+  return `<section class="co-section" data-component="dev-timeline" style="margin-bottom:8px;"><div class="co-section__head"><p class="co-section__title">${icon("history")}開発タイムライン</p></div><div class="co-card"><div class="co-timeline2">${rows}</div></div></section>`;
+}
+
+function renderPortfolioCard(p) {
+  return `
+    <div class="co-card co-portfolio-card" data-portfolio-id="${p.id}">
+      <div class="co-portfolio-card__top">
+        <span class="co-portfolio-card__badge" style="background:${p.color}">${p.initial}</span>
+        <div><p class="co-portfolio-card__name">${p.name}</p><span class="co-portfolio-card__tag">${p.tag}</span></div>
+        <span class="co-portfolio-card__chevron">${icon("chevronRight")}</span>
+      </div>
+      <p class="co-portfolio-card__summary">${p.summary}</p>
+    </div>`;
+}
+
+function buildDevDetailModal(p) {
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">${p.name}</p><p class="co-modal-subtitle">担当AI: ${p.ai} ・ 更新 ${p.updatedAt}</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">進捗</p>
+      <div class="co-progress"><div class="co-progress__bar" style="background:${p.color}; width:${p.progress}%"></div></div>
+      <p style="margin-top:6px;">${p.progress}% ・ 現在のSprint: ${p.sprint}</p>
+    </div>
+    <div class="co-modal-section"><p class="co-modal-section__label">次にやること</p><p>${p.next}</p></div>`;
+}
+
+function buildPortfolioDetailModal(p) {
+  const stackChips = p.stack.map(s => `<span class="co-modal-chip">${s}</span>`).join("");
+  const historyHtml = p.history.length ? p.history.map(h => `<div class="co-modal-list-item"><span class="co-modal-list-item__date">${h.date}</span><span>${h.text}</span></div>`).join("") : `<p class="co-modal-empty-note">開発履歴はまだ記録されていません。</p>`;
+  const releasesHtml = p.releases.length ? p.releases.map(r => `<div class="co-modal-list-item"><span class="co-modal-list-item__date">${r.date}</span><span>${r.text}</span></div>`).join("") : `<p class="co-modal-empty-note">リリース履歴はまだ記録されていません。</p>`;
+  const fixesHtml = p.fixes.length ? p.fixes.map(f => `<div class="co-modal-list-item"><span class="co-modal-list-item__date">${f.date}</span><span>${f.text}</span></div>`).join("") : `<p class="co-modal-empty-note">修正履歴はまだ記録されていません。</p>`;
+  const linksHtml = `
+    ${p.github ? `<div class="co-modal-link-row">${icon("github")}<span>${p.github}</span><button class="co-modal-copy-btn" data-copy="${p.github}">コピー</button></div>` : ""}
+    ${p.netlify ? `<div class="co-modal-link-row">${icon("link")}<span>${p.netlify}</span></div>` : ""}`;
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">${p.name}</p><p class="co-modal-subtitle">${p.tag}</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section"><div class="co-modal-shot" id="modal-shot">${icon("image")}</div></div>
+    <div class="co-modal-section"><p class="co-modal-section__label">概要</p><p>${p.summary}</p></div>
+    <div class="co-modal-section"><p class="co-modal-section__label">使用技術</p><div class="co-modal-chip-row">${stackChips}</div></div>
+    ${(p.github || p.netlify) ? `<div class="co-modal-section"><p class="co-modal-section__label">GitHub / Netlify</p>${linksHtml}</div>` : ""}
+    <div class="co-modal-section"><p class="co-modal-section__label">${icon("history")}開発履歴</p>${historyHtml}</div>
+    <div class="co-modal-section"><p class="co-modal-section__label">${icon("rocket") || ""}リリース履歴</p>${releasesHtml}</div>
+    <div class="co-modal-section"><p class="co-modal-section__label">修正履歴</p>${fixesHtml}</div>
+    <div class="co-modal-section"><p class="co-modal-section__label">${icon("star")}成果</p><p>${p.result}</p></div>`;
+}
+
+function bindProjectsEvents(container, data) {
+  container.querySelectorAll("[data-dev-id]").forEach(el => {
+    el.addEventListener("click", (ev) => {
+      if (ev.target.closest("[data-github-idx]")) return;
+      const p = data.dev.find(d => d.id === el.dataset.devId);
+      openModal(buildDevDetailModal(p));
+    });
+  });
+  container.querySelectorAll("[data-github-idx]").forEach(el => {
+    el.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const projectId = el.dataset.githubProject;
+      const idx = Number(el.dataset.githubIdx);
+      const p = data.dev.find(d => d.id === projectId);
+      const event = p && p.githubHistory ? p.githubHistory[idx] : null;
+      if (!event) return;
+      openModal(buildGithubEventDetailModal(event));
+      const copyBtn = document.querySelector(".co-modal-sheet [data-copy]");
+      if (copyBtn) copyBtn.addEventListener("click", () => copyToClipboard(copyBtn.dataset.copy));
+    });
+  });
+  container.querySelectorAll("[data-portfolio-id]").forEach(el => {
+    el.addEventListener("click", () => {
+      const p = data.portfolio.find(d => d.id === el.dataset.portfolioId);
+      openModal(buildPortfolioDetailModal(p));
+      const shotEl = document.getElementById("modal-shot");
+      if (shotEl) applyImageAsset(shotEl, p.screenshot, null);
+      const copyBtn = document.querySelector(".co-modal-sheet [data-copy]");
+      if (copyBtn) copyBtn.addEventListener("click", () => copyToClipboard(copyBtn.dataset.copy));
+    });
+  });
+  const addBtn = container.querySelector('[data-action="add-portfolio"]');
+  if (addBtn) addBtn.addEventListener("click", () => showToast("実績の追加はSprint3以降で対応予定です"));
+}
+
+async function renderProjectsScreen() {
+  const target = document.getElementById("screen-projects");
+  target.innerHTML = renderSkeletonBlock([150, 110, 90, 90, 90, 90]);
+  const data = await Repository.getProjectsData();
+  target.innerHTML = `
+    ${renderScreenTitle("Projects / Portfolio")}
+    <section class="co-section" data-component="dev-projects"><div class="co-section__head"><p class="co-section__title">${icon("code")}開発中</p></div>${data.dev.map(renderDevProjectCard).join("")}</section>
+    <section class="co-section" data-component="portfolio"><div class="co-section__head"><p class="co-section__title">${icon("star")}Portfolio(実績)</p></div>${data.portfolio.map(renderPortfolioCard).join("")}<button class="co-card co-portfolio-add" data-action="add-portfolio">${icon("plus")}<span>今後追加する実績</span></button></section>
+    ${renderTimelineSection(data.timeline)}`;
+  animateEntrance(target);
+  bindProjectsEvents(target, data);
+  requestAnimationFrame(() => { target.querySelectorAll("[data-progress-to]").forEach(el => { el.style.width = `${el.dataset.progressTo}%`; }); });
+}
+
+function renderAgentCard(a) {
+  return `<div class="co-card co-agent" data-agent-id="${a.id}"><span class="co-agent__avatar" style="background:${a.color}">${a.name.slice(0, 2)}</span><p class="co-agent__name">${a.name}</p><p class="co-agent__role">${a.role}</p><span class="co-status-badge" data-status="${a.status}">${a.status}</span></div>`;
+}
+function renderRequestItem(r, showDate) {
+  const aiColor = r.ai === "Claude" ? "#FF6A2C" : "#1FA463";
+  return `<div class="co-request-item"><span class="co-request-item__ai" style="background:${aiColor}">${r.ai.slice(0, 2)}</span><span class="co-request-item__text">${r.text}</span>${showDate ? `<span class="co-request-item__date">${r.date}</span>` : `<span class="co-status-badge" data-status="${r.status}">${r.status}</span>`}</div>`;
+}
+
+function bindAiEvents(container, data) {
+  const templateRow = container.querySelector(".co-template-row");
+  const textarea = container.querySelector("#ai-composer-input");
+  if (templateRow && textarea) {
+    templateRow.querySelectorAll(".co-template-chip").forEach(chip => {
+      chip.addEventListener("click", () => { textarea.value = textarea.value ? `${textarea.value} / ${chip.textContent}` : `${chip.textContent}：`; textarea.focus(); });
+    });
+  }
+  const sendBtn = container.querySelector("#ai-send-btn");
+  if (sendBtn && textarea) {
+    sendBtn.addEventListener("click", async () => {
+      const text = textarea.value.trim();
+      if (!text) { showToast("依頼内容を入力してください"); return; }
+      const request = { id: `local-${Date.now()}`, ai: "Claude", text, status: "待機中" };
+      await Repository.addAiRequest(request);
+      const listEl = container.querySelector('[data-component="ai-today"] .co-card');
+      if (listEl) listEl.insertAdjacentHTML("afterbegin", renderRequestItem(request, false));
+      textarea.value = "";
+      showToast("依頼を送信しました(Sprint3でAI連携予定)");
+    });
+  }
+  const micBtn = container.querySelector("#ai-mic-btn");
+  if (micBtn) micBtn.addEventListener("click", () => showToast("音声メモはSprint3以降で対応予定です"));
+}
+
+async function renderAiScreen() {
+  const target = document.getElementById("screen-ai");
+  target.innerHTML = renderSkeletonBlock([150, 130, 150, 130]);
+  const data = await Repository.getAiData();
+  const templateChips = data.templates.map(t => `<button class="co-template-chip">${t}</button>`).join("");
+  const HISTORY_VISIBLE_COUNT = 5;
+  const historyVisible = data.history.slice(0, HISTORY_VISIBLE_COUNT);
+  const historyHidden = data.history.slice(HISTORY_VISIBLE_COUNT);
+  const historyMoreBtn = historyHidden.length ? `<button class="co-section__link" id="ai-history-more" style="width:100%; text-align:center; padding:10px 0 2px;">もっと見る(${historyHidden.length}件)</button>` : "";
+  target.innerHTML = `
+    ${renderScreenTitle("AI秘書")}
+    <section class="co-section" data-component="ai-agents"><div class="co-agent-grid">${data.agents.map(renderAgentCard).join("")}</div></section>
+    <section class="co-section" data-component="ai-composer">
+      <div class="co-section__head"><p class="co-section__title">クイック依頼</p></div>
+      <div class="co-card co-composer">
+        <div class="co-template-row">${templateChips}</div>
+        <textarea id="ai-composer-input" placeholder="やってほしいことを入力(例: TikTok企画を3案ください)"></textarea>
+        <div class="co-composer__row"><button class="co-btn-primary" id="ai-send-btn">${icon("send")}依頼する</button><button class="co-btn-ghost" id="ai-mic-btn" aria-label="音声メモ">${icon("mic")}</button></div>
+      </div>
+    </section>
+    <section class="co-section" data-component="ai-today"><div class="co-section__head"><p class="co-section__title">今日の依頼</p></div><div class="co-card">${data.todayRequests.map(r => renderRequestItem(r, false)).join("")}</div></section>
+    <section class="co-section" data-component="ai-history" style="margin-bottom:8px;">
+      <div class="co-section__head"><p class="co-section__title">依頼履歴</p></div>
+      <div class="co-card" id="ai-history-list">${historyVisible.map(r => renderRequestItem(r, true)).join("")}</div>
+      ${historyMoreBtn}
+    </section>`;
+  animateEntrance(target);
+  bindAiEvents(target, data);
+  const moreBtn = target.querySelector("#ai-history-more");
+  if (moreBtn) {
+    moreBtn.addEventListener("click", () => {
+      const listEl = target.querySelector("#ai-history-list");
+      listEl.insertAdjacentHTML("beforeend", historyHidden.map(r => renderRequestItem(r, true)).join(""));
+      moreBtn.remove();
+    });
+  }
+}
+
+function renderPlatformCard(p) {
+  const current = p.followers[p.followers.length - 1];
+  const prev = p.followers[p.followers.length - 2];
+  const delta = current - prev;
+  const lastPostsHtml = p.lastPosts.map(post => `<div class="co-modal-list-item"><span class="co-modal-list-item__date">${post.date}</span><span>${post.title}</span></div>`).join("");
+  return `
+    <div class="co-card co-platform-card" data-platform="${p.key}">
+      <div class="co-platform-card__top">
+        <span class="co-platform-card__badge" style="background:${p.color}">${p.label.slice(0, 2)}</span>
+        <div><p class="co-platform-card__label">${p.label}</p><span class="co-platform-card__followers">${formatNumber(current)}人 (${delta >= 0 ? "+" : ""}${delta})</span></div>
+        <span class="co-platform-card__spark">${buildSparkline(p.followers, p.color)}</span>
+      </div>
+      <div class="co-platform-card__stats"><div class="co-platform-card__stat"><b>${p.stockCount}</b><span>ストック</span></div></div>
+      <div class="co-platform-card__next"><b>次の投稿:</b> ${p.nextPost}(${p.scheduled})</div>
+      <div style="margin-top:10px;">${lastPostsHtml}</div>
+    </div>`;
+}
+
+function buildPlatformDetailModal(p) {
+  const lastPostsHtml = p.lastPosts.map(post => `<div class="co-modal-list-item"><span class="co-modal-list-item__date">${post.date}</span><span>${post.title}</span></div>`).join("");
+  return `
+    <div class="co-modal-head">
+      <div><p class="co-modal-title">${p.label}</p><p class="co-modal-subtitle">フォロワー推移(直近7)</p></div>
+      <button class="co-modal-close" data-action="modal-close">${icon("close")}</button>
+    </div>
+    <div class="co-modal-section">${buildSparkline(p.followers, p.color)}</div>
+    <div class="co-modal-section"><p class="co-modal-section__label">次に投稿する内容</p><p>${p.nextPost}(予定: ${p.scheduled})</p></div>
+    <div class="co-modal-section"><p class="co-modal-section__label">投稿履歴</p>${lastPostsHtml}</div>
+    <div class="co-modal-section"><p class="co-modal-section__label">投稿分析</p><p class="co-modal-empty-note">詳細分析はSprint3以降で対応予定です。</p></div>`;
+}
+
+function bindSnsEvents(container, data) {
+  container.querySelectorAll("[data-platform]").forEach(el => {
+    el.addEventListener("click", () => { const p = data.platforms.find(x => x.key === el.dataset.platform); openModal(buildPlatformDetailModal(p)); });
+  });
+}
+
+async function renderSnsScreen() {
+  const target = document.getElementById("screen-sns");
+  target.innerHTML = renderSkeletonBlock([150, 150, 150]);
+  const data = await Repository.getSnsData();
+  target.innerHTML = `${renderScreenTitle("SNS")}<section class="co-section" data-component="sns-platforms" style="margin-bottom:8px;">${data.platforms.map(renderPlatformCard).join("")}</section>`;
+  animateEntrance(target);
+  bindSnsEvents(target, data);
+}
+
+const SPRINT11_MENU_ITEMS = [
+  { key: "level",      label: "CEOレベル",   icon: "star" },
+  { key: "phase",      label: "成長フェーズ", icon: "rocket" },
+  { key: "investment", label: "投資管理",     icon: "briefcase" },
+  { key: "badges",     label: "実績バッジ",   icon: "shield" }
+];
+const SPRINT14_MENU_ITEMS = [ { key: "content_stock", label: "コンテンツストック", icon: "database" } ];
+const SPRINT15_MENU_ITEMS = [ { key: "ai_research", label: "AIリサーチ", icon: "sparkle" } ];
+/** 【Sprint16】AI編集部へのメニュー導線 */
+const SPRINT16_MENU_ITEMS = [ { key: "ai_editorial", label: "AI編集部", icon: "database" } ];
+const MENU_KEYS_WITH_DETAIL = ["kpi", "revenue", "level", "phase", "investment", "badges", "content_stock", "ai_research", "ai_editorial"];
+
+function renderMenuRow(item) {
+  const hasDetail = MENU_KEYS_WITH_DETAIL.includes(item.key);
+  return `
+    <div class="co-menu-row ${hasDetail ? "co-menu-row--has-detail" : ""}" data-menu-key="${item.key}">
+      <span class="co-menu-row__icon">${icon(item.icon)}</span>
+      <span class="co-menu-row__label">${item.label}</span>
+      ${hasDetail ? `<span class="co-detail-badge">詳細あり</span>` : ""}
+      <span class="co-menu-row__chevron">${icon("chevronRight")}</span>
+    </div>`;
+}
+
+function buildProfileModal(profile) {
+  return `
+    <div class="co-modal-head"><div><p class="co-modal-title">プロフィール</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
+    <div class="co-modal-section" style="display:flex; align-items:center; gap:14px;">
+      <span class="co-menu-avatar">${profile.name.slice(0, 1)}</span>
+      <div><p style="font-size:16px; font-weight:800; margin:0;">${profile.name}</p><p style="font-size:12px; color:var(--c-text-500); margin:3px 0 0;">${profile.role}</p></div>
+    </div>
+    <div class="co-modal-section"><p class="co-modal-section__label">継続日数</p><p>${profile.streakDays}日</p></div>
+    <p class="co-modal-empty-note">プロフィール編集はSprint5以降で対応予定です。</p>`;
+}
+
+function buildKpiListModal(kpiList) {
+  const axisOrder = ["開発", "発信", "収益化"];
+  const axisColor = { "開発": "#14304F", "発信": "#FF6A2C", "収益化": "#1FA463" };
+  const groups = axisOrder.map(axis => {
+    const items = kpiList.filter(k => k.axis === axis);
+    if (!items.length) return "";
+    const rows = items.map(k => `
+      <div class="co-modal-list-item" style="align-items:center;">
+        <span style="flex:1;"><b style="display:block; font-size:14px; font-weight:800;">${k.title}</b><span class="tabular-num" style="font-size:18px; font-weight:900;">${formatNumber(k.value)}</span><span style="font-size:11px; color:var(--c-text-500);">${k.unit} ・ ${k.dir === "up" ? "+" : k.dir === "down" ? "-" : ""}${k.deltaPct}%</span></span>
+        <span style="width:90px;">${buildSparkline(k.history, axisColor[axis])}</span>
+      </div>`).join("");
+    return `<div class="co-modal-section"><p class="co-modal-section__label" style="color:${axisColor[axis]};">${axis}</p>${rows}</div>`;
+  }).join("");
+  return `
+    <div class="co-modal-head"><div><p class="co-modal-title">KPI一覧</p><p class="co-modal-subtitle">開発・発信・収益化(直近7日)</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
+    ${groups}`;
+}
+
+function buildRevenueModal(revenue) {
+  const rows = revenue.entries.map(e => `
+    <div class="co-modal-list-item">
+      <span class="co-modal-list-item__date">${e.date}</span><span style="flex:1;">${e.platform} ・ ${e.category}</span>
+      <span style="font-weight:800;">¥${formatNumber(e.amount)}</span><span class="co-status-badge" data-status="${e.confirmed ? "完了" : "待機中"}">${e.confirmed ? "確定" : "未確定"}</span>
+    </div>`).join("");
+  return `
+    <div class="co-modal-head"><div><p class="co-modal-title">収益管理</p><p class="co-modal-subtitle">${revenue.monthLabel}</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
+    <div class="co-modal-section"><p class="co-modal-section__label">今月の合計</p><span class="tabular-num" id="revenue-total" style="font-size:26px; font-weight:900;">0</span><span style="font-size:14px; font-weight:700;">円</span></div>
+    <div class="co-modal-section"><p class="co-modal-section__label">内訳</p>${rows}</div>
+    <p class="co-modal-empty-note">収益の追加入力はSprint5以降で対応予定です。</p>`;
+}
+
+function buildInvestmentModal(investment) {
+  const itemsHtml = investment.items.length ? investment.items.map(i => `<div class="co-invest-item"><span class="co-invest-item__name">${i.category}${i.active ? "" : "(停止中)"}</span><span class="co-invest-item__amount">${formatYenClient_(i.monthlyAmount)}/月</span></div>`).join("") : `<p class="co-modal-empty-note">まだ投資項目が登録されていません。</p>`;
+  const messagesHtml = investment.messages.map(m => `<p class="co-invest-message">${m}</p>`).join("");
+  const gaugePct = Math.min(100, investment.recoveryPct);
+  return `
+    <div class="co-modal-head"><div><p class="co-modal-title">投資管理</p><p class="co-modal-subtitle">未来への種まき状況</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
+    <div class="co-modal-section co-invest-hero"><div class="co-invest-hero__value">${formatYenClient_(investment.monthlyTotal)}</div><div class="co-invest-hero__label">今月の投資(未来への種まき)</div></div>
+    <div class="co-modal-section"><div class="co-invest-gauge"><div class="co-invest-gauge__fill" data-progress-to="${gaugePct}"></div></div><p class="co-invest-gauge__label">投資回収ゲージ ${investment.recoveryPct}%</p></div>
+    <div class="co-modal-section">${messagesHtml}</div>
+    <div class="co-modal-section"><p class="co-modal-section__label">投資項目(累計 ${investment.months}ヶ月)</p>${itemsHtml}</div>`;
+}
+
+function formatYenClient_(n) { return "¥" + formatNumber(Math.round(n)); }
+
+function buildBadgesModal(badges) {
+  const cards = badges.map(b => `<div class="co-badge ${b.unlocked ? "is-unlocked" : ""}"><span class="co-badge__icon">${icon(b.icon)}</span><span class="co-badge__label">${b.label}</span></div>`).join("");
+  const unlockedCount = badges.filter(b => b.unlocked).length;
+  return `
+    <div class="co-modal-head"><div><p class="co-modal-title">実績バッジ</p><p class="co-modal-subtitle">${unlockedCount}/${badges.length} 解除済み</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
+    <div class="co-modal-section"><div class="co-badge-grid">${cards}</div></div>`;
+}
+
+function bindMenuEvents(container, data) {
+  container.querySelectorAll("[data-menu-key]").forEach(row => {
+    row.addEventListener("click", () => {
+      const key = row.dataset.menuKey;
+      if (key === "kpi") { openModal(buildKpiListModal(data.kpi)); return; }
+      if (key === "revenue") {
+        openModal(buildRevenueModal(data.revenue));
+        const totalEl = document.getElementById("revenue-total");
+        if (totalEl) animateCountUp(totalEl, data.revenue.total);
+        return;
+      }
+      if (key === "level") { openModal(buildLevelDetailModal(data.player)); return; }
+      if (key === "phase") { openModal(buildPhaseDetailModal(data.phase)); return; }
+      if (key === "investment") {
+        openModal(buildInvestmentModal(data.investment));
+        requestAnimationFrame(() => { document.querySelectorAll(".co-modal-sheet [data-progress-to]").forEach(el => { el.style.width = `${el.dataset.progressTo}%`; }); });
+        return;
+      }
+      if (key === "badges") { openModal(buildBadgesModal(data.badges)); return; }
+      if (key === "content_stock") { openContentStockList(); return; }
+      if (key === "ai_research") { openResearchCandidatesList(); return; }
+      if (key === "ai_editorial") { location.href = "ai-editorial.html"; return; }
+      showToast("この項目はSprint5以降で実装予定です");
+    });
+  });
+  const profileEl = container.querySelector("[data-menu-profile]");
+  if (profileEl) profileEl.addEventListener("click", () => openModal(buildProfileModal(data.profile)));
+}
+
+async function renderMenuScreen() {
+  const target = document.getElementById("screen-menu");
+  target.innerHTML = renderSkeletonBlock([90, 240]);
+  const data = await Repository.getMenuData();
+  target.innerHTML = `
+    ${renderScreenTitle("Menu")}
+    <section class="co-section" data-component="menu-profile">
+      <div class="co-card co-menu-profile" data-menu-profile>
+        <span class="co-menu-avatar">${data.profile.name.slice(0, 1)}</span>
+        <div><p class="co-menu-profile__name">${data.profile.name}</p><p class="co-menu-profile__role">${data.profile.role}</p></div>
+        <span class="co-portfolio-card__chevron" style="margin-left:auto;">${icon("chevronRight")}</span>
+      </div>
+    </section>
+    <section class="co-section" data-component="menu-list" style="margin-bottom:8px;">
+      <div class="co-card">${data.items.map(renderMenuRow).join("")}${SPRINT11_MENU_ITEMS.map(renderMenuRow).join("")}${SPRINT14_MENU_ITEMS.map(renderMenuRow).join("")}${SPRINT15_MENU_ITEMS.map(renderMenuRow).join("")}${SPRINT16_MENU_ITEMS.map(renderMenuRow).join("")}</div>
+    </section>`;
+  animateEntrance(target);
+  bindMenuEvents(target, data);
+}
+
+const CONTENT_STATUS_LABELS = { idea: "アイデア", draft: "下書き", review: "レビュー中", approved: "承認済み", posted: "投稿済み" };
+const CONTENT_STATUS_ORDER = ["idea", "draft", "review", "approved", "posted"];
+const CONTENT_PRIORITY_LABELS = { high: "優先度:高", normal: "優先度:中", low: "優先度:低" };
+const CONTENT_PRIORITY_ORDER = ["high", "normal", "low"];
+const CONTENT_PURPOSE_LABELS = { follower: "🎯フォロワー獲得", engagement: "💬保存・コメント", note: "📝note誘導", paid: "💰有料記事", product: "🛠商品紹介", branding: "🏷ブランディング" };
+const CONTENT_PURPOSE_ORDER = ["follower", "engagement", "note", "paid", "product", "branding"];
+const APPROVAL_STATUS_LABELS = { draft: "未提出", pending: "承認待ち", content_approved: "二次承認待ち(価格/公開範囲)", approved: "承認済み" };
+const AI_STAFF_STATUS_OPTIONS = ["未実行", "完了"];
+const AI_STAFF_FIELDS = [
+  { field: "researchStatus", label: "AIリサーチ" },
+  { field: "imageStatus", label: "画像クリエイター" },
+  { field: "qualityStatus", label: "品質管理" },
+  { field: "analyticsStatus", label: "SNS分析" }
+];
+const AI_STAFF_NAMES = ["AIリサーチ", "X編集", "note編集", "TikTokディレクター", "画像クリエイター", "品質管理", "SNS分析", "投稿マネージャー", "オーナー"];
+
+function aiStaffStatusOptions_(selected) { return AI_STAFF_STATUS_OPTIONS.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${s}</option>`).join(""); }
+function aiStaffNameOptions_() { return AI_STAFF_NAMES.map(n => `<option value="${n}">${n}</option>`).join(""); }
+function formatHistoryDateTime_(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
+}
+function todayShortDate_() { const d = new Date(); return `${d.getMonth() + 1}/${d.getDate()}`; }
+function contentStatusOptions_(selected) { return CONTENT_STATUS_ORDER.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${CONTENT_STATUS_LABELS[s]}</option>`).join(""); }
+function contentPriorityOptions_(selected) { return CONTENT_PRIORITY_ORDER.map(p => `<option value="${p}" ${p === selected ? "selected" : ""}>${CONTENT_PRIORITY_LABELS[p]}</option>`).join(""); }
+function contentPurposeOptions_(selected) { const blank = `<option value="" ${!selected ? "selected" : ""}>未設定</option>`; return blank + CONTENT_PURPOSE_ORDER.map(p => `<option value="${p}" ${p === selected ? "selected" : ""}>${CONTENT_PURPOSE_LABELS[p]}</option>`).join(""); }
+
+function renderContentStockItem_(item) {
+  const metaBits = [item.contentType, item.targetAudience, item.category].filter(Boolean).join(" ・ ");
+  const purposeLabel = CONTENT_PURPOSE_LABELS[item.purpose] || "";
+  const approvalLabel = APPROVAL_STATUS_LABELS[item.approvalStatus] || "未提出";
+  const doneCount = AI_STAFF_FIELDS.filter(f => item[f.field] === "完了").length;
+  return `
+    <div class="co-cs-item" data-cs-id="${item.id}">
+      <div class="co-cs-item__top"><p class="co-cs-item__title">${item.title || "(無題)"}</p><span class="co-status-badge" data-status="${item.status}">${CONTENT_STATUS_LABELS[item.status] || item.status}</span></div>
+      ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
+      ${purposeLabel ? `<p class="co-cs-item__meta">${purposeLabel}</p>` : ""}
+      <p class="co-cs-item__meta">🗂${approvalLabel} ・ 🤖AI社員${doneCount}/4完了</p>
+      ${item.idea ? `<p class="co-cs-item__idea">${item.idea}</p>` : ""}
+      <div class="co-cs-item__controls">
+        <select class="co-cs-select" data-cs-field="status" data-cs-id="${item.id}">${contentStatusOptions_(item.status)}</select>
+        <select class="co-cs-select" data-cs-field="priority" data-cs-id="${item.id}">${contentPriorityOptions_(item.priority || "normal")}</select>
+      </div>
+      <button class="co-cs-detail-link" data-action="cs-open-detail" data-cs-id="${item.id}">生成コンテンツを編集(X・note・TikTok)${icon("chevronRight")}</button>
+    </div>`;
+}
+
+function buildContentStockListModal_(items) {
+  const body = items.length ? items.map(renderContentStockItem_).join("") : `<div class="co-cs-empty">まだネタが登録されていません。<br>「＋新しいネタ」から追加してください。</div>`;
+  return `
+    <div class="co-modal-head"><div><p class="co-modal-title">コンテンツストック</p><p class="co-modal-subtitle">${items.length}件のネタ</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
+    <div class="co-modal-section"><button class="co-cs-fab" data-action="cs-new">${icon("plus")}＋新しいネタ</button>${body}</div>`;
+}
+
+async function openContentStockList() {
+  openModal(renderSkeletonBlock([60, 60, 60]));
+  let data;
+  try { data = await Repository.getContentStockData(); }
+  catch (e) { closeModal(); showToast("コンテンツストックの取得に失敗しました"); return; }
+  const items = (data && data.items) || [];
+  openModal(buildContentStockListModal_(items));
+  bindContentStockListEvents_(items);
+}
+
+function bindContentStockListEvents_(items) {
+  const sheet = document.querySelector(".co-modal-sheet");
+  if (!sheet) return;
+  const newBtn = sheet.querySelector('[data-action="cs-new"]');
+  if (newBtn) newBtn.addEventListener("click", openContentStockForm);
+  sheet.querySelectorAll("[data-cs-field]").forEach(select => {
+    select.addEventListener("change", async () => {
+      const id = select.dataset.csId;
+      const field = select.dataset.csField;
+      const value = select.value;
+      select.disabled = true;
+      try {
+        await Repository.updateContentStockItem({ id, [field]: value });
+        showToast("更新しました");
+        if (field === "status") {
+          const badge = sheet.querySelector(`.co-cs-item[data-cs-id="${id}"] .co-status-badge`);
+          if (badge) { badge.dataset.status = value; badge.textContent = CONTENT_STATUS_LABELS[value] || value; }
+        }
+      } catch (e) { showToast("更新に失敗しました"); }
+      finally { select.disabled = false; }
+    });
+  });
+  sheet.querySelectorAll('[data-action="cs-open-detail"]').forEach(btn => {
+    btn.addEventListener("click", () => { const item = items.find(i => i.id === btn.dataset.csId); if (item) openContentStockDetail(item); });
+  });
+}
+
+const CONTENT_TYPE_OPTIONS = ["あるある", "AI活用", "実体験", "ニュース", "比較", "レビュー", "ノウハウ", "ストーリー", "開発ログ"];
+const TARGET_AUDIENCE_OPTIONS = ["製造業", "工場勤務", "管理職", "新人", "AI初心者", "経営者"];
+
+function buildContentStockFormModal_() {
+  const typeOptions = CONTENT_TYPE_OPTIONS.map(t => `<option value="${t}">${t}</option>`).join("");
+  const audienceOptions = TARGET_AUDIENCE_OPTIONS.map(a => `<option value="${a}">${a}</option>`).join("");
+  return `
+    <div class="co-modal-head"><div><p class="co-modal-title">新しいネタ</p><p class="co-modal-subtitle">現場で気づいたことを残しましょう</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
+    <div class="co-modal-section co-cs-form">
+      <label>タイトル</label><input type="text" id="cs-form-title" placeholder="例: 新人教育あるある">
+      <label>ネタ種別</label><select id="cs-form-content-type"><option value="">選択してください</option>${typeOptions}</select>
+      <label>想定読者</label><select id="cs-form-target-audience"><option value="">選択してください</option>${audienceOptions}</select>
+      <label>カテゴリ</label><input type="text" id="cs-form-category" placeholder="例: あるある / Claude活用 / 運用報告">
+      <label>タグ(カンマ区切り)</label><input type="text" id="cs-form-tags" placeholder="例: 教育,新人">
+      <label>優先度</label><select id="cs-form-priority">${contentPriorityOptions_("normal")}</select>
+      <label>目的(purpose)</label><select id="cs-form-purpose">${contentPurposeOptions_("")}</select>
+      <label>現場であったこと</label><textarea id="cs-form-idea" placeholder="現場で気づいたこと・あったことを書いてください"></textarea>
+      <label>メモ</label><textarea id="cs-form-memo" placeholder="補足メモがあれば"></textarea>
+      <label>写真URL(任意)</label><input type="text" id="cs-form-photo" placeholder="参考写真のURL">
+      <p id="cs-form-status" class="co-modal-empty-note" style="display:none;"></p>
+      <button class="co-cs-form__submit" data-action="cs-save">保存</button>
+    </div>`;
+}
+
+function openContentStockForm() {
+  openModal(buildContentStockFormModal_());
+  const sheet = document.querySelector(".co-modal-sheet");
+  if (!sheet) return;
+  const saveBtn = sheet.querySelector('[data-action="cs-save"]');
+  if (!saveBtn) return;
+  const statusEl = sheet.querySelector("#cs-form-status");
+  let isSaving = false;
+  saveBtn.addEventListener("click", async () => {
+    if (isSaving) return;
+    const title = sheet.querySelector("#cs-form-title").value.trim();
+    if (!title) { showToast("タイトルを入力してください"); return; }
+    const payload = {
+      title, contentType: sheet.querySelector("#cs-form-content-type").value, targetAudience: sheet.querySelector("#cs-form-target-audience").value,
+      category: sheet.querySelector("#cs-form-category").value.trim(), tags: sheet.querySelector("#cs-form-tags").value.trim(),
+      priority: sheet.querySelector("#cs-form-priority").value, purpose: sheet.querySelector("#cs-form-purpose").value,
+      idea: sheet.querySelector("#cs-form-idea").value.trim(), memo: sheet.querySelector("#cs-form-memo").value.trim(),
+      photo: sheet.querySelector("#cs-form-photo").value.trim()
+    };
+    isSaving = true;
+    saveBtn.disabled = true;
+    saveBtn.textContent = "保存中...";
+    if (statusEl) { statusEl.style.display = "none"; statusEl.style.color = ""; }
+    try {
+      await Repository.createContentStockItem(payload);
+      saveBtn.textContent = "✓ 保存しました";
+      if (statusEl) { statusEl.style.display = "block"; statusEl.style.color = "#1E9E5A"; statusEl.textContent = "保存が完了しました。一覧に戻ります…"; }
+      showToast("ネタを保存しました");
+      await new Promise(resolve => setTimeout(resolve, 600));
+      await openContentStockList();
+    } catch (e) {
+      showToast("保存に失敗しました");
+      if (statusEl) { statusEl.style.display = "block"; statusEl.style.color = "#D0342C"; statusEl.textContent = "保存に失敗しました。もう一度「保存」を押してください。"; }
+      saveBtn.disabled = false;
+      saveBtn.textContent = "保存";
+      isSaving = false;
+    }
+  });
+}
+
+const GEN_STATUS_OPTIONS = ["未着手", "下書き", "投稿済み"];
+const TIKTOK_SCENE_TEMPLATE = ["①フック(最初の3秒)", "②現場紹介", "③問題発生", "④困る", "⑤原因判明", "⑥さらに悪化", "⑦Claude登場", "⑧AI提案", "⑨改善開始", "⑩成功", "⑪ビフォーアフター", "⑫オチ・フォローCTA"];
+function genStatusOptions_(selected) { return GEN_STATUS_OPTIONS.map(s => `<option value="${s}" ${s === selected ? "selected" : ""}>${s}</option>`).join(""); }
+function parseTiktokScenes_(json) {
+  let parsed = [];
+  try { parsed = JSON.parse(json || "[]"); } catch (e) { parsed = []; }
+  if (!Array.isArray(parsed)) parsed = [];
+  return TIKTOK_SCENE_TEMPLATE.map((_, i) => (parsed[i] || ""));
+}
+function nextApprovalAction_(item) {
+  const isPaid = item.purpose === "paid";
+  const s = item.approvalStatus || "draft";
+  if (s === "draft") return { label: "承認待ちに提出する", target: "pending", needsApprovedBy: false };
+  if (s === "pending" && isPaid) return { label: "一次承認する(内容・価値・SEO)", target: "content_approved", needsApprovedBy: false };
+  if (s === "pending") return { label: "承認する", target: "approved", needsApprovedBy: true };
+  if (s === "content_approved") return { label: "最終承認する(価格・公開範囲・購入導線)", target: "approved", needsApprovedBy: true };
+  return null;
+}
+function renderApprovalSection_(item) {
+  const label = APPROVAL_STATUS_LABELS[item.approvalStatus] || "未提出";
+  const action = nextApprovalAction_(item);
+  const approvedInfo = item.approvalStatus === "approved" ? `<p class="co-modal-empty-note">承認者: ${item.approvedBy || "(未記録)"} / 承認日: ${item.approvedAt || "-"}</p>` : "";
+  return `
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">承認フロー</p>
+      <p style="font-size:14px; font-weight:600;">現在のステータス: ${label}</p>
+      ${approvedInfo}
+      ${action ? `
+        ${action.needsApprovedBy ? `<label>承認者名</label><input type="text" id="cs-detail-approved-by" placeholder="例: 森下">` : ""}
+        <button class="co-cs-form__submit" data-action="cs-approval-advance" data-target="${action.target}" style="margin-top:8px;">${action.label}</button>
+      ` : `<p class="co-modal-empty-note">このネタは承認済みです。</p>`}
+      ${item.approvalStatus !== "draft" ? `<button class="co-cs-detail-link" data-action="cs-approval-reset" style="margin-top:8px;">下書きに戻す</button>` : ""}
+    </div>`;
+}
+function renderAiStaffStatusSection_(item) {
+  const rows = AI_STAFF_FIELDS.map(f => `<label>${f.label}</label><select id="cs-detail-${f.field}">${aiStaffStatusOptions_(item[f.field] || "未実行")}</select>`).join("");
+  return `<div class="co-modal-section co-cs-form"><p class="co-modal-section__label">AI社員ステータス</p>${rows}</div>`;
+}
+function renderHistorySection_(item) {
+  const history = Array.isArray(item.history) ? item.history.slice().reverse() : [];
+  const rows = history.length ? history.map(h => `
+    <div class="co-cs-item" style="margin-bottom:8px;">
+      <div class="co-cs-item__top"><p class="co-cs-item__title">Ver${h.version} ・ ${h.ai || "不明"}</p><span class="co-status-badge" data-status="${h.status}">${h.status || "draft"}</span></div>
+      <p class="co-cs-item__meta">${formatHistoryDateTime_(h.createdAt)}</p>
+      <p class="co-cs-item__idea">${(h.text || "").slice(0, 200)}</p>
+    </div>`).join("") : `<p class="co-modal-empty-note">まだ履歴はありません。</p>`;
+  return `
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">出力履歴(Ver管理)</p>${rows}
+      <label>追加する担当AI</label><select id="cs-history-ai">${aiStaffNameOptions_()}</select>
+      <label>本文</label><textarea id="cs-history-text" placeholder="新しいバージョンの本文を貼り付け"></textarea>
+      <label>ステータス</label><select id="cs-history-status"><option value="draft">draft(下書き)</option><option value="approved">approved(採用)</option></select>
+      <button class="co-cs-form__submit" data-action="cs-history-add" style="margin-top:8px;">履歴に追加</button>
+    </div>`;
+}
+function renderCommentsSection_(item) {
+  const comments = Array.isArray(item.comments) ? item.comments.slice().reverse() : [];
+  const rows = comments.length ? comments.map(c => `
+    <div class="co-cs-item" style="margin-bottom:8px;">
+      <div class="co-cs-item__top"><p class="co-cs-item__title">${c.ai || "不明"}</p><span class="co-cs-item__meta">${formatHistoryDateTime_(c.time)}</span></div>
+      <p class="co-cs-item__idea">${c.comment || ""}</p>
+    </div>`).join("") : `<p class="co-modal-empty-note">まだコメントはありません。</p>`;
+  return `
+    <div class="co-modal-section co-cs-form">
+      <p class="co-modal-section__label">AI社員コメント</p>${rows}
+      <label>発言者</label><select id="cs-comment-ai">${aiStaffNameOptions_()}</select>
+      <label>コメント</label><textarea id="cs-comment-text" placeholder="例: 話題度84。今週向きです。"></textarea>
+      <button class="co-cs-form__submit" data-action="cs-comment-add" style="margin-top:8px;">コメントを追加</button>
+    </div>`;
+}
+function buildAiHandoffText_(item) {
+  const purposeLabel = CONTENT_PURPOSE_LABELS[item.purpose] || "未設定";
+  return [`タイトル: ${item.title || ""}`, `現場であったこと: ${item.idea || ""}`, `カテゴリ: ${item.category || ""}`, `想定読者: ${item.targetAudience || ""}`, `目的(purpose): ${item.purpose || ""}(${purposeLabel})`].join("\n");
+}
+function computeProgressSteps_(item) {
+  const anyPosted = item.xStatus === "投稿済み" || item.noteStatus === "投稿済み" || item.tiktokStatus === "投稿済み";
+  return [
+    { label: "①リサーチ", done: item.researchStatus === "完了" },
+    { label: "②X", done: !!(item.xText && item.xText.trim()) },
+    { label: "③note", done: !!(item.noteText && item.noteText.trim()) },
+    { label: "④TikTok", done: !!(item.tiktokScript && item.tiktokScript.trim()) },
+    { label: "⑤画像", done: item.imageStatus === "完了" },
+    { label: "⑥品質", done: item.qualityStatus === "完了" },
+    { label: "⑦承認", done: item.approvalStatus === "approved" },
+    { label: "⑧投稿", done: anyPosted }
+  ];
+}
+function renderProgressChecklist_(item) {
+  const steps = computeProgressSteps_(item);
+  const doneCount = steps.filter(s => s.done).length;
+  const chips = steps.map(s => `<span style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:999px; font-size:12px; margin:2px; background:${s.done ? "var(--c-primary, #FF6A2C)" : "var(--c-surface-200, #eee)"}; color:${s.done ? "#fff" : "var(--c-text-500, #888)"};">${s.done ? "✓" : "・"}${s.label}</span>`).join("");
+  return `<div class="co-modal-section"><p class="co-modal-section__label">進捗チェックリスト(${doneCount}/8完了)</p><div>${chips}</div></div>`;
+}
+
+function buildContentStockDetailModal_(item) {
+  const scenes = parseTiktokScenes_(item.tiktokScenesJson);
+  const sceneFields = TIKTOK_SCENE_TEMPLATE.map((label, i) => `<label>${label}</label><textarea class="cs-detail-scene" data-scene-index="${i}" placeholder="このシーンの内容を書く、またはChatGPT/Claudeの提案を貼り付け">${scenes[i]}</textarea>`).join("");
+  return `
+    <div class="co-modal-head"><div><p class="co-modal-title">${item.title || "(無題)"}</p><p class="co-modal-subtitle">生成コンテンツの編集</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
+    ${renderProgressChecklist_(item)}
+    <div class="co-modal-section">
+      <p class="co-modal-section__label">現場であったこと</p><p style="font-size:13px; color:var(--c-text-500); line-height:1.6;">${item.idea || "(未入力)"}</p>
+      <button class="co-cs-detail-link" data-action="cs-copy-handoff" style="margin-top:8px;">${icon("chevronRight")}AI社員へ渡す情報をコピー(title/idea/purpose等)</button>
+    </div>
+    <div class="co-modal-section co-cs-form"><p class="co-modal-section__label">目的(purpose)</p><label>このネタの目的</label><select id="cs-detail-purpose">${contentPurposeOptions_(item.purpose || "")}</select></div>
+    ${renderAiStaffStatusSection_(item)}
+    <div class="co-modal-section co-cs-form"><p class="co-modal-section__label">X投稿</p><label>ステータス</label><select id="cs-detail-x-status">${genStatusOptions_(item.xStatus || "未着手")}</select><label>本文</label><textarea id="cs-detail-x-text" placeholder="ChatGPT/Claudeで作ったX投稿文をここに貼り付け">${item.xText || ""}</textarea></div>
+    <div class="co-modal-section co-cs-form"><p class="co-modal-section__label">note記事</p><label>ステータス</label><select id="cs-detail-note-status">${genStatusOptions_(item.noteStatus || "未着手")}</select><label>本文</label><textarea id="cs-detail-note-text" placeholder="note記事の本文をここに貼り付け" style="min-height:120px;">${item.noteText || ""}</textarea></div>
+    <div class="co-modal-section co-cs-form"><p class="co-modal-section__label">TikTok台本</p><label>ステータス</label><select id="cs-detail-tiktok-status">${genStatusOptions_(item.tiktokStatus || "未着手")}</select><label>全体の台本メモ</label><textarea id="cs-detail-tiktok-script" placeholder="12シーン全体のナレーション・セリフ案など">${item.tiktokScript || ""}</textarea></div>
+    <div class="co-modal-section co-cs-form"><p class="co-modal-section__label">TikTok 12シーン絵コンテ</p>${sceneFields}</div>
+    <div class="co-modal-section"><p class="co-modal-section__label">画像生成・動画生成</p><p class="co-modal-empty-note">画像生成・動画生成・自動投稿は次Sprint以降で対応予定です。</p></div>
+    ${renderApprovalSection_(item)}
+    ${renderHistorySection_(item)}
+    ${renderCommentsSection_(item)}
+    <div class="co-modal-section"><p id="cs-autosave-indicator" class="co-modal-empty-note">入力後、自動的に下書き保存されます</p><button class="co-cs-form__submit" data-action="cs-detail-save">保存</button></div>
+    <div class="co-modal-section"><button class="co-cs-detail-link" data-action="cs-detail-delete" style="color:#D0342C;">このネタを削除する(テストデータ整理用・元に戻せません)</button></div>`;
+}
+
+function collectContentFormValues_(sheet) {
+  const scenes = Array.from(sheet.querySelectorAll(".cs-detail-scene")).sort((a, b) => Number(a.dataset.sceneIndex) - Number(b.dataset.sceneIndex)).map(el => el.value.trim());
+  const getVal = (id) => { const el = sheet.querySelector(id); return el ? el.value.trim() : undefined; };
+  const payload = {
+    purpose: getVal("#cs-detail-purpose"), xStatus: getVal("#cs-detail-x-status"), xText: getVal("#cs-detail-x-text"),
+    noteStatus: getVal("#cs-detail-note-status"), noteText: getVal("#cs-detail-note-text"),
+    tiktokStatus: getVal("#cs-detail-tiktok-status"), tiktokScript: getVal("#cs-detail-tiktok-script"), tiktokScenesJson: JSON.stringify(scenes)
+  };
+  AI_STAFF_FIELDS.forEach(f => { const el = sheet.querySelector(`#cs-detail-${f.field}`); if (el) payload[f.field] = el.value; });
+  return payload;
+}
+async function flushContentForm_(sheet, item) {
+  const payload = collectContentFormValues_(sheet);
+  payload.id = item.id;
+  try { await Repository.updateContentStockItem(payload); Object.assign(item, payload); return true; }
+  catch (e) { return false; }
+}
+function setAutosaveIndicator_(sheet, text) { const el = sheet.querySelector("#cs-autosave-indicator"); if (el) el.textContent = text; }
+
+function openContentStockDetail(item) {
+  openModal(buildContentStockDetailModal_(item));
+  const sheet = document.querySelector(".co-modal-sheet");
+  if (!sheet) return;
+  const copyHandoffBtn = sheet.querySelector('[data-action="cs-copy-handoff"]');
+  if (copyHandoffBtn) copyHandoffBtn.addEventListener("click", () => { copyToClipboard(buildAiHandoffText_(item)); });
+  let autosaveTimer_ = null;
+  const autosaveTargets = sheet.querySelectorAll(
+    "#cs-detail-purpose, #cs-detail-x-status, #cs-detail-x-text, #cs-detail-note-status, #cs-detail-note-text, #cs-detail-tiktok-status, #cs-detail-tiktok-script, .cs-detail-scene, " +
+    AI_STAFF_FIELDS.map(f => `#cs-detail-${f.field}`).join(", ")
+  );
+  autosaveTargets.forEach(el => {
+    const evt = (el.tagName === "SELECT") ? "change" : "input";
+    el.addEventListener(evt, () => {
+      setAutosaveIndicator_(sheet, "保存中...");
+      if (autosaveTimer_) clearTimeout(autosaveTimer_);
+      autosaveTimer_ = setTimeout(async () => {
+        const ok = await flushContentForm_(sheet, item);
+        const now = new Date();
+        const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+        setAutosaveIndicator_(sheet, ok ? `自動保存済み ${hhmm}` : "自動保存に失敗しました(手動で保存してください)");
+      }, 500);
+    });
+  });
+  const saveBtn = sheet.querySelector('[data-action="cs-detail-save"]');
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      saveBtn.disabled = true;
+      saveBtn.textContent = "保存中...";
+      const ok = await flushContentForm_(sheet, item);
+      if (ok) { showToast("生成コンテンツを保存しました"); closeModal(); }
+      else { showToast("保存に失敗しました"); saveBtn.disabled = false; saveBtn.textContent = "保存"; }
+    });
+  }
+  const approvalBtn = sheet.querySelector('[data-action="cs-approval-advance"]');
+  if (approvalBtn) {
+    approvalBtn.addEventListener("click", async () => {
+      const target = approvalBtn.dataset.target;
+      const approvedByEl = sheet.querySelector("#cs-detail-approved-by");
+      const approvedBy = approvedByEl ? approvedByEl.value.trim() : "";
+      approvalBtn.disabled = true;
+      approvalBtn.textContent = "保存中...";
+      try {
+        await flushContentForm_(sheet, item);
+        await Repository.updateApprovalStatus({ id: item.id, approvalStatus: target, approvedBy });
+        item.approvalStatus = target;
+        if (target === "approved") { item.approvedBy = approvedBy; item.approvedAt = todayShortDate_(); }
+        showToast("入力内容を保存し、承認ステータスを更新しました");
+        openContentStockDetail(item);
+      } catch (e) {
+        showToast("更新に失敗しました");
+        approvalBtn.disabled = false;
+        approvalBtn.textContent = nextApprovalAction_(item) ? nextApprovalAction_(item).label : "更新";
+      }
+    });
+  }
+  const approvalResetBtn = sheet.querySelector('[data-action="cs-approval-reset"]');
+  if (approvalResetBtn) {
+    approvalResetBtn.addEventListener("click", async () => {
+      try {
+        await flushContentForm_(sheet, item);
+        await Repository.updateApprovalStatus({ id: item.id, approvalStatus: "draft" });
+        item.approvalStatus = "draft";
+        showToast("下書きに戻しました");
+        openContentStockDetail(item);
+      } catch (e) { showToast("更新に失敗しました"); }
+    });
+  }
+  const historyAddBtn = sheet.querySelector('[data-action="cs-history-add"]');
+  if (historyAddBtn) {
+    historyAddBtn.addEventListener("click", async () => {
+      const text = sheet.querySelector("#cs-history-text").value.trim();
+      if (!text) { showToast("本文を入力してください"); return; }
+      const ai = sheet.querySelector("#cs-history-ai").value;
+      const status = sheet.querySelector("#cs-history-status").value;
+      historyAddBtn.disabled = true;
+      try {
+        await flushContentForm_(sheet, item);
+        const result = await Repository.appendContentHistory({ id: item.id, ai, text, status });
+        item.history = Array.isArray(item.history) ? item.history : [];
+        item.history.push({ version: result.version || (item.history.length + 1), ai, text, status, createdAt: new Date().toISOString() });
+        showToast("履歴に追加しました");
+        openContentStockDetail(item);
+      } catch (e) { showToast("追加に失敗しました"); historyAddBtn.disabled = false; }
+    });
+  }
+  const commentAddBtn = sheet.querySelector('[data-action="cs-comment-add"]');
+  if (commentAddBtn) {
+    commentAddBtn.addEventListener("click", async () => {
+      const comment = sheet.querySelector("#cs-comment-text").value.trim();
+      if (!comment) { showToast("コメントを入力してください"); return; }
+      const ai = sheet.querySelector("#cs-comment-ai").value;
+      commentAddBtn.disabled = true;
+      try {
+        await flushContentForm_(sheet, item);
+        await Repository.appendContentComment({ id: item.id, ai, comment });
+        item.comments = Array.isArray(item.comments) ? item.comments : [];
+        item.comments.push({ ai, comment, time: new Date().toISOString() });
+        showToast("コメントを追加しました");
+        openContentStockDetail(item);
+      } catch (e) { showToast("追加に失敗しました"); commentAddBtn.disabled = false; }
+    });
+  }
+  const deleteBtn = sheet.querySelector('[data-action="cs-detail-delete"]');
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", async () => {
+      const confirmed = window.confirm(`「${item.title || "(無題)"}」を削除します。元に戻せませんが、よろしいですか?`);
+      if (!confirmed) return;
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = "削除中...";
+      try {
+        await Repository.deleteContentStockItem({ id: item.id });
+        showToast("ネタを削除しました");
+        closeModal();
+        openContentStockList();
+      } catch (e) { showToast("削除に失敗しました"); deleteBtn.disabled = false; deleteBtn.textContent = "このネタを削除する(テストデータ整理用・元に戻せません)"; }
+    });
+  }
+}
+
+function renderResearchCandidateItem_(item) {
+  const metaBits = [item.contentType, item.targetAudience, item.category].filter(Boolean).join(" ・ ");
+  return `
+    <div class="co-cs-item" data-rc-id="${item.id}">
+      <div class="co-cs-item__top"><p class="co-cs-item__title">${item.title || "(無題)"}</p><span class="co-cs-recommend-badge">話題度 ${item.trendScore}</span></div>
+      ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
+      ${item.reason ? `<p class="co-cs-item__idea">${item.reason}</p>` : ""}
+      <div class="co-rc-actions">
+        <button class="co-rc-btn" data-variant="approve" data-rc-action="approve" data-rc-id="${item.id}">採用</button>
+        <button class="co-rc-btn" data-variant="hold" data-rc-action="hold" data-rc-id="${item.id}">保留</button>
+        <button class="co-rc-btn" data-variant="reject" data-rc-action="reject" data-rc-id="${item.id}">却下</button>
+      </div>
+    </div>`;
+}
+function buildResearchCandidatesListModal_(items) {
+  const body = items.length ? items.map(renderResearchCandidateItem_).join("") : `<div class="co-cs-empty">今は候補がありません。<br>AIリサーチが新しいネタを見つけ次第ここに表示されます。</div>`;
+  return `
+    <div class="co-modal-head"><div><p class="co-modal-title">AIリサーチ</p><p class="co-modal-subtitle">${items.length}件のおすすめネタ候補</p></div><button class="co-modal-close" data-action="modal-close">${icon("close")}</button></div>
+    <div class="co-modal-section">${body}</div>`;
+}
+async function openResearchCandidatesList() {
+  openModal(renderSkeletonBlock([60, 60, 60]));
+  let data;
+  try { data = await Repository.getResearchCandidates(); }
+  catch (e) { closeModal(); showToast("AIリサーチ候補の取得に失敗しました"); return; }
+  const items = (data && data.items) || [];
+  openModal(buildResearchCandidatesListModal_(items));
+  bindResearchCandidateActions_(document.querySelector(".co-modal-sheet"), { onHandled: () => openResearchCandidatesList() });
+}
+function bindResearchCandidateActions_(container, opts) {
+  if (!container) return;
+  const onHandled = (opts && opts.onHandled) || (() => {});
+  container.querySelectorAll("[data-rc-action]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.rcId;
+      const action = btn.dataset.rcAction;
+      const row = container.querySelector(`[data-rc-id="${id}"]`);
+      const buttons = row ? row.querySelectorAll("[data-rc-action]") : [btn];
+      buttons.forEach(b => b.disabled = true);
+      try {
+        if (action === "approve") { await Repository.approveResearchCandidate({ id }); showToast("採用しました。コンテンツストックに追加されました"); }
+        else if (action === "hold") { await Repository.updateResearchCandidateStatus({ id, status: "hold" }); showToast("保留にしました"); }
+        else if (action === "reject") { await Repository.updateResearchCandidateStatus({ id, status: "rejected" }); showToast("却下しました"); }
+        if (row) row.remove();
+        onHandled();
+      } catch (e) { showToast("処理に失敗しました"); buttons.forEach(b => b.disabled = false); }
+    });
+  });
+}
+function renderResearchRecommendationsCard(items) {
+  if (!items || !items.length) return "";
+  const rows = items.map(item => {
+    const metaBits = [item.contentType, item.targetAudience].filter(Boolean).join(" ・ ");
+    return `
+      <div class="co-cs-item" data-rc-id="${item.id}">
+        <div class="co-cs-item__top"><p class="co-cs-item__title">${item.title}</p><span class="co-cs-recommend-badge">話題度 ${item.trendScore}</span></div>
+        ${metaBits ? `<p class="co-cs-item__meta">${metaBits}</p>` : ""}
+        ${item.reason ? `<p class="co-cs-item__idea">${item.reason}</p>` : ""}
+        <div class="co-rc-actions">
+          <button class="co-rc-btn" data-variant="approve" data-rc-action="approve" data-rc-id="${item.id}">採用</button>
+          <button class="co-rc-btn" data-variant="hold" data-rc-action="hold" data-rc-id="${item.id}">保留</button>
+          <button class="co-rc-btn" data-variant="reject" data-rc-action="reject" data-rc-id="${item.id}">却下</button>
+        </div>
+      </div>`;
+  }).join("");
+  return `
+    <section class="co-section" data-component="research-recommendations-card">
+      <div class="co-card">
+        <div class="co-aiadvice__head"><span class="co-aiadvice__avatar">${icon("sparkle")}</span><p class="co-aiadvice__title">今日おすすめの新ネタ</p></div>
+        ${rows}
+      </div>
+    </section>`;
+}
+function bindResearchRecommendationsEvents(container) { if (!container) return; bindResearchCandidateActions_(container, { onHandled: () => {} }); }
+
+function buildHomeSkeleton() {
+  const el = document.getElementById("home-skeleton");
+  el.innerHTML = `
+    ${renderHeader({ streakDays: 0 }).replace(/継続 0日/, "")}
+    <div class="co-section">
+      <div class="co-skel-card" style="height:150px;"></div>
+      <div class="co-skel-card" style="height:110px;"></div>
+      <div class="co-skel-card" style="height:70px;"></div>
+      <div class="co-skel-card" style="height:150px;"></div>
+    </div>`;
+}
+
+function bindMissionEvents(container, state) {
+  container.querySelectorAll(".co-mission").forEach(row => {
+    const checkEl = row.querySelector('[data-role="check"]');
+    checkEl.addEventListener("click", async () => {
+      const id = row.dataset.missionId;
+      const xp = Number(row.dataset.xp);
+      const willBeDone = !row.classList.contains("is-done");
+      row.classList.toggle("is-done", willBeDone);
+      if (willBeDone) popXp(checkEl, xp);
+      await Repository.setMissionDone(id, willBeDone);
+      const doneCount = container.querySelectorAll(".co-mission.is-done").length;
+      const total = container.querySelectorAll(".co-mission").length;
+      const linkEl = container.closest("section").querySelector(".co-section__link");
+      if (linkEl) linkEl.textContent = `${doneCount}/${total} 完了`;
+      if (willBeDone) showToast(`「${row.dataset.axis || ""}」が1件積み上がった。おつかれさま！`);
+    });
+  });
+}
+
+const QUICK_ACTION_URLS_ = { chatgpt: "https://chat.openai.com", claude: "https://claude.ai", project: "https://msyoou26-ops.github.io/awk-kanri-" };
+function bindQuickActionEvents(container) {
+  container.querySelectorAll(".co-qa").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.action;
+      if (key === "chatgpt" || key === "claude" || key === "project") { window.open(QUICK_ACTION_URLS_[key], "_blank"); return; }
+      if (key === "post") { openContentStockForm(); return; }
+      if (key === "voice") { showToast("音声メモは今後対応予定です。まずはメモで残しましょう"); openContentStockForm(); return; }
+      showToast("この機能はSprint2以降で実装予定です");
+    });
+  });
+}
+function bindKpiEvents(container) { container.querySelectorAll(".co-kpi").forEach(card => { card.addEventListener("click", () => showToast("詳細画面は準備中です")); }); }
+function bindHeaderEvents(container) {
+  const notifyBtn = container.querySelector("#btn-notify");
+  const settingsBtn = container.querySelector("#btn-settings");
+  if (notifyBtn) notifyBtn.addEventListener("click", () => showToast("通知センターは準備中です"));
+  if (settingsBtn) settingsBtn.addEventListener("click", () => showToast("設定画面は準備中です"));
+}
+function animateEntrance(container) {
+  const cards = container.querySelectorAll(".co-card, .co-section");
+  cards.forEach((el, i) => { el.style.animationDelay = `${Math.min(i * 45, 250)}ms`; });
+}
+
+async function renderHomeScreen() {
+  buildHomeSkeleton();
+  const skeletonEl = document.getElementById("home-skeleton");
+  const contentEl = document.getElementById("home-content");
+  const data = await Repository.getHomeData();
+  contentEl.innerHTML = [
+    renderStaleBanner(data), renderHeader(data), renderLevelBar(data.player), renderPhaseCard(data.phase),
+    renderAiAdviceCard(data.aiAdvice), renderAiEditorialDashboardCard(data.aiEditorial), renderResearchRecommendationsCard(data.researchRecommendations),
+    renderRecommendationsCard(data.recommendations), renderMissionCard(data.missions), renderBriefingCard(data.briefing),
+    renderQuickActions(), renderKpiCard(data.kpi), renderProjectCard(data.projects), renderSnsCard(data.sns), renderActivityCard(data.activity)
+  ].join("");
+  const briefingBg = document.getElementById("briefing-bg");
+  if (briefingBg) applyImageAsset(briefingBg, ASSETS.homeHeroBackground, null);
+  skeletonEl.style.display = "none";
+  contentEl.style.display = "block";
+  animateEntrance(contentEl);
+  bindHeaderEvents(contentEl);
+  bindLevelPhaseEvents(contentEl, data);
+  bindResearchRecommendationsEvents(contentEl.querySelector('[data-component="research-recommendations-card"]'));
+  bindRecommendationsEvents(contentEl.querySelector('[data-component="recommendations-card"]'));
+  bindMissionEvents(contentEl.querySelector('[data-component="mission-card"]'), data);
+  bindQuickActionEvents(contentEl.querySelector('[data-component="quick-actions"]'));
+  bindKpiEvents(contentEl.querySelector('[data-component="kpi-card"]'));
+  contentEl.querySelectorAll("[data-count-to]").forEach(el => { animateCountUp(el, Number(el.dataset.countTo)); });
+  requestAnimationFrame(() => { contentEl.querySelectorAll("[data-progress-to]").forEach(el => { el.style.width = `${el.dataset.progressTo}%`; }); });
+  if (data.yesterdaySummary) {
+    const shownKey = "ceoOS_v2_yesterday_summary_shown";
+    const today = todayISO();
+    if (sessionStorage.getItem(shownKey) !== today) {
+      const { doneCount, total } = data.yesterdaySummary;
+      setTimeout(() => showToast(`昨日は${doneCount}/${total}ミッション達成でした`), 500);
+      sessionStorage.setItem(shownKey, today);
+    }
+  }
+}
+
+const NAV_ITEMS = [
+  { key: "home",     label: "HOME",     icon: "home" },
+  { key: "ai",       label: "AI",       icon: "ai" },
+  { key: "projects", label: "Projects", icon: "projects" },
+  { key: "sns",      label: "SNS",      icon: "sns" },
+  { key: "menu",     label: "Menu",     icon: "menu" }
+];
+const SCREEN_RENDERERS = { ai: renderAiScreen, projects: renderProjectsScreen, sns: renderSnsScreen, menu: renderMenuScreen };
+
+function renderBottomNav() {
+  const nav = document.getElementById("bottom-nav");
+  nav.innerHTML = NAV_ITEMS.map(item => `<button class="co-navitem ${item.key === "home" ? "is-active" : ""}" data-nav="${item.key}">${icon(item.icon)}<span>${item.label}</span></button>`).join("");
+  nav.querySelectorAll(".co-navitem").forEach(btn => { btn.addEventListener("click", () => switchScreen(btn.dataset.nav)); });
+}
+
+function switchScreen(key) {
+  document.querySelectorAll(".co-navitem").forEach(b => b.classList.toggle("is-active", b.dataset.nav === key));
+  document.querySelectorAll(".co-screen").forEach(s => s.classList.toggle("is-active", s.dataset.screen === key));
+  if (key !== "home") {
+    const target = document.getElementById(`screen-${key}`);
+    if (!target.dataset.rendered) { target.dataset.rendered = "1"; SCREEN_RENDERERS[key](); }
+  }
+  window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  renderBottomNav();
+  renderHomeScreen();
+  const modalBackdrop = document.getElementById("modal-backdrop");
+  modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) closeModal(); });
+
+  /** 【Sprint16】AI編集部の＋ボタンから ?open=contentStock で戻ってきた時、自動でContent Stock一覧を開く */
+  const urlParams = new URLSearchParams(location.search);
+  if (urlParams.get("open") === "contentStock") {
+    openContentStockList();
+    history.replaceState(null, "", location.pathname);
+  }
+});
+</script>
+</body>
+</html>
