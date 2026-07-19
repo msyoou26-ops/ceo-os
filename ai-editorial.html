@@ -30,6 +30,7 @@
   button{ font-family:inherit; border:none; background:none; color:inherit; cursor:pointer; }
   .mono{ font-family:'Noto Sans Mono','SF Mono',monospace; }
 
+  /* ===== Top bar ===== */
   .topbar{
     position:sticky; top:0; z-index:10;
     background:linear-gradient(180deg, var(--bg-deep) 70%, rgba(13,20,32,0.85));
@@ -57,6 +58,7 @@
   }
   .newjob-btn:active{ background:rgba(255,140,66,0.28); }
 
+  /* ===== Stat chips ===== */
   .stats{
     display:flex; gap:10px; margin-top:16px;
     overflow-x:auto; padding-bottom:2px;
@@ -75,6 +77,7 @@
   .stat-chip.progress .num{ color:#7dd3fc; }
   .stat-chip.done .num{ color:var(--done); }
 
+  /* ===== Job list ===== */
   .list{ padding:16px 14px 100px; display:flex; flex-direction:column; gap:12px; }
 
   .job-card{
@@ -111,6 +114,7 @@
   .badge.approved{ background:var(--done-dim); color:var(--done); }
   .badge.published{ background:rgba(159,176,204,0.12); color:var(--text-2); }
 
+  /* current stage line */
   .stage-now{
     margin-top:10px; font-size:13px; color:var(--text-2);
     display:flex; align-items:center; gap:6px;
@@ -126,6 +130,7 @@
     100%{ box-shadow:0 0 0 0 rgba(255,140,66,0); }
   }
 
+  /* ===== signature: production-line tree (parallel-aware) ===== */
   .flow{ margin-top:12px; }
   .flow-row{ display:flex; gap:4px; margin-top:4px; }
   .flow-row:first-child{ margin-top:0; }
@@ -165,6 +170,7 @@
   }
   .progress-frac b{ color:var(--text-1); }
 
+  /* ===== empty state ===== */
   .empty{
     margin:60px 24px 0; text-align:center; color:var(--text-2);
   }
@@ -208,13 +214,75 @@
 <div class="list" id="jobList"></div>
 
 <script>
+// ============================================
+// ロール定義（依存関係のツリー構造そのまま）
+// ============================================
 const ROLE_ORDER = ['research','x','note','tiktok','image','quality','publish'];
 const ROLE_LABELS = {
   research:'リサーチ', x:'X', note:'note', tiktok:'TikTok',
   image:'画像', quality:'品質', publish:'投稿'
 };
+// 表示用ツリー構造：[ [単独], [並列3つ], [単独], [並列2つ] ]
 const FLOW_TIERS = [ ['research'], ['x','note','tiktok'], ['image'], ['quality','publish'] ];
 
+// ============================================
+// モックデータ（本番は google.script.run.getPipelineJobList() に差し替え）
+// ※ completedAt / approvedAt / publishedAt はバックエンド未実装。
+//   本番接続前に GAS 側へ以下3列の追加が必要：
+//   ・completedAt … 7工程すべて完了した瞬間の日時
+//   ・approvedAt  … 承認した日時
+//   ・publishedAt … 投稿済みにした日時
+// ============================================
+const MOCK_JOBS = [
+  {
+    jobId:'JOB-20260717-213703',
+    contentId:'TEST001',
+    title:'「完成してから公開」は一生完成しない',
+    createdAt:'2026-07-17T21:37:03',
+    researchStatus:'完了', xStatus:'実行中', noteStatus:'未実行',
+    tiktokStatus:'未実行', imageStatus:'待機中', qualityStatus:'待機中',
+    publishStatus:'待機中',
+    approvalStatus:'未承認',
+    completedAt:null, approvedAt:null, publishedAt:null
+  },
+  {
+    jobId:'JOB-20260717-100500',
+    contentId:'C0043',
+    title:'現場で覚えた「今できるベスト」を開発にも',
+    createdAt:'2026-07-17T10:05:00',
+    researchStatus:'完了', xStatus:'完了', noteStatus:'完了',
+    tiktokStatus:'完了', imageStatus:'完了', qualityStatus:'完了',
+    publishStatus:'完了',
+    approvalStatus:'未承認',
+    completedAt:'2026-07-17T11:40:00', approvedAt:null, publishedAt:null
+  },
+  {
+    jobId:'JOB-20260716-090211',
+    contentId:'C0042',
+    title:'現場のQC感覚をAI開発にそのまま活かす方法',
+    createdAt:'2026-07-16T09:02:11',
+    researchStatus:'完了', xStatus:'完了', noteStatus:'完了',
+    tiktokStatus:'完了', imageStatus:'完了', qualityStatus:'完了',
+    publishStatus:'完了',
+    approvalStatus:'承認済み',
+    completedAt:'2026-07-16T10:20:00', approvedAt:'2026-07-17T08:15:00', publishedAt:null
+  },
+  {
+    jobId:'JOB-20260715-153044',
+    contentId:'C0041',
+    title:'架装現場で学んだ「待たずに前へ進む」判断基準',
+    createdAt:'2026-07-15T15:30:44',
+    researchStatus:'完了', xStatus:'完了', noteStatus:'完了',
+    tiktokStatus:'完了', imageStatus:'完了', qualityStatus:'完了',
+    publishStatus:'完了',
+    approvalStatus:'投稿済み',
+    completedAt:'2026-07-15T17:00:00', approvedAt:'2026-07-15T18:00:00', publishedAt:'2026-07-17T07:30:00'
+  }
+];
+
+// ============================================
+// HTMLエスケープ（シート由来の文字列は必ずこれを通す）
+// ============================================
 function escapeHTML(str){
   if(str === null || str === undefined) return '';
   return String(str)
@@ -225,11 +293,14 @@ function escapeHTML(str){
     .replace(/'/g,'&#39;');
 }
 
+// ============================================
+// ステータス → CSSクラス
+// ============================================
 function statusClass(status){
   if(status === '完了') return 'done';
   if(status === '実行中') return 'inprogress';
   if(status === '未実行') return 'notstarted';
-  return 'waiting';
+  return 'waiting'; // 待機中
 }
 
 function isAllRolesDone(job){
@@ -241,11 +312,12 @@ function progressCount(job){
   return { done, total: ROLE_ORDER.length };
 }
 
+// ---- 修正1: 承認バッジを4状態に分離 ----
 function jobPhase(job){
   if(job.approvalStatus === '投稿済み') return 'published';
   if(job.approvalStatus === '承認済み') return 'approved';
-  if(isAllRolesDone(job)) return 'pending_approval';
-  return 'making';
+  if(isAllRolesDone(job)) return 'pending_approval'; // 7工程完了＋未承認
+  return 'making'; // 工程途中
 }
 
 function approvalBadge(job){
@@ -256,6 +328,7 @@ function approvalBadge(job){
   return '<span class="badge making">制作中</span>';
 }
 
+// ---- 修正3: 次工程・実行中を複数対応で表示 ----
 function stageStatusLine(job){
   const inProgress = ROLE_ORDER.filter(r => job[r+'Status'] === '実行中');
   const notStarted = ROLE_ORDER.filter(r => job[r+'Status'] === '未実行');
@@ -289,6 +362,7 @@ function formatRelativeTime(iso){
   return Math.floor(h/24) + '日前';
 }
 
+// ---- 修正2: 並列構造がわかるツリー表示 ----
 function renderFlow(job){
   return FLOW_TIERS.map(tier => {
     const segs = tier.map(r => `<div class="flow-seg ${statusClass(job[r+'Status'])}"></div>`).join('');
@@ -327,6 +401,7 @@ function renderJobCard(job){
   `;
 }
 
+// ---- 修正4: 完了系タイムスタンプで本日集計 ----
 function isToday(iso){
   if(!iso) return false;
   return new Date(iso).toDateString() === new Date().toDateString();
@@ -358,12 +433,12 @@ function renderList(jobs){
   listEl.innerHTML = jobs.map(renderJobCard).join('');
 }
 
+// ============================================
+// 修正6: 画面遷移
+// 実際のルーティングはCEO室OS側のSPAルーター/画面切替関数に差し替えること
+// ============================================
 function onNewJobClick(){
-  if(window.CEOOS && typeof window.CEOOS.navigateTo === 'function'){
-    window.CEOOS.navigateTo('contentStockSelect');
-    return;
-  }
-  console.log('[nav] Content Stock選択画面へ遷移（要:実装差し替え）');
+  location.href = 'index.html?open=contentStock';
 }
 
 function onJobCardClick(jobId){
@@ -375,11 +450,21 @@ function onJobCardClick(jobId){
 }
 document.getElementById('newJobBtn').addEventListener('click', onNewJobClick);
 
+// ============================================
+// データ取得（本番切替ポイント）
+// ============================================
+// ============================================
+// データ取得（本番接続）
+// GAS Web App（GASデプロイ済みURL）へ ?action=getPipelineJobList でfetchする。
+// レスポンスは { version, success, timestamp, data } の形で包まれているため
+// 実データは res.data から取り出す。
+// ============================================
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzNaCJQm2wS4DLeDSFLxLGtCsX7O79MAdy0YDnvbE2tLl51Yyl1DTf-rXxK2JXhpCuJiA/exec';
 
 function loadJobs(){
   const listEl = document.getElementById('jobList');
 
+  // 読み込み中表示
   document.getElementById('statApprove').textContent = '···';
   document.getElementById('statProgress').textContent = '···';
   document.getElementById('statDone').textContent = '···';
